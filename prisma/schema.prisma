@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Subscription {
+  STARTER
+  STANDARD
+  PREMIUM
+}
+
+enum Status {
+  IMPORTANT
+  REGULAR
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  password    String
+  role        Role         @default(USER)
+  subscription Subscription @default(STARTER)
+  profile     Profile?
+  ships       Ship[]
+  addressBook AddressBook[]
+  createdAt   DateTime     @default(now())
+}
+
+model Profile {
+  id       Int  @id @default(autoincrement())
+  fullName String
+  avatar   String?
+  user     User    @relation(fields: [userId], references: [id])
+  userId   String  @unique
+}
+
+model Ship {
+  id              String   @id @default(uuid())
+  shipName        String
+
+  shipType        ShipType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  typeId          String?
+
+  imo             String?  @unique
+  refitYear       Int?
+  buildYear       Int
+  price           Float
+  location        String
+  mainEngine      String
+  lengthOverall   String
+  beam            Float
+  length          Float
+  depth           Float
+  draft           Float
+  tonnage         Float
+  cargoCapacity   String
+  buildCountry    String
+  remarks         String?
+  description     String?
+  mainImage       String
+  images          String[]
+
+  user            User     @relation(fields: [userId], references: [id],onDelete: Cascade)
+  userId          String
+
+  isPublished     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+model ShipType {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String
+  ships       Ship[]
+}
+
+model AddressBook {
+  id              Int   @id @default(autoincrement())
+  fullName        String
+  email           String
+  phone_number    String
+  mobile_number   String
+  country         String
+  address_2       String
+  web_link        String?
+  linkedin_link   String?
+  facebook_link   String?
+  instagram_link  String?
+  tiktok_link     String?
+  proprity        Status   @default(REGULAR)
+  company         String
+  address         String
+  note            String?
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+}
+
+model AdminDashboard {
+  id              Int   @id @default(autoincrement())
+  totalUsers      Int      @default(0)
+  totalShips      Int      @default(0)
+} 
+

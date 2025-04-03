@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    container_name: fivet_api
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: "postgresql://fivetdev:fivetdev123@db:5432/fivetdb"
+      POST: 5000
+    volumes:
+      - .:/app
+    command: ["sh", "-c", "npx prisma migrate dev && npm run dev"]
+
+  db:
+    image: postgres:latest
+    container_name: fivet_postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: fivetdev
+      POSTGRES_PASSWORD: fivetdev123
+      POSTGRES_DB: fivetdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
