@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.getAllPublishedShips = exports.createShip = void 0;
 const client_1 = require("@prisma/client");
+const pagination_1 = require("../helpers/pagination");
 const prisma = new client_1.PrismaClient();
 /*
 CREATE SHIP
@@ -67,10 +68,7 @@ TO DO: add filters
 */
 const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { page, limit } = req.query;
-        const pageNumber = parseInt(page) || 1;
-        const pageSize = parseInt(limit) || 10;
-        const skip = (pageNumber - 1) * pageSize;
+        const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
         const ships = yield prisma.ship.findMany({
             skip,
             take: pageSize,
@@ -92,21 +90,53 @@ exports.getAllPublishedShips = getAllPublishedShips;
 /*
 GET ALL SHIPS
 Get all ships from admin published or not published. Users can see only their own ships
+TO DO: add filters
 */
 const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, role } = req.user;
+    const { shipType, status, search } = req.query;
+    const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
     try {
         let ships;
-        if (role === "ADMIN") {
-            ships = yield prisma.ship.findMany();
+        const whereCondition = {};
+        // Apply filters if provided
+        if (shipType) {
+            whereCondition.shipType = Array.isArray(shipType) ? { in: shipType } : shipType;
         }
-        else {
-            ships = yield prisma.ship.findMany({
-                where: { userId },
-            });
+        if (status) {
+            whereCondition.status;
         }
+        if (search) {
+            whereCondition.OR = [
+                {
+                    shipName: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    shipName: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+            ];
+        }
+        if (role !== "ADMIN") {
+            whereCondition.userId = userId;
+        }
+        const totalShipsType = (ships = yield prisma.ship.count());
+        ships = yield prisma.ship.findMany({
+            skip,
+            take: pageSize,
+            where: whereCondition,
+        });
         return res.status(200).json({
             message: "Ships fetched successfully.",
+            page: pageNumber,
+            limit: pageSize,
+            totalShipsType,
+            totalPages: Math.ceil(totalShipsType / pageSize),
             data: ships,
         });
     }

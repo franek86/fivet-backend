@@ -10,11 +10,15 @@ const middleware_1 = require("../middleware");
 const router = express_1.default.Router();
 // Create a rate limiter for login attempts
 const loginRateLimiter = (0, express_rate_limit_1.default)({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 1 * 60 * 1000, // 15 minutes
     max: 5, // Limit each IP to 5 requests per windowMs
-    message: "Too many login attempts, please try again later.",
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req, res) => {
+        return res.status(429).json({
+            message: "Too many login attempts. Please try again after 15 minutes.",
+        });
+    },
 });
 router.post("/register", authController_1.registerUser);
 router.post("/login", loginRateLimiter, authController_1.loginUser);

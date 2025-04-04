@@ -33,6 +33,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     });
     res.status(200).json({ message: "User registered successfully", user });
   } catch (error) {
+    console.log(error as Error);
     res.status(500).json({ error: (error as Error).message });
   }
 };
@@ -70,7 +71,7 @@ export const loginUser = async (req: Request, res: Response): Promise<any> => {
 export const userMe = async (req: Request, res: Response): Promise<any> => {
   const user = await prisma.user.findUnique({
     where: { id: req.user?.userId as string },
-    select: { id: true, email: true, profile: true },
+    select: { id: true, email: true, profile: true, role: true },
   });
 
   if (!user) return res.status(500).json({ message: "User not found" });

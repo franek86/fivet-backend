@@ -13,6 +13,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const authRoute_1 = __importDefault(require("./routes/authRoute"));
 const shipRoute_1 = __importDefault(require("./routes/shipRoute"));
 const shipTypeRoute_1 = __importDefault(require("./routes/shipTypeRoute"));
+const profileRoute_1 = __importDefault(require("./routes/profileRoute"));
 /* CONFIGURATION */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -29,7 +30,8 @@ app.get("/", (req, res) => {
 });
 app.use("/auth", authRoute_1.default);
 app.use("/ships", shipRoute_1.default);
-app.use("/ship-type", shipTypeRoute_1.default);
+app.use("/shipType", shipTypeRoute_1.default);
+app.use("/profile", profileRoute_1.default);
 /* SERVER */
-const port = Number(process.env.PORT);
+const port = Number(process.env.PORT) || 5000;
 app.listen(port, () => `Server running on port ${port}`);

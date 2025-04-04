@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { DeleteShipRequest } from "../types";
+import { getPaginationParams } from "../helpers/pagination";
 
 const prisma = new PrismaClient();
 
@@ -85,11 +86,7 @@ TO DO: add filters
 */
 export const getAllPublishedShips = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { page, limit } = req.query;
-
-    const pageNumber = parseInt(page as string) || 1;
-    const pageSize = parseInt(limit as string) || 10;
-    const skip = (pageNumber - 1) * pageSize;
+    const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
 
     const ships = await prisma.ship.findMany({
       skip,
@@ -113,23 +110,63 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
 /* 
 GET ALL SHIPS 
 Get all ships from admin published or not published. Users can see only their own ships 
+TO DO: add filters
 */
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
   const { userId, role } = req.user as CustomJwtPayload;
 
+  const { shipType, status, search } = req.query;
+  const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+
   try {
     let ships;
 
-    if (role === "ADMIN") {
-      ships = await prisma.ship.findMany();
-    } else {
-      ships = await prisma.ship.findMany({
-        where: { userId },
-      });
+    const whereCondition: any = {};
+
+    // Apply filters if provided
+    if (shipType) {
+      whereCondition.shipType = Array.isArray(shipType) ? { in: shipType } : shipType;
     }
+
+    if (status) {
+      whereCondition.status;
+    }
+
+    if (search) {
+      whereCondition.OR = [
+        {
+          shipName: {
+            contains: search as string,
+            mode: "insensitive",
+          },
+        },
+
+        {
+          shipName: {
+            contains: search as string,
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
+
+    if (role !== "ADMIN") {
+      whereCondition.userId = userId;
+    }
+
+    const totalShipsType = (ships = await prisma.ship.count());
+    ships = await prisma.ship.findMany({
+      skip,
+      take: pageSize,
+      where: whereCondition,
+    });
 
     return res.status(200).json({
       message: "Ships fetched successfully.",
+      page: pageNumber,
+      limit: pageSize,
+      totalShipsType,
+      totalPages: Math.ceil(totalShipsType / pageSize),
       data: ships,
     });
   } catch (error) {
@@ -215,7 +252,7 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
 DELETE SHIP BY ID 
 Admin can delete all ship, but users can only delete their own ships
 */
-export const deleteShip = async (req: DeleteShipRequest, res: Response): Promise<any> => {
+export const deleteShip = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
 
   try {

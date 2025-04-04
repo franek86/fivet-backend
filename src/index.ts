@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import authRoute from "./routes/authRoute";
 import shipRoute from "./routes/shipRoute";
 import shipTypeRoute from "./routes/shipTypeRoute";
+import profileRouter from "./routes/profileRoute";
 
 /* CONFIGURATION */
 dotenv.config();
@@ -28,9 +29,10 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRoute);
 app.use("/ships", shipRoute);
-app.use("/ship-type", shipTypeRoute);
+app.use("/shipType", shipTypeRoute);
+app.use("/profile", profileRouter);
 
 /* SERVER */
-const port = Number(process.env.PORT);
+const port = Number(process.env.PORT) || 5000;
 
 app.listen(port, () => `Server running on port ${port}`);

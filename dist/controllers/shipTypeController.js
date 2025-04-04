@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
 const client_1 = require("@prisma/client");
+const pagination_1 = require("../helpers/pagination");
 const prisma = new client_1.PrismaClient();
 /* CREATE SHIP TYPE BY ADMIN
   Only admin can create ship type
@@ -30,6 +31,7 @@ const createShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
         });
     }
     catch (error) {
+        console.log(error.message);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
@@ -82,5 +84,25 @@ exports.deleteShipType = deleteShipType;
 /* GET ALL SHIP TYPE
   Public route
 */
-const getShipType = () => __awaiter(void 0, void 0, void 0, function* () { });
+const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
+    try {
+        const shipType = yield prisma.shipType.findMany({
+            skip,
+            take: pageSize,
+            orderBy: { createdAt: "desc" },
+        });
+        const totalShipsType = yield prisma.shipType.count();
+        return res.status(200).json({
+            page: pageNumber,
+            limit: pageSize,
+            totalShipsType,
+            totalPages: Math.ceil(totalShipsType / pageSize),
+            data: shipType,
+        });
+    }
+    catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
 exports.getShipType = getShipType;

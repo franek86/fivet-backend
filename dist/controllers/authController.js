@@ -42,6 +42,7 @@ const registerUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         res.status(200).json({ message: "User registered successfully", user });
     }
     catch (error) {
+        console.log(error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -79,7 +80,7 @@ const userMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const user = yield prisma.user.findUnique({
         where: { id: (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId },
-        select: { id: true, email: true, profile: true },
+        select: { id: true, email: true, profile: true, role: true },
     });
     if (!user)
         return res.status(500).json({ message: "User not found" });

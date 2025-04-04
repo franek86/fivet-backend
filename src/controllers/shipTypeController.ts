@@ -5,6 +5,7 @@ Verify Admin with authAdmin middleware in route
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { CreateShipTypeRequest, DeleteShipTypeRequest, UpdateShipTypeRequest } from "../types";
+import { getPaginationParams } from "../helpers/pagination";
 
 const prisma = new PrismaClient();
 
@@ -28,6 +29,7 @@ export const createShipType = async (req: CreateShipTypeRequest, res: Response):
       data: createNewData,
     });
   } catch (error) {
+    console.log((error as Error).message);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -83,4 +85,26 @@ export const deleteShipType = async (req: DeleteShipTypeRequest, res: Response):
 /* GET ALL SHIP TYPE
   Public route
 */
-export const getShipType = async () => {};
+export const getShipType = async (req: Request, res: Response): Promise<any> => {
+  const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+
+  try {
+    const shipType = await prisma.shipType.findMany({
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: "desc" },
+    });
+
+    const totalShipsType = await prisma.shipType.count();
+
+    return res.status(200).json({
+      page: pageNumber,
+      limit: pageSize,
+      totalShipsType,
+      totalPages: Math.ceil(totalShipsType / pageSize),
+      data: shipType,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

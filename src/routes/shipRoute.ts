@@ -6,8 +6,8 @@ import { authenticateUser } from "../middleware";
 const router = express.Router();
 
 router.post("/create", authenticateUser, createShip);
-router.get("/", getAllPublishedShips);
-router.get("/all", authenticateUser, getDashboardShips);
+router.get("/published", getAllPublishedShips);
+router.get("/", authenticateUser, getDashboardShips);
 router.patch("/:id", authenticateUser, updateShip);
 router.delete("/:id", authenticateUser, deleteShip);
 export default router;

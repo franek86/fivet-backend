@@ -89,6 +89,7 @@ model ShipType {
   name        String @unique
   description String
   ships       Ship[]
+  createdAt DateTime @default(now())
 }
 
 model AddressBook {
