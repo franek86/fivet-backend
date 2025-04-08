@@ -56,7 +56,6 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         });
     }
     catch (error) {
-        console.error("Error creating ship:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });

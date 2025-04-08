@@ -74,7 +74,6 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       data: shipData,
     });
   } catch (error) {
-    console.error("Error creating ship:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

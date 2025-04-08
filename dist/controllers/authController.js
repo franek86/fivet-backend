@@ -17,8 +17,8 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const client_1 = require("@prisma/client");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma = new client_1.PrismaClient();
-const ACCESS_EXPIRES_IN = 60;
-const REFRESH_EXPIRES_IN = 60 * 2;
+const ACCESS_EXPIRES_IN = 60 * 5;
+const REFRESH_EXPIRES_IN = 60 * 15;
 const generateAccessToken = (userId, role) => {
     return jsonwebtoken_1.default.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: ACCESS_EXPIRES_IN });
 };
@@ -80,11 +80,28 @@ const userMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const user = yield prisma.user.findUnique({
         where: { id: (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId },
-        select: { id: true, email: true, profile: true, role: true },
+        select: {
+            id: true,
+            email: true,
+            role: true,
+            profile: {
+                select: {
+                    id: true,
+                    fullName: true,
+                    avatar: true,
+                    userId: true,
+                },
+            },
+        },
     });
-    if (!user)
+    if (!user || !user.profile)
         return res.status(500).json({ message: "User not found" });
-    res.json({ user });
+    const result = {
+        id: user.id,
+        role: user.role,
+        profile: Object.assign(Object.assign({}, user.profile), { email: user.email }),
+    };
+    res.json(result);
 });
 exports.userMe = userMe;
 /* REFRESH TOKEN */

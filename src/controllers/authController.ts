@@ -4,8 +4,8 @@ import { PrismaClient } from "@prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
 const prisma = new PrismaClient();
-const ACCESS_EXPIRES_IN = 60;
-const REFRESH_EXPIRES_IN = 60 * 2;
+const ACCESS_EXPIRES_IN = 60 * 5;
+const REFRESH_EXPIRES_IN = 60 * 15;
 
 const generateAccessToken = (userId: string, role: string) => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: ACCESS_EXPIRES_IN });
@@ -71,12 +71,32 @@ export const loginUser = async (req: Request, res: Response): Promise<any> => {
 export const userMe = async (req: Request, res: Response): Promise<any> => {
   const user = await prisma.user.findUnique({
     where: { id: req.user?.userId as string },
-    select: { id: true, email: true, profile: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      profile: {
+        select: {
+          id: true,
+          fullName: true,
+          avatar: true,
+          userId: true,
+        },
+      },
+    },
   });
 
-  if (!user) return res.status(500).json({ message: "User not found" });
+  if (!user || !user.profile) return res.status(500).json({ message: "User not found" });
+  const result = {
+    id: user.id,
+    role: user.role,
+    profile: {
+      ...user.profile,
+      email: user.email,
+    },
+  };
 
-  res.json({ user });
+  res.json(result);
 };
 
 /* REFRESH TOKEN */
