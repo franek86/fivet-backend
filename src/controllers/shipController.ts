@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { DeleteShipRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
+import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 
 const prisma = new PrismaClient();
 
@@ -29,13 +30,26 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
     buildCountry,
     remarks,
     description,
-    mainImage,
-    images,
     userId,
     typeId,
   } = req.body;
 
+  const files = req.files as {
+    [fieldname: string]: Express.Multer.File[];
+  };
+  let mainImageUrl: string = "";
+  let imagesUrls: string[] = [];
+
   try {
+    if (files?.["mainImage"]?.[0]?.path) {
+      mainImageUrl = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
+    }
+    if (files?.["images"]) {
+      imagesUrls = await uploadMultipleFiles(files["images"], "ship/images");
+    }
+
+    console.log(mainImageUrl);
+
     const shipData = await prisma.ship.create({
       data: {
         shipName,
@@ -55,8 +69,8 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
         buildCountry,
         remarks,
         description,
-        mainImage,
-        images,
+        mainImage: mainImageUrl,
+        images: imagesUrls,
         isPublished: false,
 
         user: {
@@ -74,6 +88,7 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       data: shipData,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

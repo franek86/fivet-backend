@@ -58,9 +58,9 @@ model Ship {
   shipType        ShipType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
   typeId          String?
 
-  imo             String?  @unique
+  imo             String  @unique
   refitYear       Int?
-  buildYear       Int
+  buildYear       Int?
   price           Float
   location        String
   mainEngine      String

@@ -12,14 +12,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.getAllPublishedShips = exports.createShip = void 0;
 const client_1 = require("@prisma/client");
 const pagination_1 = require("../helpers/pagination");
+const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const prisma = new client_1.PrismaClient();
 /*
 CREATE SHIP
 Authenticate user can create ship
 */
 const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { shipName, imo, refitYear, buildYear, price, location, mainEngine, lengthOverall, beam, length, depth, draft, tonnage, cargoCapacity, buildCountry, remarks, description, mainImage, images, userId, typeId, } = req.body;
+    var _a, _b;
+    const { shipName, imo, refitYear, buildYear, price, location, mainEngine, lengthOverall, beam, length, depth, draft, tonnage, cargoCapacity, buildCountry, remarks, description, userId, typeId, } = req.body;
+    const files = req.files;
+    let mainImageUrl = "";
+    let imagesUrls = [];
     try {
+        if ((_b = (_a = files === null || files === void 0 ? void 0 : files["mainImage"]) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.path) {
+            mainImageUrl = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
+        }
+        if (files === null || files === void 0 ? void 0 : files["images"]) {
+            imagesUrls = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
+        }
         const shipData = yield prisma.ship.create({
             data: {
                 shipName,
@@ -39,8 +50,8 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 buildCountry,
                 remarks,
                 description,
-                mainImage,
-                images,
+                mainImage: mainImageUrl,
+                images: imagesUrls,
                 isPublished: false,
                 user: {
                     connect: { id: userId },
@@ -56,6 +67,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         });
     }
     catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
