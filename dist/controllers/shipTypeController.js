@@ -9,9 +9,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
+exports.getAllShipType = exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
 const client_1 = require("@prisma/client");
 const pagination_1 = require("../helpers/pagination");
+const parseSortBy_1 = require("../helpers/parseSortBy");
 const prisma = new client_1.PrismaClient();
 /* CREATE SHIP TYPE BY ADMIN
   Only admin can create ship type
@@ -42,7 +43,7 @@ exports.createShipType = createShipType;
 const updateShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     if (!id)
-        return res.status(400).json({ message: "Shipt type id could not found" });
+        return res.status(400).json({ message: "Ship type id could not found" });
     const { name, description } = req.body;
     try {
         const shipType = yield prisma.shipType.findUnique({ where: { id } });
@@ -81,16 +82,18 @@ const deleteShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.deleteShipType = deleteShipType;
-/* GET ALL SHIP TYPE
+/* GET SHIP TYPE WITH PAGINATION AND SORT
   Public route
 */
 const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
+    const { sortBy } = req.query;
+    const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["name", "createdAt"], { createdAt: "desc" });
     try {
         const shipType = yield prisma.shipType.findMany({
             skip,
             take: pageSize,
-            orderBy: { createdAt: "desc" },
+            orderBy,
         });
         const totalShipsType = yield prisma.shipType.count();
         return res.status(200).json({
@@ -102,7 +105,23 @@ const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         });
     }
     catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getShipType = getShipType;
+/* GET ALL SHIP TYPE
+  Public route
+*/
+const getAllShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const shipType = yield prisma.shipType.findMany({
+            orderBy: { name: "desc" },
+        });
+        return res.status(200).json(shipType);
+    }
+    catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.getAllShipType = getAllShipType;

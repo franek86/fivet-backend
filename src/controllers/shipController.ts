@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { DeleteShipRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
 import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
+import { shipSchema } from "../schemas/shipSchema";
 
 const prisma = new PrismaClient();
 
@@ -12,27 +13,7 @@ CREATE SHIP
 Authenticate user can create ship
 */
 export const createShip = async (req: Request, res: Response): Promise<any> => {
-  const {
-    shipName,
-    imo,
-    refitYear,
-    buildYear,
-    price,
-    location,
-    mainEngine,
-    lengthOverall,
-    beam,
-    length,
-    depth,
-    draft,
-    tonnage,
-    cargoCapacity,
-    buildCountry,
-    remarks,
-    description,
-    userId,
-    typeId,
-  } = req.body;
+  const body = shipSchema.parse(req.body);
 
   const files = req.files as {
     [fieldname: string]: Express.Multer.File[];
@@ -48,44 +29,16 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       imagesUrls = await uploadMultipleFiles(files["images"], "ship/images");
     }
 
-    console.log(mainImageUrl);
-
-    const shipData = await prisma.ship.create({
-      data: {
-        shipName,
-        imo,
-        refitYear,
-        buildYear,
-        price,
-        location,
-        mainEngine,
-        lengthOverall,
-        beam,
-        length,
-        depth,
-        draft,
-        tonnage,
-        cargoCapacity,
-        buildCountry,
-        remarks,
-        description,
-        mainImage: mainImageUrl,
-        images: imagesUrls,
-        isPublished: false,
-
-        user: {
-          connect: { id: userId },
-        },
-
-        shipType: {
-          connect: { id: typeId },
-        },
-      },
-    });
-
+    const shipData: Prisma.ShipUncheckedCreateInput = {
+      ...body,
+      mainImage: mainImageUrl,
+      images: imagesUrls,
+      isPublished: false,
+    };
+    const createdShip = await prisma.ship.create({ data: shipData });
     return res.status(200).json({
       message: "Ship added successfully! Awaiting admin approval.",
-      data: shipData,
+      data: createdShip,
     });
   } catch (error) {
     console.log(error);
@@ -173,6 +126,22 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       skip,
       take: pageSize,
       where: whereCondition,
+      include: {
+        user: {
+          select: {
+            profile: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+        },
+        shipType: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
     return res.status(200).json({
@@ -266,7 +235,7 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
 DELETE SHIP BY ID 
 Admin can delete all ship, but users can only delete their own ships
 */
-export const deleteShip = async (req: Request, res: Response): Promise<any> => {
+export const deleteShip = async (req: DeleteShipRequest, res: Response): Promise<any> => {
   const { id } = req.params;
 
   try {

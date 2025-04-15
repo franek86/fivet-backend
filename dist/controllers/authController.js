@@ -17,8 +17,8 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const client_1 = require("@prisma/client");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma = new client_1.PrismaClient();
-const ACCESS_EXPIRES_IN = 60 * 5;
-const REFRESH_EXPIRES_IN = 60 * 15;
+const ACCESS_EXPIRES_IN = 60 * 15;
+const REFRESH_EXPIRES_IN = 60 * 60 * 5;
 const generateAccessToken = (userId, role) => {
     return jsonwebtoken_1.default.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: ACCESS_EXPIRES_IN });
 };

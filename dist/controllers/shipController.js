@@ -13,6 +13,7 @@ exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboard
 const client_1 = require("@prisma/client");
 const pagination_1 = require("../helpers/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
+const shipSchema_1 = require("../schemas/shipSchema");
 const prisma = new client_1.PrismaClient();
 /*
 CREATE SHIP
@@ -20,7 +21,7 @@ Authenticate user can create ship
 */
 const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
-    const { shipName, imo, refitYear, buildYear, price, location, mainEngine, lengthOverall, beam, length, depth, draft, tonnage, cargoCapacity, buildCountry, remarks, description, userId, typeId, } = req.body;
+    const body = shipSchema_1.shipSchema.parse(req.body);
     const files = req.files;
     let mainImageUrl = "";
     let imagesUrls = [];
@@ -31,39 +32,11 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         if (files === null || files === void 0 ? void 0 : files["images"]) {
             imagesUrls = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
         }
-        const shipData = yield prisma.ship.create({
-            data: {
-                shipName,
-                imo,
-                refitYear,
-                buildYear,
-                price,
-                location,
-                mainEngine,
-                lengthOverall,
-                beam,
-                length,
-                depth,
-                draft,
-                tonnage,
-                cargoCapacity,
-                buildCountry,
-                remarks,
-                description,
-                mainImage: mainImageUrl,
-                images: imagesUrls,
-                isPublished: false,
-                user: {
-                    connect: { id: userId },
-                },
-                shipType: {
-                    connect: { id: typeId },
-                },
-            },
-        });
+        const shipData = Object.assign(Object.assign({}, body), { mainImage: mainImageUrl, images: imagesUrls, isPublished: false });
+        const createdShip = yield prisma.ship.create({ data: shipData });
         return res.status(200).json({
             message: "Ship added successfully! Awaiting admin approval.",
-            data: shipData,
+            data: createdShip,
         });
     }
     catch (error) {
@@ -141,6 +114,22 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
             skip,
             take: pageSize,
             where: whereCondition,
+            include: {
+                user: {
+                    select: {
+                        profile: {
+                            select: {
+                                fullName: true,
+                            },
+                        },
+                    },
+                },
+                shipType: {
+                    select: {
+                        name: true,
+                    },
+                },
+            },
         });
         return res.status(200).json({
             message: "Ships fetched successfully.",

@@ -6,6 +6,7 @@ import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { CreateShipTypeRequest, DeleteShipTypeRequest, UpdateShipTypeRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
+import { parseSortBy } from "../helpers/parseSortBy";
 
 const prisma = new PrismaClient();
 
@@ -40,7 +41,7 @@ export const createShipType = async (req: CreateShipTypeRequest, res: Response):
 export const updateShipType = async (req: UpdateShipTypeRequest, res: Response): Promise<any> => {
   const { id } = req.params;
 
-  if (!id) return res.status(400).json({ message: "Shipt type id could not found" });
+  if (!id) return res.status(400).json({ message: "Ship type id could not found" });
 
   const { name, description } = req.body;
 
@@ -82,17 +83,20 @@ export const deleteShipType = async (req: DeleteShipTypeRequest, res: Response):
   }
 };
 
-/* GET ALL SHIP TYPE
+/* GET SHIP TYPE WITH PAGINATION AND SORT
   Public route
 */
 export const getShipType = async (req: Request, res: Response): Promise<any> => {
   const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+  const { sortBy } = req.query;
+
+  const orderBy = parseSortBy(sortBy as string, ["name", "createdAt"], { createdAt: "desc" });
 
   try {
     const shipType = await prisma.shipType.findMany({
       skip,
       take: pageSize,
-      orderBy: { createdAt: "desc" },
+      orderBy,
     });
 
     const totalShipsType = await prisma.shipType.count();
@@ -104,6 +108,21 @@ export const getShipType = async (req: Request, res: Response): Promise<any> => 
       totalPages: Math.ceil(totalShipsType / pageSize),
       data: shipType,
     });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* GET ALL SHIP TYPE
+  Public route
+*/
+export const getAllShipType = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const shipType = await prisma.shipType.findMany({
+      orderBy: { name: "desc" },
+    });
+    return res.status(200).json(shipType);
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
   }

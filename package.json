@@ -14,7 +14,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^6.5.0",
+    "@prisma/client": "^6.6.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cloudinary": "^1.41.3",
@@ -28,7 +28,8 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "rimraf": "^6.0.1"
+    "rimraf": "^6.0.1",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -41,7 +42,7 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.13.14",
     "nodemon": "^3.1.9",
-    "prisma": "^6.5.0",
+    "prisma": "^6.6.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }

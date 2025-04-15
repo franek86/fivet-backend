@@ -4,8 +4,8 @@ import { PrismaClient } from "@prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
 const prisma = new PrismaClient();
-const ACCESS_EXPIRES_IN = 60 * 5;
-const REFRESH_EXPIRES_IN = 60 * 15;
+const ACCESS_EXPIRES_IN = 60 * 15;
+const REFRESH_EXPIRES_IN = 60 * 60 * 5;
 
 const generateAccessToken = (userId: string, role: string) => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: ACCESS_EXPIRES_IN });

@@ -101,7 +101,6 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 fs_1.default.unlinkSync(req.file.path);
             }
         }
-        console.log(avatarUrl);
         const [updateProfile, updateUser] = yield prisma.$transaction([
             prisma.profile.update({
                 where: { userId },

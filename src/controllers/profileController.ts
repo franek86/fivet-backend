@@ -92,7 +92,6 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
         fs.unlinkSync(req.file.path);
       }
     }
-    console.log(avatarUrl);
 
     const [updateProfile, updateUser] = await prisma.$transaction([
       prisma.profile.update({
