@@ -153,12 +153,27 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       data: ships,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({ message: "Error fetching dashboard data." });
   }
 };
 
 /* GET SINGLE SHIP BY ID */
-export const getShip = async (req: Request, res: Response): Promise<any> => {};
+export const getShip = async (req: Request, res: Response): Promise<any> => {
+  const { id } = req.params;
+  if (!id) return res.status(404).json({ message: "Ship id are not found!" });
+  try {
+    const ship = await prisma.ship.findUnique({ where: { id } });
+
+    if (!ship) {
+      return res.status(404).json({ message: "Ship not found" });
+    }
+
+    return res.status(200).json(ship);
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 /* 
 UPDATE SHIPS BY ID 

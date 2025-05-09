@@ -10,6 +10,7 @@ import authRoute from "./routes/authRoute";
 import shipRoute from "./routes/shipRoute";
 import shipTypeRoute from "./routes/shipTypeRoute";
 import profileRouter from "./routes/profileRoute";
+import addressBookRoute from "./routes/addressBookRoute";
 
 /* CONFIGURATION */
 dotenv.config();
@@ -36,6 +37,7 @@ app.use("/auth", authRoute);
 app.use("/ships", shipRoute);
 app.use("/shipType", shipTypeRoute);
 app.use("/profile", profileRouter);
+app.use("/address-book", addressBookRoute);
 
 /* SERVER */
 const port = Number(process.env.PORT) || 5000;

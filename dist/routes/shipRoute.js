@@ -11,6 +11,7 @@ const router = express_1.default.Router();
 router.post("/create", middleware_1.authenticateUser, uploads_1.default.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), shipController_1.createShip);
 router.get("/published", shipController_1.getAllPublishedShips);
 router.get("/", middleware_1.authenticateUser, shipController_1.getDashboardShips);
-router.patch("/:id", middleware_1.authenticateUser, shipController_1.updateShip);
+router.get("/:id", shipController_1.getShip);
+router.patch("/:id", middleware_1.authenticateUser, uploads_1.default.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), shipController_1.updateShip);
 router.delete("/:id", middleware_1.authenticateUser, shipController_1.deleteShip);
 exports.default = router;

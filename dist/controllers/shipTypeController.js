@@ -32,7 +32,6 @@ const createShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
         });
     }
     catch (error) {
-        console.log(error.message);
         return res.status(500).json({ message: "Internal server error" });
     }
 });

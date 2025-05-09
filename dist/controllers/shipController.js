@@ -141,12 +141,27 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
         });
     }
     catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Error fetching dashboard data." });
     }
 });
 exports.getDashboardShips = getDashboardShips;
 /* GET SINGLE SHIP BY ID */
-const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () { });
+const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    if (!id)
+        return res.status(404).json({ message: "Ship id are not found!" });
+    try {
+        const ship = yield prisma.ship.findUnique({ where: { id } });
+        if (!ship) {
+            return res.status(404).json({ message: "Ship not found" });
+        }
+        return res.status(200).json(ship);
+    }
+    catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
 exports.getShip = getShip;
 /*
 UPDATE SHIPS BY ID

@@ -30,7 +30,6 @@ export const createShipType = async (req: CreateShipTypeRequest, res: Response):
       data: createNewData,
     });
   } catch (error) {
-    console.log((error as Error).message);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
