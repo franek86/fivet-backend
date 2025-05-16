@@ -97,18 +97,18 @@ model AddressBook {
   id              Int   @id @default(autoincrement())
   fullName        String
   email           String
-  phone_number    String
-  mobile_number   String
-  country         String
-  address_2       String
+  phone_number    String?
+  mobile_number   String?
+  country         String?
+  address_2       String?
   web_link        String?
   linkedin_link   String?
   facebook_link   String?
   instagram_link  String?
   tiktok_link     String?
   priority        Status   @default(REGULAR)
-  company         String
-  address         String
+  company         String?
+  address         String?
   note            String?
   user            User     @relation(fields: [userId], references: [id])
   userId          String

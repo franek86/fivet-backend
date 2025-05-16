@@ -8,4 +8,5 @@ const addressBookController_1 = require("../controllers/addressBookController");
 const middleware_1 = require("../middleware");
 const router = express_1.default.Router();
 router.get("/", middleware_1.authenticateUser, addressBookController_1.getAddressBook);
+router.post("/create", middleware_1.authenticateUser, addressBookController_1.createAddressBook);
 exports.default = router;

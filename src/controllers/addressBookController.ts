@@ -22,6 +22,7 @@ export const getAddressBook = async (req: Request, res: Response): Promise<any> 
 /* CREATE ADDRESS BOOK ONLY USER */
 export const createAddressBook = async (req: Request, res: Response): Promise<any> => {
   const { userId } = req.user as CustomJwtPayload;
+
   const body = addressBookSchema.parse(req.body);
   try {
     const addressBookData: Prisma.AddressBookUncheckedCreateInput = {
