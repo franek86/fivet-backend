@@ -1,6 +1,6 @@
 import express, { Response } from "express";
 import rateLimit from "express-rate-limit";
-import { loginUser, logout, refreshToken, registerUser, userMe } from "../controllers/authController";
+import { loginUser, logout, refreshToken, registerUser, userMe, resetUserPassword } from "../controllers/authController";
 import { authenticateUser } from "../middleware";
 
 const router = express.Router();
@@ -23,5 +23,6 @@ router.post("/login", loginRateLimiter, loginUser);
 router.get("/me", authenticateUser, userMe);
 router.post("/refresh-token", authenticateUser, refreshToken);
 router.post("/logout", logout);
+router.post("/reset-password", resetUserPassword);
 
 export default router;

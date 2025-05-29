@@ -1,7 +1,8 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { NotFoundError, ValidationError } from "../helpers/errorHandler";
 
 const prisma = new PrismaClient();
 const ACCESS_EXPIRES_IN = 60 * 15;
@@ -128,4 +129,32 @@ export const logout = async (req: Request, res: Response) => {
   res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });
 
   res.json({ message: "Logged out successfully" });
+};
+
+/* RESET USER PASSWORD */
+export const resetUserPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) return next(new ValidationError("Email and passwords are required!"));
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return next(new NotFoundError("User not found"));
+
+    //compare new password with the existing one
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) return next(new ValidationError("Password cannot be same"));
+
+    //hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { email },
+      data: { password: hashPassword },
+    });
+
+    res.status(200).json({ message: "Password reset successfully!" });
+  } catch (error) {
+    next(error);
+  }
 };

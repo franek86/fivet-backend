@@ -12,10 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.refreshToken = exports.userMe = exports.loginUser = exports.registerUser = void 0;
+exports.resetUserPassword = exports.logout = exports.refreshToken = exports.userMe = exports.loginUser = exports.registerUser = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const client_1 = require("@prisma/client");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const errorHandler_1 = require("../helpers/errorHandler");
 const prisma = new client_1.PrismaClient();
 const ACCESS_EXPIRES_IN = 60 * 15;
 const REFRESH_EXPIRES_IN = 60 * 60 * 5;
@@ -133,3 +134,30 @@ const logout = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     res.json({ message: "Logged out successfully" });
 });
 exports.logout = logout;
+/* RESET USER PASSWORD */
+const resetUserPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { email, newPassword } = req.body;
+        if (!email || !newPassword)
+            return next(new errorHandler_1.ValidationError("Email and passwords are required!"));
+        const user = yield prisma.user.findUnique({ where: { email } });
+        if (!user)
+            return next(new errorHandler_1.NotFoundError("User not found"));
+        //compare new password with the existing one
+        const isSamePassword = yield bcryptjs_1.default.compare(newPassword, user.password);
+        if (isSamePassword)
+            return next(new errorHandler_1.ValidationError("Password cannot be same"));
+        //hash new password
+        const salt = yield bcryptjs_1.default.genSalt(10);
+        const hashPassword = yield bcryptjs_1.default.hash(newPassword, salt);
+        yield prisma.user.update({
+            where: { email },
+            data: { password: hashPassword },
+        });
+        res.status(200).json({ message: "Password reset successfully!" });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.resetUserPassword = resetUserPassword;

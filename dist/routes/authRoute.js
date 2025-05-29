@@ -25,4 +25,5 @@ router.post("/login", loginRateLimiter, authController_1.loginUser);
 router.get("/me", middleware_1.authenticateUser, authController_1.userMe);
 router.post("/refresh-token", middleware_1.authenticateUser, authController_1.refreshToken);
 router.post("/logout", authController_1.logout);
+router.post("/reset-password", authController_1.resetUserPassword);
 exports.default = router;

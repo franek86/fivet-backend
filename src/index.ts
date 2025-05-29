@@ -11,6 +11,7 @@ import shipRoute from "./routes/shipRoute";
 import shipTypeRoute from "./routes/shipTypeRoute";
 import profileRouter from "./routes/profileRoute";
 import addressBookRoute from "./routes/addressBookRoute";
+import { errorMiddleware } from "./middleware";
 
 /* CONFIGURATION */
 dotenv.config();
@@ -38,6 +39,8 @@ app.use("/ships", shipRoute);
 app.use("/shipType", shipTypeRoute);
 app.use("/profile", profileRouter);
 app.use("/address-book", addressBookRoute);
+
+app.use(errorMiddleware);
 
 /* SERVER */
 const port = Number(process.env.PORT) || 5000;
