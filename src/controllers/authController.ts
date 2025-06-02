@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { NotFoundError, ValidationError } from "../helpers/errorHandler";
+import { checkOtpRestrictions, sendOtp, trackOtpRequest } from "../helpers/auth.helper";
 
 const prisma = new PrismaClient();
 const ACCESS_EXPIRES_IN = 60 * 15;
@@ -17,25 +18,35 @@ const generateRefreshToken = (userId: string) => {
 };
 
 /*  REGISTER USER */
-export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  const { email, password, fullName } = req.body;
+export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   try {
+    const { email, password, fullName } = req.body;
+    if (!emailRegex.test(email)) {
+      return new ValidationError("Invalid email format!");
+    }
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) return next(new ValidationError("User already exists with this email"));
+
+    await checkOtpRestrictions(email, next);
+    await trackOtpRequest(email, next);
+    await sendOtp(fullName, email, "user-activation-email");
+
     //Hash password
-    const salt = await bcrypt.genSalt(10);
+    /*const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const user = await prisma.user.create({
+       await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         profile: { create: { fullName } },
       },
-    });
-    res.status(200).json({ message: "User registered successfully", user });
+    }); */
+    res.status(200).json({ message: "OTP send to email. Please verify your account" });
   } catch (error) {
-    console.log(error as Error);
-    res.status(500).json({ error: (error as Error).message });
+    return next(error);
   }
 };
 
