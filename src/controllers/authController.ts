@@ -21,7 +21,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   try {
-    const { email, fullName } = req.body;
+    const { email, password, fullName } = req.body;
 
     if (!emailRegex.test(email)) {
       return new ValidationError("Invalid email format!");
@@ -59,6 +59,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       data: {
         email,
         password: hashedPassword,
+        fullName,
         profile: { create: { fullName } },
       },
     });
@@ -208,7 +209,7 @@ export const resetUserPassword = async (req: Request, res: Response, next: NextF
 
     //compare new password with the existing one
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
-    if (isSamePassword) return next(new ValidationError("Password cannot be same"));
+    if (isSamePassword) return next(new ValidationError("Password can not be the same as old password"));
 
     //hash new password
     const salt = await bcrypt.genSalt(10);

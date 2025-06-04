@@ -30,7 +30,7 @@ const generateRefreshToken = (userId, role) => {
 const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     try {
-        const { email, fullName } = req.body;
+        const { email, password, fullName } = req.body;
         if (!emailRegex.test(email)) {
             return new errorHandler_1.ValidationError("Invalid email format!");
         }
@@ -64,6 +64,7 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
             data: {
                 email,
                 password: hashedPassword,
+                fullName,
                 profile: { create: { fullName } },
             },
         });
@@ -208,7 +209,7 @@ const resetUserPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, 
         //compare new password with the existing one
         const isSamePassword = yield bcryptjs_1.default.compare(newPassword, user.password);
         if (isSamePassword)
-            return next(new errorHandler_1.ValidationError("Password cannot be same"));
+            return next(new errorHandler_1.ValidationError("Password can not be the same as old password"));
         //hash new password
         const salt = yield bcryptjs_1.default.genSalt(10);
         const hashPassword = yield bcryptjs_1.default.hash(newPassword, salt);
