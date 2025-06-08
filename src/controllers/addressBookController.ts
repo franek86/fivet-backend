@@ -1,8 +1,8 @@
 import { Response, Request } from "express";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { addressBookSchema } from "../schemas/addressBookSchema";
-const prisma = new PrismaClient();
+import prisma from "../prismaClient";
 
 /* 
     GET ALL ADDRESS BOOK BASED ON USER ID

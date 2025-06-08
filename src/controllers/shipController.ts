@@ -1,12 +1,11 @@
 import { Request, Response } from "express";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { DeleteShipRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
 import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { shipSchema } from "../schemas/shipSchema";
-
-const prisma = new PrismaClient();
+import prisma from "../prismaClient";
 
 /* 
 CREATE SHIP 

@@ -8,13 +8,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.getAllPublishedShips = exports.createShip = void 0;
-const client_1 = require("@prisma/client");
 const pagination_1 = require("../helpers/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const shipSchema_1 = require("../schemas/shipSchema");
-const prisma = new client_1.PrismaClient();
+const prismaClient_1 = __importDefault(require("../prismaClient"));
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -33,7 +35,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             imagesUrls = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
         }
         const shipData = Object.assign(Object.assign({}, body), { mainImage: mainImageUrl, images: imagesUrls, isPublished: false });
-        const createdShip = yield prisma.ship.create({ data: shipData });
+        const createdShip = yield prismaClient_1.default.ship.create({ data: shipData });
         return res.status(200).json({
             message: "Ship added successfully! Awaiting admin approval.",
             data: createdShip,
@@ -53,13 +55,13 @@ TO DO: add filters
 const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
-        const ships = yield prisma.ship.findMany({
+        const ships = yield prismaClient_1.default.ship.findMany({
             skip,
             take: pageSize,
             where: { isPublished: true },
             orderBy: { createdAt: "desc" },
         });
-        const totalShips = yield prisma.ship.count();
+        const totalShips = yield prismaClient_1.default.ship.count();
         return res.status(200).json({
             page: pageNumber,
             limit: pageSize,
@@ -109,8 +111,8 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
         if (role !== "ADMIN") {
             whereCondition.userId = userId;
         }
-        const totalShipsType = (ships = yield prisma.ship.count());
-        ships = yield prisma.ship.findMany({
+        const totalShipsType = (ships = yield prismaClient_1.default.ship.count());
+        ships = yield prismaClient_1.default.ship.findMany({
             skip,
             take: pageSize,
             where: whereCondition,
@@ -152,7 +154,7 @@ const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (!id)
         return res.status(404).json({ message: "Ship id are not found!" });
     try {
-        const ship = yield prisma.ship.findUnique({ where: { id } });
+        const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
         if (!ship) {
             return res.status(404).json({ message: "Ship not found" });
         }
@@ -171,11 +173,11 @@ const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     const { id } = req.params;
     const { shipName, typeId, imo, refitYear, buildYear, price, location, mainEngine, lengthOverall, beam, length, depth, draft, tonnage, cargoCapacity, buildCountry, remarks, description, mainImage, images, } = req.body;
     try {
-        const ship = yield prisma.ship.findUnique({ where: { id } });
+        const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
         if (!ship) {
             return res.status(404).json({ message: "Ship not found" });
         }
-        const updatedShip = yield prisma.ship.update({
+        const updatedShip = yield prismaClient_1.default.ship.update({
             where: { id },
             data: {
                 shipName,
@@ -217,11 +219,11 @@ Admin can delete all ship, but users can only delete their own ships
 const deleteShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     try {
-        const ship = yield prisma.ship.findUnique({ where: { id } });
+        const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
         if (!ship) {
             return res.status(404).json({ message: "Ship not found" });
         }
-        yield prisma.ship.delete({
+        yield prismaClient_1.default.ship.delete({
             where: { id },
         });
         return res.status(200).json({

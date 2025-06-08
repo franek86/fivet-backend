@@ -8,11 +8,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAddressBook = exports.getAddressBook = void 0;
-const client_1 = require("@prisma/client");
 const addressBookSchema_1 = require("../schemas/addressBookSchema");
-const prisma = new client_1.PrismaClient();
+const prismaClient_1 = __importDefault(require("../prismaClient"));
 /*
     GET ALL ADDRESS BOOK BASED ON USER ID
 */
@@ -21,7 +23,7 @@ const getAddressBook = (req, res) => __awaiter(void 0, void 0, void 0, function*
     if (!userId)
         return res.status(401).json({ message: "User ID can not found" });
     try {
-        const data = yield prisma.addressBook.findMany({ where: { userId } });
+        const data = yield prismaClient_1.default.addressBook.findMany({ where: { userId } });
         return res.status(200).json(data);
     }
     catch (error) {
@@ -35,7 +37,7 @@ const createAddressBook = (req, res) => __awaiter(void 0, void 0, void 0, functi
     const body = addressBookSchema_1.addressBookSchema.parse(req.body);
     try {
         const addressBookData = Object.assign(Object.assign({}, body), { userId });
-        const createAddressBookData = yield prisma.addressBook.create({ data: addressBookData });
+        const createAddressBookData = yield prismaClient_1.default.addressBook.create({ data: addressBookData });
         return res.status(200).json(createAddressBookData);
     }
     catch (error) {

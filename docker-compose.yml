@@ -2,22 +2,22 @@ services:
   app:
     build: .
     container_name: fivet_api
-    restart: always
-    depends_on:
-      - db
+    environment:
+      - DATABASE_URL=postgresql://fivetdev:fivetdev123@db:5432/fivetdb
+      - JWT_SECRET=2527
+      - NODE_ENV=development
+      - PORT=5000
     ports:
       - "5000:5000"
-    environment:
-      DATABASE_URL: "postgresql://fivetdev:fivetdev123@db:5432/fivetdb"
-      POST: 5000
+    depends_on:
+      - db
     volumes:
       - .:/app
-    command: ["sh", "-c", "npm run dev"]
+    command: ["sh", "-c", "npx prisma generate && npm run dev"]
 
   db:
     image: postgres:latest
     container_name: fivet_postgres_db
-    restart: always
     environment:
       POSTGRES_USER: fivetdev
       POSTGRES_PASSWORD: fivetdev123
@@ -26,12 +26,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "fivetdev"]
-      interval: 10s
-      retries: 5
-      start_period: 30s
-      timeout: 5s
 
 volumes:
   pgdata:

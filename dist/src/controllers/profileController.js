@@ -13,16 +13,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getAllProfiles = void 0;
-const client_1 = require("@prisma/client");
 const cloudinaryConfig_1 = __importDefault(require("../cloudinaryConfig"));
 const fs_1 = __importDefault(require("fs"));
-const prisma = new client_1.PrismaClient();
+const prismaClient_1 = __importDefault(require("../prismaClient"));
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER
 */
 const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const data = yield prisma.profile.findMany({ include: { user: { select: { email: true } } } });
+        const data = yield prismaClient_1.default.profile.findMany({ include: { user: { select: { email: true } } } });
         const result = data.map((p) => ({
             id: p.id,
             fullName: p.fullName,
@@ -47,7 +46,7 @@ const getUserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function*
         return res.status(401).json({ message: "User ID can not found" });
     const parsedId = parseInt(id);
     try {
-        const data = yield prisma.profile.findUnique({ where: { id: parsedId } });
+        const data = yield prismaClient_1.default.profile.findUnique({ where: { id: parsedId } });
         if (!data) {
             return res.status(404).json({ message: "Profile not found" });
         }
@@ -64,7 +63,7 @@ const createProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const { userId, fullName } = req.body;
     const avatar = (_a = req.file) === null || _a === void 0 ? void 0 : _a.path;
     try {
-        const profileData = yield prisma.profile.create({
+        const profileData = yield prismaClient_1.default.profile.create({
             data: {
                 userId,
                 fullName,
@@ -84,7 +83,7 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const { fullName, email } = req.body;
     const userId = req.body.userId || ((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId);
     try {
-        const existingProfile = yield prisma.profile.findUnique({
+        const existingProfile = yield prismaClient_1.default.profile.findUnique({
             where: { userId },
             include: { user: true },
         });
@@ -101,15 +100,15 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 fs_1.default.unlinkSync(req.file.path);
             }
         }
-        const [updateProfile, updateUser] = yield prisma.$transaction([
-            prisma.profile.update({
+        const [updateProfile, updateUser] = yield prismaClient_1.default.$transaction([
+            prismaClient_1.default.profile.update({
                 where: { userId },
                 data: {
                     fullName: fullName !== null && fullName !== void 0 ? fullName : existingProfile.fullName,
                     avatar: avatarUrl,
                 },
             }),
-            prisma.user.update({
+            prismaClient_1.default.user.update({
                 where: { id: userId },
                 data: {
                     email: email !== null && email !== void 0 ? email : existingProfile.user.email,

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -12,14 +45,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetUserPassword = exports.verifyForgotPassword = exports.forgotPassword = exports.logout = exports.refreshToken = exports.userMe = exports.loginUser = exports.verifyUser = exports.registerUser = void 0;
+exports.resetUserPassword = exports.verifyForgotPassword = exports.forgotPassword = exports.logout = exports.userMe = exports.refreshToken = exports.loginUser = exports.verifyUser = exports.registerUser = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const client_1 = require("@prisma/client");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const jsonwebtoken_1 = __importStar(require("jsonwebtoken"));
 const errorHandler_1 = require("../helpers/errorHandler");
 const auth_helper_1 = require("../helpers/auth.helper");
 const setCookies_1 = require("../utils/cookies/setCookies");
-const prisma = new client_1.PrismaClient();
+const prismaClient_1 = __importDefault(require("../prismaClient"));
 const generateAccessToken = (userId, role) => {
     return jsonwebtoken_1.default.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: 60 * 1000 });
 };
@@ -30,11 +62,11 @@ const generateRefreshToken = (userId, role) => {
 const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     try {
-        const { email, password, fullName } = req.body;
+        const { email, fullName } = req.body;
         if (!emailRegex.test(email)) {
             return new errorHandler_1.ValidationError("Invalid email format!");
         }
-        const existingUser = yield prisma.user.findUnique({ where: { email } });
+        const existingUser = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (existingUser)
             return next(new errorHandler_1.ValidationError("User already exists with this email"));
         yield (0, auth_helper_1.checkOtpRestrictions)(email, next);
@@ -43,7 +75,8 @@ const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         res.status(200).json({ message: "OTP send to email. Please verify your account" });
     }
     catch (error) {
-        next(error);
+        console.log(error);
+        return next(error);
     }
 });
 exports.registerUser = registerUser;
@@ -53,14 +86,14 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         const { email, fullName, password, otp } = req.body;
         if (!email || !fullName || !password || !otp)
             return next(new errorHandler_1.ValidationError("All fields are required!"));
-        const existingUser = yield prisma.user.findUnique({ where: { email } });
+        const existingUser = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (existingUser)
             return next(new errorHandler_1.ValidationError("User already exists!"));
         yield (0, auth_helper_1.verifyOtp)(email, otp, next);
         //Hash password
         const salt = yield bcryptjs_1.default.genSalt(10);
         const hashedPassword = yield bcryptjs_1.default.hash(password, salt);
-        yield prisma.user.create({
+        yield prismaClient_1.default.user.create({
             data: {
                 email,
                 password: hashedPassword,
@@ -74,7 +107,8 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         });
     }
     catch (error) {
-        next(error);
+        console.log("verify " + error);
+        return next(error);
     }
 });
 exports.verifyUser = verifyUser;
@@ -84,7 +118,7 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         const { email, password } = req.body;
         if (!email || !password)
             return next(new errorHandler_1.ValidationError("Email and password are required!"));
-        const user = yield prisma.user.findUnique({ where: { email } });
+        const user = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (!user)
             return next(new errorHandler_1.AuthError("User does not exists."));
         const validatePassword = yield bcryptjs_1.default.compare(password, user.password);
@@ -105,14 +139,37 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         });
     }
     catch (error) {
+        console.log(error);
         next(error);
     }
 });
 exports.loginUser = loginUser;
+/* REFRESH TOKEN */
+const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { refresh_token } = req.cookies;
+        if (!refresh_token) {
+            throw new errorHandler_1.ValidationError("Unauthorized! No refresh token");
+        }
+        const decoded = jsonwebtoken_1.default.verify(refresh_token, process.env.REFRESH_SECRET);
+        if (!decoded || !decoded.userId || !decoded.role) {
+            return new jsonwebtoken_1.JsonWebTokenError("Forbidden! Invalid refresh token.");
+        }
+        const new_access_token = generateAccessToken(decoded.userId, decoded.role);
+        (0, setCookies_1.setCookie)(res, "access_token", new_access_token);
+        return res.json({
+            success: true,
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.refreshToken = refreshToken;
 /* AUTHENTICATED USER */
 const userMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const user = yield prisma.user.findUnique({
+    const user = yield prismaClient_1.default.user.findUnique({
         where: { id: (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId },
         select: {
             id: true,
@@ -138,25 +195,17 @@ const userMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     res.json(result);
 });
 exports.userMe = userMe;
-/* REFRESH TOKEN */
-const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const { refresh_token } = req.cookies;
-    if (!refresh_token) {
-        return res.status(401).json({ message: "No refresh token provided" });
-    }
-    try {
-        const decoded = jsonwebtoken_1.default.verify(refresh_token, process.env.REFRESH_SECRET);
-        const new_access_token = generateAccessToken(decoded.userId, decoded.role);
-        return res.json({
-            access_token: new_access_token,
-            refresh_token,
-        });
-    }
-    catch (error) {
-        next(error);
-    }
-});
-exports.refreshToken = refreshToken;
+/* export const testUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = req.user;
+    res.status(201).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+}; */
 /* LOGOUT AND CLEAR TOKENS */
 const logout = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
@@ -170,7 +219,7 @@ const forgotPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         const { email } = req.body;
         if (!email)
             throw new errorHandler_1.ValidationError("Email is required");
-        const user = yield prisma.user.findUnique({ where: { email } });
+        const user = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (!user)
             throw new errorHandler_1.ValidationError("User not found.");
         yield (0, auth_helper_1.checkOtpRestrictions)(email, next);
@@ -203,7 +252,7 @@ const resetUserPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, 
         const { email, newPassword } = req.body;
         if (!email || !newPassword)
             return next(new errorHandler_1.ValidationError("Email and passwords are required!"));
-        const user = yield prisma.user.findUnique({ where: { email } });
+        const user = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (!user)
             return next(new errorHandler_1.NotFoundError("User not found"));
         //compare new password with the existing one
@@ -213,7 +262,7 @@ const resetUserPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, 
         //hash new password
         const salt = yield bcryptjs_1.default.genSalt(10);
         const hashPassword = yield bcryptjs_1.default.hash(newPassword, salt);
-        yield prisma.user.update({
+        yield prismaClient_1.default.user.update({
             where: { email },
             data: { password: hashPassword },
         });

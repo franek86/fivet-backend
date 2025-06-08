@@ -3,12 +3,10 @@ ONLY ADMIN CAN CREATE, DELETE AND UPDATE SHIP TYPE
 Verify Admin with authAdmin middleware in route
 */
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
 import { CreateShipTypeRequest, DeleteShipTypeRequest, UpdateShipTypeRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
 import { parseSortBy } from "../helpers/parseSortBy";
-
-const prisma = new PrismaClient();
+import prisma from "../prismaClient";
 
 /* CREATE SHIP TYPE BY ADMIN 
   Only admin can create ship type

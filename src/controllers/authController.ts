@@ -1,12 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt, { JsonWebTokenError, JwtPayload } from "jsonwebtoken";
 import { AuthError, NotFoundError, ValidationError } from "../helpers/errorHandler";
 import { checkOtpRestrictions, sendOtp, trackOtpRequest, verifyOtp } from "../helpers/auth.helper";
 import { setCookie } from "../utils/cookies/setCookies";
-
-const prisma = new PrismaClient();
+import prisma from "../prismaClient";
 
 const generateAccessToken = (userId: string, role: string) => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: 60 * 1000 });
@@ -21,7 +19,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   try {
-    const { email, password, fullName } = req.body;
+    const { email, fullName } = req.body;
 
     if (!emailRegex.test(email)) {
       return new ValidationError("Invalid email format!");
@@ -35,7 +33,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     res.status(200).json({ message: "OTP send to email. Please verify your account" });
   } catch (error) {
-    next(error);
+    console.log(error);
+    return next(error);
   }
 };
 
@@ -68,7 +67,8 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       message: "User registred successfully!",
     });
   } catch (error) {
-    next(error);
+    console.log("verify " + error);
+    return next(error);
   }
 };
 
@@ -99,6 +99,32 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       /* access_token,
       refresh_token, */
       user: { id: user.id, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+/* REFRESH TOKEN */
+export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const { refresh_token } = req.cookies;
+
+    if (!refresh_token) {
+      throw new ValidationError("Unauthorized! No refresh token");
+    }
+    const decoded = jwt.verify(refresh_token, process.env.REFRESH_SECRET as string) as JwtPayload;
+
+    if (!decoded || !decoded.userId || !decoded.role) {
+      return new JsonWebTokenError("Forbidden! Invalid refresh token.");
+    }
+
+    const new_access_token = generateAccessToken(decoded.userId, decoded.role);
+    setCookie(res, "access_token", new_access_token);
+
+    return res.json({
+      success: true,
     });
   } catch (error) {
     next(error);
@@ -137,25 +163,17 @@ export const userMe = async (req: Request, res: Response): Promise<any> => {
   res.json(result);
 };
 
-/* REFRESH TOKEN */
-export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-  const { refresh_token } = req.cookies;
-
-  if (!refresh_token) {
-    return res.status(401).json({ message: "No refresh token provided" });
-  }
+/* export const testUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const decoded = jwt.verify(refresh_token, process.env.REFRESH_SECRET as string) as JwtPayload;
-    const new_access_token = generateAccessToken(decoded.userId, decoded.role);
-
-    return res.json({
-      access_token: new_access_token,
-      refresh_token,
+    const user = req.user;
+    res.status(201).json({
+      success: true,
+      user,
     });
   } catch (error) {
     next(error);
   }
-};
+}; */
 
 /* LOGOUT AND CLEAR TOKENS */
 export const logout = async (req: Request, res: Response) => {

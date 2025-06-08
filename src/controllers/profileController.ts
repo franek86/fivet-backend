@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import cloudinary from "../cloudinaryConfig";
 import fs from "fs";
-
-const prisma = new PrismaClient();
+import prisma from "../prismaClient";
 
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER 
