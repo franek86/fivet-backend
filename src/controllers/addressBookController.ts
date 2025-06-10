@@ -1,26 +1,40 @@
-import { Response, Request } from "express";
+import { Response, Request, NextFunction } from "express";
 import { Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { addressBookSchema } from "../schemas/addressBookSchema";
 import prisma from "../prismaClient";
+import { ValidationError } from "../helpers/errorHandler";
 
-/* 
-    GET ALL ADDRESS BOOK BASED ON USER ID
-*/
-export const getAddressBook = async (req: Request, res: Response): Promise<any> => {
+/*  GET ALL ADDRESS BOOK BASED ON USER ID*/
+export const getAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   const { userId } = req.user as CustomJwtPayload;
 
   if (!userId) return res.status(401).json({ message: "User ID can not found" });
   try {
-    const data = await prisma.addressBook.findMany({ where: { userId } });
+    const data = await prisma.addressBook.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
     return res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
 };
 
+/* GET SINGLE ADDRESS BOOK */
+export const getSingleAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  const { id } = req.params;
+  if (!id) throw new ValidationError("ID not found");
+  try {
+    const singleData = await prisma.addressBook.findUnique({ where: { id } });
+    if (!singleData) throw new ValidationError("Address book by id not found");
+
+    return res.status(200).json(singleData);
+  } catch (error) {
+    console.log(error);
+    return next(error);
+  }
+};
+
 /* CREATE ADDRESS BOOK ONLY USER */
-export const createAddressBook = async (req: Request, res: Response): Promise<any> => {
+export const createAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   const { userId } = req.user as CustomJwtPayload;
 
   const body = addressBookSchema.parse(req.body);
@@ -33,6 +47,53 @@ export const createAddressBook = async (req: Request, res: Response): Promise<an
     return res.status(200).json(createAddressBookData);
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: (error as Error).message });
+    return next(error);
+  }
+};
+
+/* UPDATE ADDRESS BOOK */
+export const updateAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  const { id } = req.params;
+  if (!id) throw new ValidationError("ID does not exists.");
+
+  const { ...updateData } = req.body;
+
+  try {
+    const uniqueAddressBook = await prisma.addressBook.findUnique({ where: { id } });
+    if (!uniqueAddressBook) throw new ValidationError("Address book not found");
+
+    await prisma.addressBook.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Address book successfully updated.",
+    });
+  } catch (error) {
+    console.log(error);
+    return next(error);
+  }
+};
+
+/* DELETE ADDRESS BOOK ONLY USER */
+export const deleteAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  const { id } = req.params;
+  if (!id) throw new ValidationError("ID does not exists.");
+  try {
+    const uniqueAddressBook = await prisma.addressBook.findUnique({ where: { id } });
+    if (!uniqueAddressBook) throw new ValidationError("Address book not found.");
+
+    await prisma.addressBook.delete({
+      where: { id },
+    });
+
+    return res.status(200).json({
+      message: `Address book by ${id} deleted successfully`,
+    });
+  } catch (error) {
+    console.log(error);
+    return next(error);
   }
 };

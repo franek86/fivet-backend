@@ -95,7 +95,7 @@ model ShipType {
 }
 
 model AddressBook {
-  id              Int   @id @default(autoincrement())
+  id              String   @id @default(uuid())
   fullName        String
   email           String
   phone_number    String?

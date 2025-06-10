@@ -6,18 +6,8 @@ const currentYear = new Date().getFullYear();
 exports.shipSchema = zod_1.z.object({
     shipName: zod_1.z.string().min(1, "Ship name is required"),
     imo: zod_1.z.string().min(1, "Ship IMO is required"),
-    refitYear: zod_1.z.coerce
-        .number()
-        .int()
-        .positive()
-        .max(currentYear, { message: `Year must be ${currentYear} or earlier` })
-        .optional(),
-    buildYear: zod_1.z.coerce
-        .number()
-        .int()
-        .positive()
-        .max(currentYear, { message: `Year must be ${currentYear} or earlier` })
-        .optional(),
+    refitYear: zod_1.z.coerce.number().int().positive().optional(),
+    buildYear: zod_1.z.coerce.number().int().positive().max(currentYear).optional(),
     price: zod_1.z.coerce.number({ required_error: "Price is required", invalid_type_error: "Price must be a number" }).positive(),
     location: zod_1.z.string().min(1, "Ship location is required"),
     mainEngine: zod_1.z.string().min(1, "Main engine is required"),
@@ -28,7 +18,7 @@ exports.shipSchema = zod_1.z.object({
     draft: zod_1.z.coerce.number({ required_error: "Draft is required", invalid_type_error: "Draft must be a number" }).positive(),
     tonnage: zod_1.z.coerce.number({ required_error: "Tonnage is required", invalid_type_error: "Tonnage must be a number" }).positive(),
     cargoCapacity: zod_1.z.string().min(1, "Cargo capacity is required"),
-    buildCountry: zod_1.z.string().min(1, "Build country is required"),
+    buildCountry: zod_1.z.string().optional(),
     remarks: zod_1.z.string().optional(),
     description: zod_1.z.string().optional(),
     userId: zod_1.z.string().uuid(),

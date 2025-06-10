@@ -15,11 +15,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    const token = req.cookies.access_token;
+    if (!token)
+        return res.status(401).json({ message: "Unauthorized" });
     try {
-        const token = req.cookies.access_token || ((_a = req.headers.authorization) === null || _a === void 0 ? void 0 : _a.split(" ")[1]);
-        if (!token)
-            return res.status(401).json({ message: "Unauthorized" });
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
         if (!decoded)
             return res.status(401).json({ message: "Unauthorized! Invalid token" });

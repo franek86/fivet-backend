@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const authAdmin = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log(req.user);
     if (!req.user || req.user.role !== "ADMIN") {
         return res.status(403).json({ message: "Access denied. Admins only." });
     }

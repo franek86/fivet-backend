@@ -6,6 +6,7 @@ import { getPaginationParams } from "../helpers/pagination";
 import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { shipSchema } from "../schemas/shipSchema";
 import prisma from "../prismaClient";
+import { shipFilters } from "../helpers/shipFilters";
 
 /* 
 CREATE SHIP 
@@ -53,15 +54,36 @@ TO DO: add filters
 export const getAllPublishedShips = async (req: Request, res: Response): Promise<any> => {
   try {
     const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+    const filters = shipFilters(req.query);
 
-    const ships = await prisma.ship.findMany({
+    const where = {
+      isPublished: true,
+      ...filters,
+    };
+
+    const [ships, totalShips] = await Promise.all([
+      prisma.ship.findMany({
+        skip,
+        take: pageSize,
+        where,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.ship.count({ where }),
+    ]);
+
+    /*  const ships = await prisma.ship.findMany({
       skip,
       take: pageSize,
-      where: { isPublished: true },
+      where: { ...filters, isPublished: true },
       orderBy: { createdAt: "desc" },
     });
 
-    const totalShips = await prisma.ship.count();
+    const totalShips = await prisma.ship.count({
+      where: {
+        isPublished: true,
+        ...filters,
+      },
+    }); */
 
     return res.status(200).json({
       page: pageNumber,
@@ -76,7 +98,7 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
 /* 
 GET ALL SHIPS 
 Get all ships from admin published or not published. Users can see only their own ships 
-TO DO: add filters
+TO DO: filter by status
 */
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
   const { userId, role } = req.user as CustomJwtPayload;
@@ -218,15 +240,15 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
         imo,
         refitYear,
         buildYear,
-        price,
+        price: parseFloat(price),
         location,
         mainEngine,
         lengthOverall,
-        beam,
-        length,
-        depth,
-        draft,
-        tonnage,
+        beam: parseFloat(beam),
+        length: parseFloat(length),
+        depth: parseFloat(depth),
+        draft: parseFloat(draft),
+        tonnage: parseFloat(tonnage),
         cargoCapacity,
         buildCountry,
         remarks,
@@ -241,6 +263,7 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
       data: updatedShip,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -84,25 +84,23 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const validatePassword = await bcrypt.compare(password, user.password);
     if (!validatePassword) return next(new AuthError("Invalid credentails"));
 
-    const access_token = generateAccessToken(user.id, user.role);
-    const refresh_token = generateRefreshToken(user.id, user.role);
+    const accessToken = generateAccessToken(user.id, user.role);
+    const refreshToken = generateRefreshToken(user.id, user.role);
+    console.log(accessToken);
 
-    /* res.cookie("refresh_token", refresh_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
+    /*  res.cookie("refresh_token", refresh_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
     res.cookie("access_token", access_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
  */
-
-    setCookie(res, "access_token", access_token);
-    setCookie(res, "refresh_token", refresh_token);
+    setCookie(res, "refresh_token", refreshToken);
+    setCookie(res, "access_token", accessToken);
 
     res.json({
       message: "User loggedin successfully",
-      /* access_token,
-      refresh_token, */
-      user: { id: user.id, email: user.email, role: user.role },
+      user: { id: user.id, email: user.email },
     });
   } catch (error) {
     console.log(error);
-    next(error);
+    return next(error);
   }
 };
 

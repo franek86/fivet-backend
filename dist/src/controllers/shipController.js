@@ -17,6 +17,7 @@ const pagination_1 = require("../helpers/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const shipSchema_1 = require("../schemas/shipSchema");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
+const shipFilters_1 = require("../helpers/shipFilters");
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -55,13 +56,30 @@ TO DO: add filters
 const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
-        const ships = yield prismaClient_1.default.ship.findMany({
-            skip,
-            take: pageSize,
-            where: { isPublished: true },
-            orderBy: { createdAt: "desc" },
+        const filters = (0, shipFilters_1.shipFilters)(req.query);
+        const where = Object.assign({ isPublished: true }, filters);
+        const [ships, totalShips] = yield Promise.all([
+            prismaClient_1.default.ship.findMany({
+                skip,
+                take: pageSize,
+                where,
+                orderBy: { createdAt: "desc" },
+            }),
+            prismaClient_1.default.ship.count({ where }),
+        ]);
+        /*  const ships = await prisma.ship.findMany({
+          skip,
+          take: pageSize,
+          where: { ...filters, isPublished: true },
+          orderBy: { createdAt: "desc" },
         });
-        const totalShips = yield prismaClient_1.default.ship.count();
+    
+        const totalShips = await prisma.ship.count({
+          where: {
+            isPublished: true,
+            ...filters,
+          },
+        }); */
         return res.status(200).json({
             page: pageNumber,
             limit: pageSize,
@@ -76,7 +94,7 @@ exports.getAllPublishedShips = getAllPublishedShips;
 /*
 GET ALL SHIPS
 Get all ships from admin published or not published. Users can see only their own ships
-TO DO: add filters
+TO DO: filter by status
 */
 const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, role } = req.user;
@@ -185,15 +203,15 @@ const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 imo,
                 refitYear,
                 buildYear,
-                price,
+                price: parseFloat(price),
                 location,
                 mainEngine,
                 lengthOverall,
-                beam,
-                length,
-                depth,
-                draft,
-                tonnage,
+                beam: parseFloat(beam),
+                length: parseFloat(length),
+                depth: parseFloat(depth),
+                draft: parseFloat(draft),
+                tonnage: parseFloat(tonnage),
                 cargoCapacity,
                 buildCountry,
                 remarks,
@@ -208,6 +226,7 @@ const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         });
     }
     catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
