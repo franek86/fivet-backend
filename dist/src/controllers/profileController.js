@@ -12,10 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getAllProfiles = void 0;
+exports.deleteUserProfile = exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getAllProfiles = void 0;
 const cloudinaryConfig_1 = __importDefault(require("../cloudinaryConfig"));
 const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../prismaClient"));
+const errorHandler_1 = require("../helpers/errorHandler");
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER
 */
@@ -28,6 +29,7 @@ const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function*
             avatar: p.avatar,
             userId: p.userId,
             email: p.user.email,
+            createdAt: p.createdAt,
         }));
         return res.status(200).json(result);
     }
@@ -122,3 +124,22 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.updateProfile = updateProfile;
+/* DELETE USER PROFILE ADMIN ONLY */
+const deleteUserProfile = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = parseInt(req.params.id);
+    if (!id)
+        throw new errorHandler_1.ValidationError("ID must be a valid number.");
+    try {
+        const userProfile = yield prismaClient_1.default.profile.findUnique({ where: { id } });
+        if (!userProfile) {
+            return next(new errorHandler_1.ValidationError("User profile not found."));
+        }
+        yield prismaClient_1.default.$transaction([prismaClient_1.default.profile.delete({ where: { id } }), prismaClient_1.default.user.delete({ where: { id: userProfile.userId } })]);
+        res.status(200).json({ message: "User and profile deleted successfully." });
+    }
+    catch (error) {
+        console.log(error);
+        return next(error);
+    }
+});
+exports.deleteUserProfile = deleteUserProfile;

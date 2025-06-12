@@ -53,10 +53,10 @@ const auth_helper_1 = require("../helpers/auth.helper");
 const setCookies_1 = require("../utils/cookies/setCookies");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const generateAccessToken = (userId, role) => {
-    return jsonwebtoken_1.default.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: 60 * 1000 });
+    return jsonwebtoken_1.default.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: "5m" });
 };
 const generateRefreshToken = (userId, role) => {
-    return jsonwebtoken_1.default.sign({ userId, role }, process.env.REFRESH_SECRET, { expiresIn: 5 * 60 * 1000 });
+    return jsonwebtoken_1.default.sign({ userId, role }, process.env.REFRESH_SECRET, { expiresIn: "7d" });
 };
 /*  REGISTER NEW USER WITH OTP */
 const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -64,19 +64,18 @@ const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
     try {
         const { email, fullName } = req.body;
         if (!emailRegex.test(email)) {
-            return new errorHandler_1.ValidationError("Invalid email format!");
+            throw new errorHandler_1.ValidationError("Invalid email format!");
         }
         const existingUser = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (existingUser)
-            return next(new errorHandler_1.ValidationError("User already exists with this email"));
+            throw new errorHandler_1.ValidationError("User already exists with this email");
         yield (0, auth_helper_1.checkOtpRestrictions)(email, next);
         yield (0, auth_helper_1.trackOtpRequest)(email, next);
         yield (0, auth_helper_1.sendOtp)(fullName, email, "user-activation-email");
         res.status(200).json({ message: "OTP send to email. Please verify your account" });
     }
     catch (error) {
-        console.log(error);
-        return next(error);
+        next(error);
     }
 });
 exports.registerUser = registerUser;
@@ -107,8 +106,7 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         });
     }
     catch (error) {
-        console.log("verify " + error);
-        return next(error);
+        next(error);
     }
 });
 exports.verifyUser = verifyUser;
@@ -117,29 +115,24 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
     try {
         const { email, password } = req.body;
         if (!email || !password)
-            return next(new errorHandler_1.ValidationError("Email and password are required!"));
+            throw new errorHandler_1.ValidationError("Email and password are required!");
         const user = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (!user)
-            return next(new errorHandler_1.AuthError("User does not exists."));
+            throw new errorHandler_1.AuthError("User does not exists.");
         const validatePassword = yield bcryptjs_1.default.compare(password, user.password);
         if (!validatePassword)
-            return next(new errorHandler_1.AuthError("Invalid credentails"));
+            throw new errorHandler_1.AuthError("Invalid credentails");
         const accessToken = generateAccessToken(user.id, user.role);
         const refreshToken = generateRefreshToken(user.id, user.role);
-        console.log(accessToken);
-        /*  res.cookie("refresh_token", refresh_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
-        res.cookie("access_token", access_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
-     */
         (0, setCookies_1.setCookie)(res, "refresh_token", refreshToken);
         (0, setCookies_1.setCookie)(res, "access_token", accessToken);
         res.json({
             message: "User loggedin successfully",
-            user: { id: user.id, email: user.email },
+            //user: { id: user.id, email: user.email },
         });
     }
     catch (error) {
-        console.log(error);
-        return next(error);
+        next(error);
     }
 });
 exports.loginUser = loginUser;
@@ -148,7 +141,7 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
     try {
         const { refresh_token } = req.cookies;
         if (!refresh_token) {
-            throw new errorHandler_1.ValidationError("Unauthorized! No refresh token");
+            return new errorHandler_1.ValidationError("Unauthorized! No refresh token");
         }
         const decoded = jsonwebtoken_1.default.verify(refresh_token, process.env.REFRESH_SECRET);
         if (!decoded || !decoded.userId || !decoded.role) {
@@ -166,45 +159,41 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 });
 exports.refreshToken = refreshToken;
 /* AUTHENTICATED USER */
-const userMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    const user = yield prismaClient_1.default.user.findUnique({
-        where: { id: (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId },
-        select: {
-            id: true,
-            email: true,
-            role: true,
-            profile: {
-                select: {
-                    id: true,
-                    fullName: true,
-                    avatar: true,
-                    userId: true,
+const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const authUser = req.user;
+        if (!authUser)
+            throw new errorHandler_1.ValidationError("User not found.");
+        const user = yield prismaClient_1.default.user.findUnique({
+            where: { id: authUser === null || authUser === void 0 ? void 0 : authUser.userId },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                profile: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        avatar: true,
+                        userId: true,
+                    },
                 },
             },
-        },
-    });
-    if (!user || !user.profile)
-        return res.status(500).json({ message: "User not found" });
-    const result = {
-        id: user.id,
-        role: user.role,
-        profile: Object.assign(Object.assign({}, user.profile), { email: user.email }),
-    };
-    res.json(result);
+        });
+        if (!user || !user.profile)
+            return res.status(500).json({ message: "User not found" });
+        const result = {
+            id: user.id,
+            role: user.role,
+            profile: Object.assign(Object.assign({}, user.profile), { email: user.email }),
+        };
+        res.json(result);
+    }
+    catch (error) {
+        next(error);
+    }
 });
 exports.userMe = userMe;
-/* export const testUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const user = req.user;
-    res.status(201).json({
-      success: true,
-      user,
-    });
-  } catch (error) {
-    next(error);
-  }
-}; */
 /* LOGOUT AND CLEAR TOKENS */
 const logout = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });

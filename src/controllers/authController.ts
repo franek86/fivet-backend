@@ -7,11 +7,11 @@ import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 
 const generateAccessToken = (userId: string, role: string) => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: 60 * 1000 });
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
 };
 
 const generateRefreshToken = (userId: string, role: string) => {
-  return jwt.sign({ userId, role }, process.env.REFRESH_SECRET as string, { expiresIn: 5 * 60 * 1000 });
+  return jwt.sign({ userId, role }, process.env.REFRESH_SECRET as string, { expiresIn: "7d" });
 };
 
 /*  REGISTER NEW USER WITH OTP */
@@ -22,10 +22,10 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     const { email, fullName } = req.body;
 
     if (!emailRegex.test(email)) {
-      return new ValidationError("Invalid email format!");
+      throw new ValidationError("Invalid email format!");
     }
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) return next(new ValidationError("User already exists with this email"));
+    if (existingUser) throw new ValidationError("User already exists with this email");
 
     await checkOtpRestrictions(email, next);
     await trackOtpRequest(email, next);
@@ -33,8 +33,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     res.status(200).json({ message: "OTP send to email. Please verify your account" });
   } catch (error) {
-    console.log(error);
-    return next(error);
+    next(error);
   }
 };
 
@@ -67,8 +66,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       message: "User registred successfully!",
     });
   } catch (error) {
-    console.log("verify " + error);
-    return next(error);
+    next(error);
   }
 };
 
@@ -76,31 +74,26 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
 export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return next(new ValidationError("Email and password are required!"));
+    if (!email || !password) throw new ValidationError("Email and password are required!");
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return next(new AuthError("User does not exists."));
+    if (!user) throw new AuthError("User does not exists.");
 
     const validatePassword = await bcrypt.compare(password, user.password);
-    if (!validatePassword) return next(new AuthError("Invalid credentails"));
+    if (!validatePassword) throw new AuthError("Invalid credentails");
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id, user.role);
-    console.log(accessToken);
 
-    /*  res.cookie("refresh_token", refresh_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
-    res.cookie("access_token", access_token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" }); // NOTE: In production mode secure must be true
- */
     setCookie(res, "refresh_token", refreshToken);
     setCookie(res, "access_token", accessToken);
 
     res.json({
       message: "User loggedin successfully",
-      user: { id: user.id, email: user.email },
+      //user: { id: user.id, email: user.email },
     });
   } catch (error) {
-    console.log(error);
-    return next(error);
+    next(error);
   }
 };
 
@@ -110,7 +103,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     const { refresh_token } = req.cookies;
 
     if (!refresh_token) {
-      throw new ValidationError("Unauthorized! No refresh token");
+      return new ValidationError("Unauthorized! No refresh token");
     }
     const decoded = jwt.verify(refresh_token, process.env.REFRESH_SECRET as string) as JwtPayload;
 
@@ -130,48 +123,42 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 };
 
 /* AUTHENTICATED USER */
-export const userMe = async (req: Request, res: Response): Promise<any> => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user?.userId as string },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      profile: {
-        select: {
-          id: true,
-          fullName: true,
-          avatar: true,
-          userId: true,
+export const userMe = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  try {
+    const authUser = req.user;
+    if (!authUser) throw new ValidationError("User not found.");
+    const user = await prisma.user.findUnique({
+      where: { id: authUser?.userId as string },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        profile: {
+          select: {
+            id: true,
+            fullName: true,
+            avatar: true,
+            userId: true,
+          },
         },
       },
-    },
-  });
-
-  if (!user || !user.profile) return res.status(500).json({ message: "User not found" });
-  const result = {
-    id: user.id,
-    role: user.role,
-    profile: {
-      ...user.profile,
-      email: user.email,
-    },
-  };
-
-  res.json(result);
-};
-
-/* export const testUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const user = req.user;
-    res.status(201).json({
-      success: true,
-      user,
     });
+
+    if (!user || !user.profile) return res.status(500).json({ message: "User not found" });
+    const result = {
+      id: user.id,
+      role: user.role,
+      profile: {
+        ...user.profile,
+        email: user.email,
+      },
+    };
+
+    res.json(result);
   } catch (error) {
     next(error);
   }
-}; */
+};
 
 /* LOGOUT AND CLEAR TOKENS */
 export const logout = async (req: Request, res: Response) => {

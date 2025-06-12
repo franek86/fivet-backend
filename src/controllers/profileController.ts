@@ -1,8 +1,9 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import cloudinary from "../cloudinaryConfig";
 import fs from "fs";
 import prisma from "../prismaClient";
+import { ValidationError } from "../helpers/errorHandler";
 
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER 
@@ -16,6 +17,7 @@ export const getAllProfiles = async (req: Request, res: Response): Promise<any> 
       avatar: p.avatar,
       userId: p.userId,
       email: p.user.email,
+      createdAt: p.createdAt,
     }));
     return res.status(200).json(result);
   } catch (error) {
@@ -110,5 +112,25 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
     return res.status(200).json({ message: "Profile updated", profile: { ...updateProfile, email: updateUser.email } });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+/* DELETE USER PROFILE ADMIN ONLY */
+export const deleteUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+  const id = parseInt(req.params.id);
+
+  if (!id) throw new ValidationError("ID must be a valid number.");
+
+  try {
+    const userProfile = await prisma.profile.findUnique({ where: { id } });
+    if (!userProfile) {
+      return next(new ValidationError("User profile not found."));
+    }
+
+    await prisma.$transaction([prisma.profile.delete({ where: { id } }), prisma.user.delete({ where: { id: userProfile.userId } })]);
+    res.status(200).json({ message: "User and profile deleted successfully." });
+  } catch (error) {
+    console.log(error);
+    return next(error);
   }
 };

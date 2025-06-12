@@ -9,12 +9,12 @@ import { ValidationError } from "../helpers/errorHandler";
 export const getAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   const { userId } = req.user as CustomJwtPayload;
 
-  if (!userId) return res.status(401).json({ message: "User ID can not found" });
+  if (!userId) throw new ValidationError("User ID can not found");
   try {
     const data = await prisma.addressBook.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
     return res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    next(error);
   }
 };
 
@@ -28,8 +28,7 @@ export const getSingleAddressBook = async (req: Request, res: Response, next: Ne
 
     return res.status(200).json(singleData);
   } catch (error) {
-    console.log(error);
-    return next(error);
+    next(error);
   }
 };
 

@@ -31,13 +31,13 @@ const errorHandler_1 = require("../helpers/errorHandler");
 const getAddressBook = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.user;
     if (!userId)
-        return res.status(401).json({ message: "User ID can not found" });
+        throw new errorHandler_1.ValidationError("User ID can not found");
     try {
         const data = yield prismaClient_1.default.addressBook.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
         return res.status(200).json(data);
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 });
 exports.getAddressBook = getAddressBook;
@@ -53,8 +53,7 @@ const getSingleAddressBook = (req, res, next) => __awaiter(void 0, void 0, void 
         return res.status(200).json(singleData);
     }
     catch (error) {
-        console.log(error);
-        return next(error);
+        next(error);
     }
 });
 exports.getSingleAddressBook = getSingleAddressBook;
