@@ -124,8 +124,8 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
             throw new errorHandler_1.AuthError("Invalid credentails");
         const accessToken = generateAccessToken(user.id, user.role);
         const refreshToken = generateRefreshToken(user.id, user.role);
-        (0, setCookies_1.setCookie)(res, "refresh_token", refreshToken);
-        (0, setCookies_1.setCookie)(res, "access_token", accessToken);
+        (0, setCookies_1.setCookie)(res, "access_token", accessToken, 5 * 60 * 1000);
+        (0, setCookies_1.setCookie)(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
         res.json({
             message: "User loggedin successfully",
             //user: { id: user.id, email: user.email },
@@ -148,9 +148,12 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             return new jsonwebtoken_1.JsonWebTokenError("Forbidden! Invalid refresh token.");
         }
         const new_access_token = generateAccessToken(decoded.userId, decoded.role);
-        (0, setCookies_1.setCookie)(res, "access_token", new_access_token);
+        (0, setCookies_1.setCookie)(res, "access_token", new_access_token, 5 * 60 * 1000);
+        console.log(new_access_token);
+        console.log(decoded);
         return res.json({
             success: true,
+            accessToken: new_access_token,
         });
     }
     catch (error) {

@@ -18,6 +18,7 @@ const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const shipSchema_1 = require("../schemas/shipSchema");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const shipFilters_1 = require("../helpers/shipFilters");
+const parseSortBy_1 = require("../helpers/parseSortBy");
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -57,13 +58,15 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
     try {
         const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
         const filters = (0, shipFilters_1.shipFilters)(req.query);
+        const { sortBy } = req.query;
+        const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["shipName", "price", "createdAt"], { createdAt: "desc" });
         const where = Object.assign({ isPublished: true }, filters);
         const [ships, totalShips] = yield Promise.all([
             prismaClient_1.default.ship.findMany({
                 skip,
                 take: pageSize,
                 where,
-                orderBy: { createdAt: "desc" },
+                orderBy,
             }),
             prismaClient_1.default.ship.count({ where }),
         ]);
@@ -98,7 +101,7 @@ TO DO: filter by status
 */
 const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, role } = req.user;
-    const { shipType, status, search } = req.query;
+    const { shipType, status, search, sortBy } = req.query;
     const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
     try {
         let ships;
@@ -129,11 +132,14 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
         if (role !== "ADMIN") {
             whereCondition.userId = userId;
         }
+        // Sort handling
+        const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["shipName", "price", "createdAt"], { createdAt: "desc" });
         const totalShipsType = (ships = yield prismaClient_1.default.ship.count());
         ships = yield prismaClient_1.default.ship.findMany({
             skip,
             take: pageSize,
             where: whereCondition,
+            orderBy,
             include: {
                 user: {
                     select: {

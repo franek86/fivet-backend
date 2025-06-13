@@ -22,7 +22,7 @@ ONLY ADMIN CAN SEE ALL USER
 */
 const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const data = yield prismaClient_1.default.profile.findMany({ include: { user: { select: { email: true } } } });
+        const data = yield prismaClient_1.default.profile.findMany({ include: { user: { select: { email: true } } }, orderBy: { createdAt: "desc" } });
         const result = data.map((p) => ({
             id: p.id,
             fullName: p.fullName,

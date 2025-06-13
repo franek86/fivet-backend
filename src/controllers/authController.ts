@@ -85,8 +85,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id, user.role);
 
-    setCookie(res, "refresh_token", refreshToken);
-    setCookie(res, "access_token", accessToken);
+    setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
+    setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
 
     res.json({
       message: "User loggedin successfully",
@@ -112,10 +112,12 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     }
 
     const new_access_token = generateAccessToken(decoded.userId, decoded.role);
-    setCookie(res, "access_token", new_access_token);
-
+    setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
+    console.log(new_access_token);
+    console.log(decoded);
     return res.json({
       success: true,
+      accessToken: new_access_token,
     });
   } catch (error) {
     next(error);

@@ -7,6 +7,7 @@ import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { shipSchema } from "../schemas/shipSchema";
 import prisma from "../prismaClient";
 import { shipFilters } from "../helpers/shipFilters";
+import { parseSortBy } from "../helpers/parseSortBy";
 
 /* 
 CREATE SHIP 
@@ -56,6 +57,9 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
     const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
     const filters = shipFilters(req.query);
 
+    const { sortBy } = req.query;
+    const orderBy = parseSortBy(sortBy as string, ["shipName", "price", "createdAt"], { createdAt: "desc" });
+
     const where = {
       isPublished: true,
       ...filters,
@@ -66,7 +70,7 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
         skip,
         take: pageSize,
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy,
       }),
       prisma.ship.count({ where }),
     ]);
@@ -103,7 +107,7 @@ TO DO: filter by status
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
   const { userId, role } = req.user as CustomJwtPayload;
 
-  const { shipType, status, search } = req.query;
+  const { shipType, status, search, sortBy } = req.query;
   const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
 
   try {
@@ -142,11 +146,15 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       whereCondition.userId = userId;
     }
 
+    // Sort handling
+    const orderBy = parseSortBy(sortBy as string, ["shipName", "price", "createdAt"], { createdAt: "desc" });
+
     const totalShipsType = (ships = await prisma.ship.count());
     ships = await prisma.ship.findMany({
       skip,
       take: pageSize,
       where: whereCondition,
+      orderBy,
       include: {
         user: {
           select: {

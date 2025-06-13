@@ -10,7 +10,7 @@ ONLY ADMIN CAN SEE ALL USER
 */
 export const getAllProfiles = async (req: Request, res: Response): Promise<any> => {
   try {
-    const data = await prisma.profile.findMany({ include: { user: { select: { email: true } } } });
+    const data = await prisma.profile.findMany({ include: { user: { select: { email: true } } }, orderBy: { createdAt: "desc" } });
     const result = data.map((p) => ({
       id: p.id,
       fullName: p.fullName,
