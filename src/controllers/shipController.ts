@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { DeleteShipRequest } from "../types";
@@ -8,6 +8,7 @@ import { shipSchema } from "../schemas/shipSchema";
 import prisma from "../prismaClient";
 import { shipFilters } from "../helpers/shipFilters";
 import { parseSortBy } from "../helpers/parseSortBy";
+import { ValidationError } from "../helpers/errorHandler";
 
 /* 
 CREATE SHIP 
@@ -97,6 +98,22 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
       data: ships,
     });
   } catch (error) {}
+};
+
+/* 
+PUBLISH SHIPS ADMIN ONLY
+*/
+export const updatePublishedShip = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  const { id } = req.params;
+  const { isPublished } = req.body;
+  if (!id) throw new ValidationError("Ship id not found");
+
+  try {
+    const updateShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
+    return res.status(200).json(updateShip);
+  } catch (error) {
+    next(error);
+  }
 };
 
 /* 

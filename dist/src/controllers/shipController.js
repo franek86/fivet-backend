@@ -12,13 +12,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.getAllPublishedShips = exports.createShip = void 0;
+exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getAllPublishedShips = exports.createShip = void 0;
 const pagination_1 = require("../helpers/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const shipSchema_1 = require("../schemas/shipSchema");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const shipFilters_1 = require("../helpers/shipFilters");
 const parseSortBy_1 = require("../helpers/parseSortBy");
+const errorHandler_1 = require("../helpers/errorHandler");
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -94,6 +95,23 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
     catch (error) { }
 });
 exports.getAllPublishedShips = getAllPublishedShips;
+/*
+PUBLISH SHIPS ADMIN ONLY
+*/
+const updatePublishedShip = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const { isPublished } = req.body;
+    if (!id)
+        throw new errorHandler_1.ValidationError("Ship id not found");
+    try {
+        const updateShip = yield prismaClient_1.default.ship.update({ where: { id }, data: { isPublished } });
+        return res.status(200).json(updateShip);
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.updatePublishedShip = updatePublishedShip;
 /*
 GET ALL SHIPS
 Get all ships from admin published or not published. Users can see only their own ships
