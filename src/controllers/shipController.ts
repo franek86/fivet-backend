@@ -124,39 +124,19 @@ TO DO: filter by status
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
   const { userId, role } = req.user as CustomJwtPayload;
 
-  const { shipType, status, search, sortBy } = req.query;
   const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+  const filters = shipFilters(req.query);
+  const { sortBy, q } = req.query;
 
   try {
     let ships;
 
-    const whereCondition: any = {};
+    const whereCondition: any = {
+      ...filters,
+    };
 
-    // Apply filters if provided
-    if (shipType) {
-      whereCondition.shipType = Array.isArray(shipType) ? { in: shipType } : shipType;
-    }
-
-    if (status) {
-      whereCondition.status;
-    }
-
-    if (search) {
-      whereCondition.OR = [
-        {
-          shipName: {
-            contains: search as string,
-            mode: "insensitive",
-          },
-        },
-
-        {
-          shipName: {
-            contains: search as string,
-            mode: "insensitive",
-          },
-        },
-      ];
+    if (q && typeof q === "string" && q.trim().length > 0) {
+      whereCondition.OR = [{ shipName: { contains: q.trim(), mode: "insensitive" } }];
     }
 
     if (role !== "ADMIN") {

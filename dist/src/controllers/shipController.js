@@ -119,33 +119,14 @@ TO DO: filter by status
 */
 const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, role } = req.user;
-    const { shipType, status, search, sortBy } = req.query;
     const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
+    const filters = (0, shipFilters_1.shipFilters)(req.query);
+    const { sortBy, q } = req.query;
     try {
         let ships;
-        const whereCondition = {};
-        // Apply filters if provided
-        if (shipType) {
-            whereCondition.shipType = Array.isArray(shipType) ? { in: shipType } : shipType;
-        }
-        if (status) {
-            whereCondition.status;
-        }
-        if (search) {
-            whereCondition.OR = [
-                {
-                    shipName: {
-                        contains: search,
-                        mode: "insensitive",
-                    },
-                },
-                {
-                    shipName: {
-                        contains: search,
-                        mode: "insensitive",
-                    },
-                },
-            ];
+        const whereCondition = Object.assign({}, filters);
+        if (q && typeof q === "string" && q.trim().length > 0) {
+            whereCondition.OR = [{ shipName: { contains: q.trim(), mode: "insensitive" } }];
         }
         if (role !== "ADMIN") {
             whereCondition.userId = userId;

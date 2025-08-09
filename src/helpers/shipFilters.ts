@@ -1,14 +1,22 @@
 // src/utils/shipFilters.ts
 export const shipFilters = (query: any) => {
-  const { minPrice, maxPrice, shipType, dateFrom, dateTo } = query;
+  const { price, shipType, dateFrom, dateTo, isPublished } = query;
 
   const filters: any = {};
 
-  // Price
-  if (minPrice || maxPrice) {
+  // Is published
+  if (isPublished === "true") {
+    filters.isPublished = true;
+  } else if (isPublished === "false") {
+    filters.isPublished = false;
+  }
+
+  if (price) {
+    // Price
+    const [min, max] = price.split("-").map(Number);
     filters.price = {};
-    if (minPrice) filters.price.gte = parseFloat(minPrice);
-    if (maxPrice) filters.price.lte = parseFloat(maxPrice);
+    if (!isNaN(min)) filters.price.gte = min;
+    if (!isNaN(max)) filters.price.lte = max;
   }
 
   // Ship type
