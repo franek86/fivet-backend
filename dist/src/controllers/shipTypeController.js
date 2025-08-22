@@ -88,10 +88,25 @@ exports.deleteShipType = deleteShipType;
 */
 const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
-    const { sortBy } = req.query;
+    const { sortBy, search } = req.query;
     const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["name", "createdAt"], { createdAt: "desc" });
+    const whereCondition = {};
+    if (search && typeof search === "string" && search.trim().length > 0) {
+        whereCondition.OR = [
+            {
+                name: {
+                    contains: search.trim(),
+                    mode: "insensitive",
+                },
+            },
+            {
+                description: { contains: search.trim(), mode: "insensitive" },
+            },
+        ];
+    }
     try {
         const shipType = yield prismaClient_1.default.shipType.findMany({
+            where: whereCondition,
             skip,
             take: pageSize,
             orderBy,
@@ -106,6 +121,7 @@ const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         });
     }
     catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });

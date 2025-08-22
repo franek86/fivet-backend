@@ -9,8 +9,25 @@ import { ValidationError } from "../helpers/errorHandler";
 ONLY ADMIN CAN SEE ALL USER 
 */
 export const getAllProfiles = async (req: Request, res: Response): Promise<any> => {
+  const { search } = req.query;
+  const whereCondition: any = {};
+
+  if (search && typeof search === "string" && search.trim().length > 0) {
+    whereCondition.OR = [
+      {
+        fullName: {
+          contains: search.trim(),
+          mode: "insensitive",
+        },
+      },
+    ];
+  }
   try {
-    const data = await prisma.profile.findMany({ include: { user: { select: { email: true } } }, orderBy: { createdAt: "desc" } });
+    const data = await prisma.profile.findMany({
+      include: { user: { select: { email: true } } },
+      where: whereCondition,
+      orderBy: { createdAt: "desc" },
+    });
     const result = data.map((p) => ({
       id: p.id,
       fullName: p.fullName,

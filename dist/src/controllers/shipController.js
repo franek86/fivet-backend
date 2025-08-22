@@ -121,12 +121,12 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
     const { userId, role } = req.user;
     const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
     const filters = (0, shipFilters_1.shipFilters)(req.query);
-    const { sortBy, q } = req.query;
+    const { sortBy, search } = req.query;
     try {
         let ships;
         const whereCondition = Object.assign({}, filters);
-        if (q && typeof q === "string" && q.trim().length > 0) {
-            whereCondition.OR = [{ shipName: { contains: q.trim(), mode: "insensitive" } }];
+        if (search && typeof search === "string" && search.trim().length > 0) {
+            whereCondition.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }];
         }
         if (role !== "ADMIN") {
             whereCondition.userId = userId;

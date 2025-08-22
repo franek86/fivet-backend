@@ -126,7 +126,7 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
 
   const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
   const filters = shipFilters(req.query);
-  const { sortBy, q } = req.query;
+  const { sortBy, search } = req.query;
 
   try {
     let ships;
@@ -135,8 +135,8 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       ...filters,
     };
 
-    if (q && typeof q === "string" && q.trim().length > 0) {
-      whereCondition.OR = [{ shipName: { contains: q.trim(), mode: "insensitive" } }];
+    if (search && typeof search === "string" && search.trim().length > 0) {
+      whereCondition.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }];
     }
 
     if (role !== "ADMIN") {

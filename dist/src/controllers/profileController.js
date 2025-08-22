@@ -21,8 +21,24 @@ const errorHandler_1 = require("../helpers/errorHandler");
 ONLY ADMIN CAN SEE ALL USER
 */
 const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { search } = req.query;
+    const whereCondition = {};
+    if (search && typeof search === "string" && search.trim().length > 0) {
+        whereCondition.OR = [
+            {
+                fullName: {
+                    contains: search.trim(),
+                    mode: "insensitive",
+                },
+            },
+        ];
+    }
     try {
-        const data = yield prismaClient_1.default.profile.findMany({ include: { user: { select: { email: true } } }, orderBy: { createdAt: "desc" } });
+        const data = yield prismaClient_1.default.profile.findMany({
+            include: { user: { select: { email: true } } },
+            where: whereCondition,
+            orderBy: { createdAt: "desc" },
+        });
         const result = data.map((p) => ({
             id: p.id,
             fullName: p.fullName,

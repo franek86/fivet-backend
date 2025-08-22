@@ -30,10 +30,27 @@ const errorHandler_1 = require("../helpers/errorHandler");
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
 const getAddressBook = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.user;
+    const { search } = req.query;
     if (!userId)
         throw new errorHandler_1.ValidationError("User ID can not found");
+    const whereCondition = {};
+    if (userId)
+        whereCondition.userId = userId;
+    if (search && typeof search === "string" && search.trim().length > 0) {
+        whereCondition.OR = [
+            {
+                fullName: {
+                    contains: search.trim(),
+                    mode: "insensitive",
+                },
+            },
+            {
+                email: { contains: search.trim(), mode: "insensitive" },
+            },
+        ];
+    }
     try {
-        const data = yield prismaClient_1.default.addressBook.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+        const data = yield prismaClient_1.default.addressBook.findMany({ where: whereCondition, orderBy: { createdAt: "desc" } });
         return res.status(200).json(data);
     }
     catch (error) {

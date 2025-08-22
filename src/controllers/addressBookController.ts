@@ -8,10 +8,29 @@ import { ValidationError } from "../helpers/errorHandler";
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
 export const getAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   const { userId } = req.user as CustomJwtPayload;
+  const { search } = req.query;
 
   if (!userId) throw new ValidationError("User ID can not found");
+  const whereCondition: any = {};
+
+  if (userId) whereCondition.userId = userId;
+
+  if (search && typeof search === "string" && search.trim().length > 0) {
+    whereCondition.OR = [
+      {
+        fullName: {
+          contains: search.trim(),
+          mode: "insensitive",
+        },
+      },
+      {
+        email: { contains: search.trim(), mode: "insensitive" },
+      },
+    ];
+  }
+
   try {
-    const data = await prisma.addressBook.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+    const data = await prisma.addressBook.findMany({ where: whereCondition, orderBy: { createdAt: "desc" } });
     return res.status(200).json(data);
   } catch (error) {
     next(error);

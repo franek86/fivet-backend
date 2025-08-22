@@ -85,12 +85,28 @@ export const deleteShipType = async (req: DeleteShipTypeRequest, res: Response):
 */
 export const getShipType = async (req: Request, res: Response): Promise<any> => {
   const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
-  const { sortBy } = req.query;
+  const { sortBy, search } = req.query;
 
   const orderBy = parseSortBy(sortBy as string, ["name", "createdAt"], { createdAt: "desc" });
 
+  const whereCondition: any = {};
+  if (search && typeof search === "string" && search.trim().length > 0) {
+    whereCondition.OR = [
+      {
+        name: {
+          contains: search.trim(),
+          mode: "insensitive",
+        },
+      },
+      {
+        description: { contains: search.trim(), mode: "insensitive" },
+      },
+    ];
+  }
+
   try {
     const shipType = await prisma.shipType.findMany({
+      where: whereCondition,
       skip,
       take: pageSize,
       orderBy,
@@ -106,6 +122,7 @@ export const getShipType = async (req: Request, res: Response): Promise<any> => 
       data: shipType,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
