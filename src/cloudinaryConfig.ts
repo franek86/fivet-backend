@@ -17,6 +17,7 @@ export const uploadSingleFile = async (filePath: string, folder: string): Promis
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
   }
+
   return result.secure_url;
 };
 

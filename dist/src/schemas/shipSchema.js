@@ -2,12 +2,28 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shipSchema = void 0;
 const zod_1 = require("zod");
+const parseOptionalNumber = (val) => {
+    if (val == null)
+        return null;
+    if (Array.isArray(val))
+        val = val[0];
+    if (val === "")
+        return null;
+    const num = Number(val);
+    return isNaN(num) ? null : num;
+};
 const currentYear = new Date().getFullYear();
 exports.shipSchema = zod_1.z.object({
     shipName: zod_1.z.string().min(1, "Ship name is required"),
     imo: zod_1.z.string().min(1, "Ship IMO is required"),
-    refitYear: zod_1.z.coerce.number().int().positive().optional(),
-    buildYear: zod_1.z.coerce.number().int().positive().max(currentYear).optional(),
+    refitYear: zod_1.z.preprocess(parseOptionalNumber, zod_1.z.number().int().positive().nullable().optional()),
+    buildYear: zod_1.z.preprocess(parseOptionalNumber, zod_1.z.number().int().positive().max(currentYear).nullable().optional()),
+    isPublished: zod_1.z
+        .union([zod_1.z.string(), zod_1.z.boolean()])
+        .optional()
+        .transform((val) => (typeof val === "string" ? val === "true" : Boolean(val))),
+    /* refitYear: z.coerce.number().int().positive().optional(),
+    buildYear: z.coerce.number().int().positive().max(currentYear).optional(), */
     price: zod_1.z.coerce.number({ required_error: "Price is required", invalid_type_error: "Price must be a number" }).positive(),
     location: zod_1.z.string().min(1, "Ship location is required"),
     mainEngine: zod_1.z.string().min(1, "Main engine is required"),

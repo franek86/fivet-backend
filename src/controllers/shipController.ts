@@ -43,7 +43,6 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       data: createdShip,
     });
   } catch (error) {
-    console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -189,7 +188,16 @@ export const getShip = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
   if (!id) return res.status(404).json({ message: "Ship id are not found!" });
   try {
-    const ship = await prisma.ship.findUnique({ where: { id } });
+    const ship = await prisma.ship.findUnique({
+      where: { id },
+      include: {
+        shipType: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
 
     if (!ship) {
       return res.status(404).json({ message: "Ship not found" });
@@ -207,12 +215,13 @@ Admin can update all ship, but users can only update their own ships
 */
 export const updateShip = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
-  const {
+  /*  const {
     shipName,
     typeId,
     imo,
     refitYear,
     buildYear,
+    isPublished,
     price,
     location,
     mainEngine,
@@ -228,7 +237,7 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
     description,
     mainImage,
     images,
-  } = req.body;
+  } = req.body; */
 
   try {
     const ship = await prisma.ship.findUnique({ where: { id } });
@@ -237,19 +246,37 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
       return res.status(404).json({ message: "Ship not found" });
     }
 
+    // ✅ Validate body
+    const parsed = shipSchema.parse(req.body);
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    // Handle new files from Multer
+    const newImages = files?.images?.map((file) => file.path) || [];
+    const uploadedMainImage = files?.mainImage?.[0]?.path || ship.mainImage;
+
+    // Filter out any blob URLs
+    const oldImages = Array.isArray(req.body.images) ? req.body.images.filter((img: string) => !img.startsWith("blob:")) : [];
+
     const updatedShip = await prisma.ship.update({
       where: { id },
       data: {
+        ...parsed,
+        mainImage: uploadedMainImage,
+        images: [...oldImages, ...newImages],
+      },
+      /* data: {
         shipName,
         typeId,
+        isPublished,
         imo,
-        refitYear,
-        buildYear,
+        buildYear: buildYear ? parseInt(buildYear, 10) : null,
+        refitYear: refitYear ? parseInt(refitYear, 10) : null,
         price: parseFloat(price),
+        beam: parseFloat(beam),
         location,
         mainEngine,
         lengthOverall,
-        beam: parseFloat(beam),
         length: parseFloat(length),
         depth: parseFloat(depth),
         draft: parseFloat(draft),
@@ -258,9 +285,9 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
         buildCountry,
         remarks,
         description,
-        mainImage,
-        images,
-      },
+        mainImage: uploadedMainImage,
+        images: [...oldImages, ...newImages],
+      }, */
     });
 
     return res.status(200).json({

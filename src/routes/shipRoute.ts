@@ -14,7 +14,15 @@ import upload from "../middleware/uploads";
 
 const router = express.Router();
 
-router.post("/create", authenticateUser, upload.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), createShip);
+router.post(
+  "/create",
+  authenticateUser,
+  upload.fields([
+    { name: "mainImage", maxCount: 1 },
+    { name: "images", maxCount: 10 },
+  ]),
+  createShip
+);
 router.get("/published", getAllPublishedShips);
 router.get("/", authenticateUser, getDashboardShips);
 router.get("/:id", getShip);

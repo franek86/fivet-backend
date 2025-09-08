@@ -45,7 +45,6 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         });
     }
     catch (error) {
-        console.log(error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
@@ -177,7 +176,16 @@ const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (!id)
         return res.status(404).json({ message: "Ship id are not found!" });
     try {
-        const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
+        const ship = yield prismaClient_1.default.ship.findUnique({
+            where: { id },
+            include: {
+                shipType: {
+                    select: {
+                        name: true,
+                    },
+                },
+            },
+        });
         if (!ship) {
             return res.status(404).json({ message: "Ship not found" });
         }
@@ -193,37 +201,70 @@ UPDATE SHIPS BY ID
 Admin can update all ship, but users can only update their own ships
 */
 const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c;
     const { id } = req.params;
-    const { shipName, typeId, imo, refitYear, buildYear, price, location, mainEngine, lengthOverall, beam, length, depth, draft, tonnage, cargoCapacity, buildCountry, remarks, description, mainImage, images, } = req.body;
+    /*  const {
+      shipName,
+      typeId,
+      imo,
+      refitYear,
+      buildYear,
+      isPublished,
+      price,
+      location,
+      mainEngine,
+      lengthOverall,
+      beam,
+      length,
+      depth,
+      draft,
+      tonnage,
+      cargoCapacity,
+      buildCountry,
+      remarks,
+      description,
+      mainImage,
+      images,
+    } = req.body; */
     try {
         const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
         if (!ship) {
             return res.status(404).json({ message: "Ship not found" });
         }
+        // ✅ Validate body
+        const parsed = shipSchema_1.shipSchema.parse(req.body);
+        const files = req.files;
+        // Handle new files from Multer
+        const newImages = ((_a = files === null || files === void 0 ? void 0 : files.images) === null || _a === void 0 ? void 0 : _a.map((file) => file.path)) || [];
+        const uploadedMainImage = ((_c = (_b = files === null || files === void 0 ? void 0 : files.mainImage) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.path) || ship.mainImage;
+        // Filter out any blob URLs
+        const oldImages = Array.isArray(req.body.images) ? req.body.images.filter((img) => !img.startsWith("blob:")) : [];
         const updatedShip = yield prismaClient_1.default.ship.update({
             where: { id },
-            data: {
-                shipName,
-                typeId,
-                imo,
-                refitYear,
-                buildYear,
-                price: parseFloat(price),
-                location,
-                mainEngine,
-                lengthOverall,
-                beam: parseFloat(beam),
-                length: parseFloat(length),
-                depth: parseFloat(depth),
-                draft: parseFloat(draft),
-                tonnage: parseFloat(tonnage),
-                cargoCapacity,
-                buildCountry,
-                remarks,
-                description,
-                mainImage,
-                images,
-            },
+            data: Object.assign(Object.assign({}, parsed), { mainImage: uploadedMainImage, images: [...oldImages, ...newImages] }),
+            /* data: {
+              shipName,
+              typeId,
+              isPublished,
+              imo,
+              buildYear: buildYear ? parseInt(buildYear, 10) : null,
+              refitYear: refitYear ? parseInt(refitYear, 10) : null,
+              price: parseFloat(price),
+              beam: parseFloat(beam),
+              location,
+              mainEngine,
+              lengthOverall,
+              length: parseFloat(length),
+              depth: parseFloat(depth),
+              draft: parseFloat(draft),
+              tonnage: parseFloat(tonnage),
+              cargoCapacity,
+              buildCountry,
+              remarks,
+              description,
+              mainImage: uploadedMainImage,
+              images: [...oldImages, ...newImages],
+            }, */
         });
         return res.status(200).json({
             message: "Ship updated successfully",
