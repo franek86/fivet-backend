@@ -73,7 +73,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
 /* LOGIN USER WITH ACCESS AND REFRESH TOKEN */
 export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
     if (!email || !password) throw new ValidationError("Email and password are required!");
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -84,9 +84,13 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = generateRefreshToken(user.id, user.role);
+    /* 
+      if is remember me, set token in 30 days other ways set token to 7 days
+    */
+    const refreshTokenExpiry = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
 
-    setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
-    setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
+    setCookie(res, "access_token", accessToken, 5 * 60 * 1000); //5 minutes
+    setCookie(res, "refresh_token", refreshToken, refreshTokenExpiry); // 7 days
 
     res.json({
       message: "User loggedin successfully",
@@ -113,8 +117,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 
     const new_access_token = generateAccessToken(decoded.userId, decoded.role);
     setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
-    console.log(new_access_token);
-    console.log(decoded);
+
     return res.json({
       success: true,
       accessToken: new_access_token,
