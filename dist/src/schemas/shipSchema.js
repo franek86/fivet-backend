@@ -22,8 +22,6 @@ exports.shipSchema = zod_1.z.object({
         .union([zod_1.z.string(), zod_1.z.boolean()])
         .optional()
         .transform((val) => (typeof val === "string" ? val === "true" : Boolean(val))),
-    /* refitYear: z.coerce.number().int().positive().optional(),
-    buildYear: z.coerce.number().int().positive().max(currentYear).optional(), */
     price: zod_1.z.coerce.number({ required_error: "Price is required", invalid_type_error: "Price must be a number" }).positive(),
     location: zod_1.z.string().min(1, "Ship location is required"),
     mainEngine: zod_1.z.string().min(1, "Main engine is required"),

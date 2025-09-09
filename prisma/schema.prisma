@@ -79,6 +79,8 @@ model Ship {
   mainImage       String
   images          String[]
 
+  clicks          Int      @default(0)
+
   user            User     @relation(fields: [userId], references: [id],onDelete: Cascade)
   userId          String
 
@@ -116,10 +118,3 @@ model AddressBook {
   userId          String
   createdAt       DateTime @default(now())
 }
-
-model AdminDashboard {
-  id              Int   @id @default(autoincrement())
-  totalUsers      Int      @default(0)
-  totalShips      Int      @default(0)
-} 
-

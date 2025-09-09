@@ -132,7 +132,6 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         (0, setCookies_1.setCookie)(res, "refresh_token", refreshToken, refreshTokenExpiry); // 7 days
         res.json({
             message: "User loggedin successfully",
-            //user: { id: user.id, email: user.email },
         });
     }
     catch (error) {

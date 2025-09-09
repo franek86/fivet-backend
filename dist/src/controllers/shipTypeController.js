@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllShipType = exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
+exports.getDashboardStatistic = exports.getAllShipType = exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
 const pagination_1 = require("../helpers/pagination");
 const parseSortBy_1 = require("../helpers/parseSortBy");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
@@ -141,3 +141,29 @@ const getAllShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.getAllShipType = getAllShipType;
+/*
+  SHIP STATISTIC ON DASHBAORD
+ */
+const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const totalShips = yield prismaClient_1.default.ship.count();
+        const totalUsers = yield prismaClient_1.default.user.count();
+        const topShips = yield prismaClient_1.default.ship.findMany({
+            orderBy: { clicks: "desc" },
+            take: 5,
+            select: {
+                id: true,
+                shipName: true,
+                imo: true,
+                clicks: true,
+                price: true,
+                mainImage: true,
+            },
+        });
+        return res.json({ totalShips, totalUsers, topShips });
+    }
+    catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.getDashboardStatistic = getDashboardStatistic;

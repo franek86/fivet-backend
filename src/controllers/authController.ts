@@ -94,7 +94,6 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     res.json({
       message: "User loggedin successfully",
-      //user: { id: user.id, email: user.email },
     });
   } catch (error) {
     next(error);

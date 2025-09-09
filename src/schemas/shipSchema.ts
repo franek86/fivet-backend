@@ -20,8 +20,7 @@ export const shipSchema = z.object({
     .union([z.string(), z.boolean()])
     .optional()
     .transform((val) => (typeof val === "string" ? val === "true" : Boolean(val))),
-  /* refitYear: z.coerce.number().int().positive().optional(),
-  buildYear: z.coerce.number().int().positive().max(currentYear).optional(), */
+
   price: z.coerce.number({ required_error: "Price is required", invalid_type_error: "Price must be a number" }).positive(),
   location: z.string().min(1, "Ship location is required"),
   mainEngine: z.string().min(1, "Main engine is required"),
