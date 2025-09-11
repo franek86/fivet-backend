@@ -15,5 +15,5 @@ export const addressBookSchema = z.object({
   priority: StatusEnum.default("REGULAR"),
   company: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
-  userId: z.string().uuid(),
+  userId: z.string().uuid("User ID must be valid"),
 });

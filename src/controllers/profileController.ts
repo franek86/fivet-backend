@@ -6,7 +6,7 @@ import prisma from "../prismaClient";
 import { ValidationError } from "../helpers/errorHandler";
 
 /* GET ALL USER PROFILE
-ONLY ADMIN CAN SEE ALL USER 
+ONLY ADMIN CAN SEE ALL USER
 */
 export const getAllProfiles = async (req: Request, res: Response): Promise<any> => {
   const { search } = req.query;

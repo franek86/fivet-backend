@@ -15,6 +15,7 @@ const shipRoute_1 = __importDefault(require("./routes/shipRoute"));
 const shipTypeRoute_1 = __importDefault(require("./routes/shipTypeRoute"));
 const profileRoute_1 = __importDefault(require("./routes/profileRoute"));
 const addressBookRoute_1 = __importDefault(require("./routes/addressBookRoute"));
+const eventsRoute_1 = __importDefault(require("./routes/eventsRoute"));
 const middleware_1 = require("./middleware");
 /* CONFIGURATION */
 dotenv_1.default.config();
@@ -38,6 +39,7 @@ app.use("/ships", shipRoute_1.default);
 app.use("/shipType", shipTypeRoute_1.default);
 app.use("/profile", profileRoute_1.default);
 app.use("/address-book", addressBookRoute_1.default);
+app.use("/events", eventsRoute_1.default);
 app.use(middleware_1.errorMiddleware);
 /* SERVER */
 const port = Number(process.env.PORT) || 5000;

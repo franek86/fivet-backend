@@ -35,6 +35,6 @@ exports.shipSchema = zod_1.z.object({
     buildCountry: zod_1.z.string().optional(),
     remarks: zod_1.z.string().optional(),
     description: zod_1.z.string().optional(),
-    userId: zod_1.z.string().uuid(),
-    typeId: zod_1.z.string().uuid(),
+    userId: zod_1.z.string().uuid("User ID must be valid"),
+    typeId: zod_1.z.string().uuid("Ship type are required"),
 });

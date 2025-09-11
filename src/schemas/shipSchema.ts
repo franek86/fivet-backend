@@ -34,6 +34,6 @@ export const shipSchema = z.object({
   buildCountry: z.string().optional(),
   remarks: z.string().optional(),
   description: z.string().optional(),
-  userId: z.string().uuid(),
-  typeId: z.string().uuid(),
+  userId: z.string().uuid("User ID must be valid"),
+  typeId: z.string().uuid("Ship type are required"),
 });

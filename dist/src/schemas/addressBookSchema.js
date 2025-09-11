@@ -18,5 +18,5 @@ exports.addressBookSchema = zod_1.z.object({
     priority: StatusEnum.default("REGULAR"),
     company: zod_1.z.string().optional().nullable(),
     address: zod_1.z.string().optional().nullable(),
-    userId: zod_1.z.string().uuid(),
+    userId: zod_1.z.string().uuid("User ID must be valid"),
 });
