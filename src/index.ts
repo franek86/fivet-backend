@@ -12,6 +12,7 @@ import shipTypeRoute from "./routes/shipTypeRoute";
 import profileRouter from "./routes/profileRoute";
 import addressBookRoute from "./routes/addressBookRoute";
 import eventsRoute from "./routes/eventsRoute";
+import dashboardRoute from "./routes/dashboardRoute";
 import { errorMiddleware } from "./middleware";
 
 /* CONFIGURATION */
@@ -24,7 +25,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   })
 );
@@ -41,6 +42,7 @@ app.use("/shipType", shipTypeRoute);
 app.use("/profile", profileRouter);
 app.use("/address-book", addressBookRoute);
 app.use("/events", eventsRoute);
+app.use("/dashboard", dashboardRoute);
 
 app.use(errorMiddleware);
 

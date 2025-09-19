@@ -139,28 +139,3 @@ export const getAllShipType = async (req: Request, res: Response): Promise<any> 
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-/* 
-  SHIP STATISTIC ON DASHBAORD
- */
-export const getDashboardStatistic = async (req: Request, res: Response): Promise<any> => {
-  try {
-    const totalShips = await prisma.ship.count();
-    const totalUsers = await prisma.user.count();
-    const topShips = await prisma.ship.findMany({
-      orderBy: { clicks: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        shipName: true,
-        imo: true,
-        clicks: true,
-        price: true,
-        mainImage: true,
-      },
-    });
-    return res.json({ totalShips, totalUsers, topShips });
-  } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};

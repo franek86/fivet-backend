@@ -11,7 +11,6 @@ import {
 } from "../controllers/shipController";
 import { authAdmin, authenticateUser } from "../middleware";
 import upload from "../middleware/uploads";
-import { getDashboardStatistic } from "../controllers/shipTypeController";
 
 const router = express.Router();
 
@@ -26,7 +25,6 @@ router.post(
 );
 router.get("/published", getAllPublishedShips);
 router.get("/", authenticateUser, getDashboardShips);
-router.get("/dashboard/statistic", authenticateUser, getDashboardStatistic);
 router.get("/:id", getShip);
 router.patch("/:id", authenticateUser, upload.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), updateShip);
 router.patch("/:id/publish", authenticateUser, authAdmin, updatePublishedShip);

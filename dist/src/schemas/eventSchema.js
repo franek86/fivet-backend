@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.eventSchema = void 0;
+exports.filterEventSchema = exports.eventSchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 const statusEnum = zod_1.default.enum(["planned", "done", "canceled"]);
 const priorityEnum = zod_1.default.enum(["low", "medium", "high"]);
@@ -19,9 +19,22 @@ exports.eventSchema = zod_1.default.object({
             return new Date(arg);
     }, zod_1.default.date({ required_error: "End date are required" })),
     location: zod_1.default.string().optional(),
-    reminder: zod_1.default.number().int().min(0).optional(),
+    reminder: zod_1.default.number().int().min(0).nullable().optional(),
     status: statusEnum.optional().default("planned"),
-    priority: priorityEnum.optional(),
+    priority: priorityEnum.nullable().optional(),
     tags: zod_1.default.array(zod_1.default.string()).optional(),
     userId: zod_1.default.string().uuid("User ID must be valid"),
+});
+exports.filterEventSchema = zod_1.default.object({
+    status: zod_1.default.string().optional(),
+    priority: zod_1.default.string().optional(),
+    startDate: zod_1.default
+        .string()
+        .transform((val) => new Date(val))
+        .optional(),
+    endDate: zod_1.default
+        .string()
+        .transform((val) => new Date(val))
+        .optional(),
+    search: zod_1.default.string().optional(),
 });
