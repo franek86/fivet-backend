@@ -9,6 +9,8 @@ import prisma from "../prismaClient";
 import { shipFilters } from "../helpers/shipFilters";
 import { parseSortBy } from "../helpers/parseSortBy";
 import { ValidationError } from "../helpers/errorHandler";
+import { sendEmail } from "../utils/sendMail";
+import { formatDate } from "../utils/formatDate";
 
 /* 
 CREATE SHIP 
@@ -37,7 +39,50 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       images: imagesUrls,
       isPublished: false,
     };
-    const createdShip = await prisma.ship.create({ data: shipData });
+    const createdShip = await prisma.ship.create({
+      data: shipData,
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    /* call notification for admin when ship created */
+    /* Find admin first */
+    if (req.user!.role === "ADMIN") {
+      const admin = await prisma.user.findUnique({
+        where: { id: req.user!.userId },
+        select: {
+          email: true,
+        },
+      });
+
+      const shipLink = `${process.env.FRONTEND_URL}/ships/${createdShip?.id}`;
+
+      const emailData = {
+        shipTitle: createdShip.shipName,
+        shipIMO: createdShip.imo,
+        createdAt: formatDate(createdShip.createdAt.toISOString()),
+        fullName: createdShip.user?.profile?.fullName,
+        reviewUrl: shipLink,
+      };
+
+      const emailToSend = admin?.email ?? "";
+
+      /* add notification */
+      await prisma.notification.create({
+        data: {
+          message: `${createdShip.user!.profile!.fullName} created a new ship: ${createdShip.shipName}`,
+          userId: req.user?.userId,
+        },
+      });
+
+      await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
+    }
+
     return res.status(200).json({
       message: "Ship added successfully! Awaiting admin approval.",
       data: createdShip,

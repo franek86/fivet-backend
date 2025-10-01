@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fivet Ship Notification</title>
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 0;
+        min-width: 100%;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        background-color: #fafafa;
+        color: #222222;
+      }
+      a {
+        color: #000;
+        text-decoration: none;
+      }
+      h1 {
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.25;
+        margin-top: 0;
+        margin-bottom: 0;
+        text-align: center;
+      }
+      p {
+        margin-top: 0;
+        margin-bottom: 24px;
+      }
+      table td {
+        vertical-align: top;
+      }
+      .email-wrapper {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .email-header {
+        background-color: #0070f3;
+        padding: 24px;
+        color: #fff;
+      }
+      .email-body {
+        padding: 24px;
+        color: #000;
+      }
+      .email-code {
+        font-weight: 600;
+        font-size: 32px;
+      }
+      .email-footer {
+        background-color: #f6f6f6;
+        padding: 24px;
+      }
+      .button {
+        display: inline-block;
+        background-color: #0070f3;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-wrapper">
+      <div class="email-header">
+        <h1>Ship notification - Fivet</h1>
+      </div>
+      <div class="email-body">
+        <p>Hi Admin,</p>
+        <p>created a new ship by <b> <%= fullName %></b> at <%= createdAt %></p>
+        <p>
+            Ship name <b><%= shipTitle %></b>, imo number: <b><%= shipIMO %></b>.</p>
+        </p> 
+        <p>Please click <b><a href="<%= reviewUrl %>"> here </a></b> to review and publish it.</p>
+        <p>Best,<br />Fivet Team</p>
+      </div>
+    </div>
+  </body>
+</html>

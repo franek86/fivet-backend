@@ -16,6 +16,7 @@ const shipTypeRoute_1 = __importDefault(require("./routes/shipTypeRoute"));
 const profileRoute_1 = __importDefault(require("./routes/profileRoute"));
 const addressBookRoute_1 = __importDefault(require("./routes/addressBookRoute"));
 const eventsRoute_1 = __importDefault(require("./routes/eventsRoute"));
+const notificationRoute_1 = __importDefault(require("./routes/notificationRoute"));
 const dashboardRoute_1 = __importDefault(require("./routes/dashboardRoute"));
 const middleware_1 = require("./middleware");
 /* CONFIGURATION */
@@ -41,6 +42,7 @@ app.use("/shipType", shipTypeRoute_1.default);
 app.use("/profile", profileRoute_1.default);
 app.use("/address-book", addressBookRoute_1.default);
 app.use("/events", eventsRoute_1.default);
+app.use("/notification", notificationRoute_1.default);
 app.use("/dashboard", dashboardRoute_1.default);
 app.use(middleware_1.errorMiddleware);
 /* SERVER */
