@@ -1,12 +1,12 @@
 import { Response, Request, NextFunction } from "express";
 import { Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import { addressBookSchema } from "../schemas/addressBookSchema";
+import { addressBookSchema } from "../schemas/addressBook.schema";
 import prisma from "../prismaClient";
 import { ValidationError } from "../helpers/errorHandler";
 
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
-export const getAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const getAddressBook = async (req: Request, res: Response): Promise<any> => {
   const { userId } = req.user as CustomJwtPayload;
   const { search } = req.query;
 
@@ -33,7 +33,7 @@ export const getAddressBook = async (req: Request, res: Response, next: NextFunc
     const data = await prisma.addressBook.findMany({ where: whereCondition, orderBy: { createdAt: "desc" } });
     return res.status(200).json(data);
   } catch (error) {
-    next(error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 

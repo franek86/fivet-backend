@@ -97,7 +97,11 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
                 email,
                 password: hashedPassword,
                 fullName,
-                profile: { create: { fullName } },
+                profile: {
+                    create: {
+                        fullName,
+                    },
+                },
             },
         });
         res.status(201).json({
@@ -177,14 +181,14 @@ const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
                 profile: {
                     select: {
                         id: true,
-                        fullName: true,
                         avatar: true,
+                        fullName: true,
                         userId: true,
                     },
                 },
             },
         });
-        if (!user || !user.profile)
+        if (!user)
             return res.status(500).json({ message: "User not found" });
         const result = {
             id: user.id,

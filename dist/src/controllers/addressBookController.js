@@ -24,11 +24,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteAddressBook = exports.updateAddressBook = exports.createAddressBook = exports.getSingleAddressBook = exports.getAddressBook = void 0;
-const addressBookSchema_1 = require("../schemas/addressBookSchema");
+const addressBook_schema_1 = require("../schemas/addressBook.schema");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const errorHandler_1 = require("../helpers/errorHandler");
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
-const getAddressBook = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const getAddressBook = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.user;
     const { search } = req.query;
     if (!userId)
@@ -54,7 +54,7 @@ const getAddressBook = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         return res.status(200).json(data);
     }
     catch (error) {
-        next(error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getAddressBook = getAddressBook;
@@ -77,7 +77,7 @@ exports.getSingleAddressBook = getSingleAddressBook;
 /* CREATE ADDRESS BOOK ONLY USER */
 const createAddressBook = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.user;
-    const body = addressBookSchema_1.addressBookSchema.parse(req.body);
+    const body = addressBook_schema_1.addressBookSchema.parse(req.body);
     try {
         const addressBookData = Object.assign(Object.assign({}, body), { userId });
         const createAddressBookData = yield prismaClient_1.default.addressBook.create({ data: addressBookData });

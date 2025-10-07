@@ -31,6 +31,24 @@ enum Status {
   REGULAR
 }
 
+enum EventStatus {
+  PLANNED
+  CANCELLED
+  DONE
+}
+
+enum EventPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  REMINDER
+}
+
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
@@ -38,21 +56,25 @@ model User {
   fullName    String
   role        Role         @default(USER)
   subscription Subscription @default(STARTER)
+  isActive    Boolean @default(true)
+  lastLogin   DateTime?
   profile     Profile?
   ships       Ship[]
   addressBook AddressBook[]
   events Event[]
   notifications Notification[]
   createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Profile {
   id       Int  @id @default(autoincrement())
-  fullName String
+  fullName String?
   avatar   String?
   user     User    @relation(fields: [userId], references: [id])
   userId   String  @unique
   createdAt   DateTime     @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Ship {
@@ -62,23 +84,23 @@ model Ship {
   shipType        ShipType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
   typeId          String?
 
-  imo             String  @unique
+  imo             Int  @unique
   refitYear       Int?
   buildYear       Int?
   price           Float
-  location        String
-  mainEngine      String
-  lengthOverall   String
-  beam            Float
-  length          Float
-  depth           Float
-  draft           Float
-  tonnage         Float
-  cargoCapacity   String
+  location        String?
+  mainEngine      String?
+  lengthOverall   Float?
+  beam            Float?
+  length          Float?
+  depth           Float?
+  draft           Float?
+  tonnage         Float?
+  cargoCapacity   String?
   buildCountry    String?
   remarks         String?
   description     String?
-  mainImage       String
+  mainImage       String?
   images          String[]
 
   clicks          Int      @default(0)
@@ -88,13 +110,16 @@ model Ship {
 
   isPublished     Boolean  @default(false)
   createdAt       DateTime @default(now())
+  updatedAt       DateTime     @updatedAt
   
 }
+
+
 
 model ShipType {
   id          String @id @default(uuid())
   name        String @unique
-  description String
+  description String?
   ships       Ship[]
   createdAt   DateTime @default(now())
 }
@@ -119,6 +144,7 @@ model AddressBook {
   user            User     @relation(fields: [userId], references: [id])
   userId          String
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Event {
@@ -129,19 +155,20 @@ model Event {
   end         DateTime
   location    String?
   reminder    Int?       
-  status      String     @default("planned")
-  priority    String?    // low, medium, high
+  status      EventStatus @default(PLANNED)
+  priority    EventPriority?    
   tags        String[] 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
   user User @relation(fields: [userId], references: [id])
   userId String
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Notification {
   id       Int  @id @default(autoincrement())
   message  String
+  type NotificationType @default(INFO)
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -58,7 +58,11 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         email,
         password: hashedPassword,
         fullName,
-        profile: { create: { fullName } },
+        profile: {
+          create: {
+            fullName,
+          },
+        },
       },
     });
     res.status(201).json({
@@ -140,15 +144,15 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
         profile: {
           select: {
             id: true,
-            fullName: true,
             avatar: true,
+            fullName: true,
             userId: true,
           },
         },
       },
     });
 
-    if (!user || !user.profile) return res.status(500).json({ message: "User not found" });
+    if (!user) return res.status(500).json({ message: "User not found" });
     const result = {
       id: user.id,
       role: user.role,

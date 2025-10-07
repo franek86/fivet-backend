@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
+import { ValidationError } from "../helpers/errorHandler";
 
 export const getNotifications = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -42,6 +43,26 @@ export const updateUnreadNotification = async (req: Request, res: Response): Pro
     });
 
     res.json({ message: "Notification marked as read", notification: updated });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+export const deleteNotification = async (req: Request, res: Response): Promise<any> => {
+  const { id } = req.params;
+  const notificationId = Number(id);
+  if (!notificationId) throw new ValidationError("ID does not exists.");
+  try {
+    const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+    if (!notification) throw new ValidationError("Notification not found.");
+
+    await prisma.notification.delete({
+      where: { id: notificationId },
+    });
+    return res.status(200).json({
+      message: `Notification by ${id} deleted successfully`,
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: (error as Error).message });

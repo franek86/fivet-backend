@@ -13,15 +13,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteEvent = exports.updateEventById = exports.getSingleEvent = exports.getAllEvents = exports.createEvent = void 0;
-const eventSchema_1 = require("../schemas/eventSchema");
+const event_schema_1 = require("../schemas/event.schema");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../helpers/pagination");
 const errorHandler_1 = require("../helpers/errorHandler");
 /*  CREATE EVENT AUTH USER */
 const createEvent = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const body = eventSchema_1.eventSchema.parse(req.body);
+    var _a;
     try {
-        const newEvent = yield prismaClient_1.default.event.create({ data: body });
+        const validate = event_schema_1.CreateEventSchema.parse(req.body);
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        if (!userId)
+            return res.status(404).json({ message: "Unauthorized" });
+        const newEvent = yield prismaClient_1.default.event.create({ data: Object.assign(Object.assign({}, validate), { userId: userId }) });
         return res.status(200).json(newEvent);
     }
     catch (error) {
@@ -32,7 +36,7 @@ const createEvent = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
 exports.createEvent = createEvent;
 /* GET ALL EVENTS WITH PAGINATION AND FILTER */
 const getAllEvents = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const parsedEventData = eventSchema_1.filterEventSchema.safeParse(req.query);
+    const parsedEventData = event_schema_1.filterEventSchema.safeParse(req.query);
     if (!parsedEventData.success) {
         return res.status(400).json({ errors: parsedEventData.error.errors });
     }
@@ -93,7 +97,7 @@ const updateEventById = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
     const { id } = req.params;
     if (!id)
         throw new errorHandler_1.ValidationError("Event ID does not exists.");
-    const parsedData = eventSchema_1.eventSchema.safeParse(req.body);
+    const parsedData = event_schema_1.CreateEventSchema.safeParse(req.body);
     if (!parsedData.success) {
         return res.status(400).json({ errors: parsedData.error.errors });
     }

@@ -1,11 +1,10 @@
+import prisma from "../prismaClient";
 import { NextFunction, Request, Response } from "express";
-import { Prisma } from "@prisma/client";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { DeleteShipRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
 import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
-import { shipSchema } from "../schemas/shipSchema";
-import prisma from "../prismaClient";
+import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
 import { shipFilters } from "../helpers/shipFilters";
 import { parseSortBy } from "../helpers/parseSortBy";
 import { ValidationError } from "../helpers/errorHandler";
@@ -17,15 +16,17 @@ CREATE SHIP
 Authenticate user can create ship
 */
 export const createShip = async (req: Request, res: Response): Promise<any> => {
-  const body = shipSchema.parse(req.body);
-
-  const files = req.files as {
-    [fieldname: string]: Express.Multer.File[];
-  };
-  let mainImageUrl: string = "";
-  let imagesUrls: string[] = [];
+  const userId = req.user?.userId;
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
   try {
+    const files = req.files as {
+      [fieldname: string]: Express.Multer.File[];
+    };
+
+    let mainImageUrl: string = "";
+    let imagesUrls: string[] = [];
+
     if (files?.["mainImage"]?.[0]?.path) {
       mainImageUrl = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
     }
@@ -33,61 +34,60 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       imagesUrls = await uploadMultipleFiles(files["images"], "ship/images");
     }
 
-    const shipData: Prisma.ShipUncheckedCreateInput = {
-      ...body,
+    const validateData = CreateShipSchema.parse({
+      ...req.body,
       mainImage: mainImageUrl,
       images: imagesUrls,
-      isPublished: false,
-    };
-    const createdShip = await prisma.ship.create({
-      data: shipData,
-      include: {
-        user: {
-          include: {
-            profile: true,
-          },
-        },
+    });
+
+    const newShip = await prisma.ship.create({
+      data: {
+        ...validateData,
+        userId: userId,
+        mainImage: mainImageUrl,
+        images: imagesUrls,
+        isPublished: false,
       },
     });
 
     /* call notification for admin when ship created */
     /* Find admin first */
-    if (req.user!.role === "ADMIN") {
-      const admin = await prisma.user.findUnique({
-        where: { id: req.user!.userId },
-        select: {
-          email: true,
-        },
-      });
+    const admin = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
 
-      const shipLink = `${process.env.FRONTEND_URL}/ships/${createdShip?.id}`;
+    const fullName = req.user?.fullName;
+    const shipLink = `${process.env.FRONTEND_URL}/ships/${newShip?.id}`;
+    const emailData = {
+      shipTitle: newShip.shipName,
+      shipIMO: newShip.imo,
+      createdAt: formatDate(newShip.createdAt.toISOString()),
+      fullName: fullName,
+      reviewUrl: shipLink,
+    };
+    const emailToSend = admin?.email ?? "";
 
-      const emailData = {
-        shipTitle: createdShip.shipName,
-        shipIMO: createdShip.imo,
-        createdAt: formatDate(createdShip.createdAt.toISOString()),
-        fullName: createdShip.user?.profile?.fullName,
-        reviewUrl: shipLink,
-      };
-
-      const emailToSend = admin?.email ?? "";
-
-      /* add notification */
+    /* add notification */
+    if (req.user!.role !== "ADMIN" && admin) {
       await prisma.notification.create({
         data: {
-          message: `${createdShip.user!.profile!.fullName} created a new ship: ${createdShip.shipName}`,
-          userId: req.user?.userId,
+          message: `${fullName} created a new ship: ${newShip.shipName}`,
+          userId: admin.id,
         },
       });
-
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
 
     return res.status(200).json({
       message: "Ship added successfully! Awaiting admin approval.",
-      data: createdShip,
+      data: newShip,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -147,7 +147,7 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
 /* 
 PUBLISH SHIPS ADMIN ONLY
 */
-export const updatePublishedShip = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const updatePublishedShip = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
   const { isPublished } = req.body;
   if (!id) throw new ValidationError("Ship id not found");
@@ -156,7 +156,8 @@ export const updatePublishedShip = async (req: Request, res: Response, next: Nex
     const updateShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
     return res.status(200).json(updateShip);
   } catch (error) {
-    next(error);
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -260,79 +261,40 @@ Admin can update all ship, but users can only update their own ships
 */
 export const updateShip = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
-  /*  const {
-    shipName,
-    typeId,
-    imo,
-    refitYear,
-    buildYear,
-    isPublished,
-    price,
-    location,
-    mainEngine,
-    lengthOverall,
-    beam,
-    length,
-    depth,
-    draft,
-    tonnage,
-    cargoCapacity,
-    buildCountry,
-    remarks,
-    description,
-    mainImage,
-    images,
-  } = req.body; */
 
   try {
-    const ship = await prisma.ship.findUnique({ where: { id } });
+    const existingShip = await prisma.ship.findUnique({ where: { id } });
 
-    if (!ship) {
+    if (!existingShip) {
       return res.status(404).json({ message: "Ship not found" });
     }
-
-    // ✅ Validate body
-    const parsed = shipSchema.parse(req.body);
+    const body = {
+      ...req.body,
+      isPublished: req.body.isPublished === "true", // string -> boolean
+    };
+    // Validate body
+    const parsed = EditShipSchema.parse(body);
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    let mainImageUrl = existingShip.mainImage;
+    let imagesUrls = existingShip.images || [];
 
-    // Handle new files from Multer
-    const newImages = files?.images?.map((file) => file.path) || [];
-    const uploadedMainImage = files?.mainImage?.[0]?.path || ship.mainImage;
+    if (files?.["mainImage"]?.[0]?.path) {
+      mainImageUrl = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
+    }
 
-    // Filter out any blob URLs
-    const oldImages = Array.isArray(req.body.images) ? req.body.images.filter((img: string) => !img.startsWith("blob:")) : [];
+    if (files?.["images"]) {
+      const newImages = await uploadMultipleFiles(files["images"], "ship/images");
+      imagesUrls = [...imagesUrls, ...newImages];
+    }
 
     const updatedShip = await prisma.ship.update({
       where: { id },
       data: {
         ...parsed,
-        mainImage: uploadedMainImage,
-        images: [...oldImages, ...newImages],
+        mainImage: mainImageUrl,
+        images: imagesUrls,
       },
-      /* data: {
-        shipName,
-        typeId,
-        isPublished,
-        imo,
-        buildYear: buildYear ? parseInt(buildYear, 10) : null,
-        refitYear: refitYear ? parseInt(refitYear, 10) : null,
-        price: parseFloat(price),
-        beam: parseFloat(beam),
-        location,
-        mainEngine,
-        lengthOverall,
-        length: parseFloat(length),
-        depth: parseFloat(depth),
-        draft: parseFloat(draft),
-        tonnage: parseFloat(tonnage),
-        cargoCapacity,
-        buildCountry,
-        remarks,
-        description,
-        mainImage: uploadedMainImage,
-        images: [...oldImages, ...newImages],
-      }, */
     });
 
     return res.status(200).json({

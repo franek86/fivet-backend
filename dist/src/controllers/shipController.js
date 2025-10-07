@@ -13,10 +13,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getAllPublishedShips = exports.createShip = void 0;
+const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../helpers/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
-const shipSchema_1 = require("../schemas/shipSchema");
-const prismaClient_1 = __importDefault(require("../prismaClient"));
+const ship_schema_1 = require("../schemas/ship.schema");
 const shipFilters_1 = require("../helpers/shipFilters");
 const parseSortBy_1 = require("../helpers/parseSortBy");
 const errorHandler_1 = require("../helpers/errorHandler");
@@ -27,62 +27,60 @@ CREATE SHIP
 Authenticate user can create ship
 */
 const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f;
-    const body = shipSchema_1.shipSchema.parse(req.body);
-    const files = req.files;
-    let mainImageUrl = "";
-    let imagesUrls = [];
+    var _a, _b, _c, _d, _e;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    if (!userId)
+        return res.status(401).json({ message: "Unauthorized" });
     try {
-        if ((_b = (_a = files === null || files === void 0 ? void 0 : files["mainImage"]) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.path) {
+        const files = req.files;
+        let mainImageUrl = "";
+        let imagesUrls = [];
+        if ((_c = (_b = files === null || files === void 0 ? void 0 : files["mainImage"]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.path) {
             mainImageUrl = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
         }
         if (files === null || files === void 0 ? void 0 : files["images"]) {
             imagesUrls = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
         }
-        const shipData = Object.assign(Object.assign({}, body), { mainImage: mainImageUrl, images: imagesUrls, isPublished: false });
-        const createdShip = yield prismaClient_1.default.ship.create({
-            data: shipData,
-            include: {
-                user: {
-                    include: {
-                        profile: true,
-                    },
-                },
-            },
+        const validateData = ship_schema_1.CreateShipSchema.parse(Object.assign(Object.assign({}, req.body), { mainImage: mainImageUrl, images: imagesUrls }));
+        const newShip = yield prismaClient_1.default.ship.create({
+            data: Object.assign(Object.assign({}, validateData), { userId: userId, mainImage: mainImageUrl, images: imagesUrls, isPublished: false }),
         });
         /* call notification for admin when ship created */
         /* Find admin first */
-        if (req.user.role === "ADMIN") {
-            const admin = yield prismaClient_1.default.user.findUnique({
-                where: { id: req.user.userId },
-                select: {
-                    email: true,
-                },
-            });
-            const shipLink = `${process.env.FRONTEND_URL}/ships/${createdShip === null || createdShip === void 0 ? void 0 : createdShip.id}`;
-            const emailData = {
-                shipTitle: createdShip.shipName,
-                shipIMO: createdShip.imo,
-                createdAt: (0, formatDate_1.formatDate)(createdShip.createdAt.toISOString()),
-                fullName: (_d = (_c = createdShip.user) === null || _c === void 0 ? void 0 : _c.profile) === null || _d === void 0 ? void 0 : _d.fullName,
-                reviewUrl: shipLink,
-            };
-            const emailToSend = (_e = admin === null || admin === void 0 ? void 0 : admin.email) !== null && _e !== void 0 ? _e : "";
-            /* add notification */
+        const admin = yield prismaClient_1.default.user.findFirst({
+            where: { role: "ADMIN" },
+            select: {
+                id: true,
+                email: true,
+            },
+        });
+        const fullName = (_d = req.user) === null || _d === void 0 ? void 0 : _d.fullName;
+        const shipLink = `${process.env.FRONTEND_URL}/ships/${newShip === null || newShip === void 0 ? void 0 : newShip.id}`;
+        const emailData = {
+            shipTitle: newShip.shipName,
+            shipIMO: newShip.imo,
+            createdAt: (0, formatDate_1.formatDate)(newShip.createdAt.toISOString()),
+            fullName: fullName,
+            reviewUrl: shipLink,
+        };
+        const emailToSend = (_e = admin === null || admin === void 0 ? void 0 : admin.email) !== null && _e !== void 0 ? _e : "";
+        /* add notification */
+        if (req.user.role !== "ADMIN" && admin) {
             yield prismaClient_1.default.notification.create({
                 data: {
-                    message: `${createdShip.user.profile.fullName} created a new ship: ${createdShip.shipName}`,
-                    userId: (_f = req.user) === null || _f === void 0 ? void 0 : _f.userId,
+                    message: `${fullName} created a new ship: ${newShip.shipName}`,
+                    userId: admin.id,
                 },
             });
             yield (0, sendMail_1.sendEmail)(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
         }
         return res.status(200).json({
             message: "Ship added successfully! Awaiting admin approval.",
-            data: createdShip,
+            data: newShip,
         });
     }
     catch (error) {
+        console.log(error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
@@ -135,7 +133,7 @@ exports.getAllPublishedShips = getAllPublishedShips;
 /*
 PUBLISH SHIPS ADMIN ONLY
 */
-const updatePublishedShip = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const updatePublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { isPublished } = req.body;
     if (!id)
@@ -145,7 +143,8 @@ const updatePublishedShip = (req, res, next) => __awaiter(void 0, void 0, void 0
         return res.status(200).json(updateShip);
     }
     catch (error) {
-        next(error);
+        console.log(error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.updatePublishedShip = updatePublishedShip;
@@ -239,70 +238,29 @@ UPDATE SHIPS BY ID
 Admin can update all ship, but users can only update their own ships
 */
 const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
+    var _a, _b;
     const { id } = req.params;
-    /*  const {
-      shipName,
-      typeId,
-      imo,
-      refitYear,
-      buildYear,
-      isPublished,
-      price,
-      location,
-      mainEngine,
-      lengthOverall,
-      beam,
-      length,
-      depth,
-      draft,
-      tonnage,
-      cargoCapacity,
-      buildCountry,
-      remarks,
-      description,
-      mainImage,
-      images,
-    } = req.body; */
     try {
-        const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
-        if (!ship) {
+        const existingShip = yield prismaClient_1.default.ship.findUnique({ where: { id } });
+        if (!existingShip) {
             return res.status(404).json({ message: "Ship not found" });
         }
-        // ✅ Validate body
-        const parsed = shipSchema_1.shipSchema.parse(req.body);
+        const body = Object.assign(Object.assign({}, req.body), { isPublished: req.body.isPublished === "true" });
+        // Validate body
+        const parsed = ship_schema_1.EditShipSchema.parse(body);
         const files = req.files;
-        // Handle new files from Multer
-        const newImages = ((_a = files === null || files === void 0 ? void 0 : files.images) === null || _a === void 0 ? void 0 : _a.map((file) => file.path)) || [];
-        const uploadedMainImage = ((_c = (_b = files === null || files === void 0 ? void 0 : files.mainImage) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.path) || ship.mainImage;
-        // Filter out any blob URLs
-        const oldImages = Array.isArray(req.body.images) ? req.body.images.filter((img) => !img.startsWith("blob:")) : [];
+        let mainImageUrl = existingShip.mainImage;
+        let imagesUrls = existingShip.images || [];
+        if ((_b = (_a = files === null || files === void 0 ? void 0 : files["mainImage"]) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.path) {
+            mainImageUrl = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
+        }
+        if (files === null || files === void 0 ? void 0 : files["images"]) {
+            const newImages = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
+            imagesUrls = [...imagesUrls, ...newImages];
+        }
         const updatedShip = yield prismaClient_1.default.ship.update({
             where: { id },
-            data: Object.assign(Object.assign({}, parsed), { mainImage: uploadedMainImage, images: [...oldImages, ...newImages] }),
-            /* data: {
-              shipName,
-              typeId,
-              isPublished,
-              imo,
-              buildYear: buildYear ? parseInt(buildYear, 10) : null,
-              refitYear: refitYear ? parseInt(refitYear, 10) : null,
-              price: parseFloat(price),
-              beam: parseFloat(beam),
-              location,
-              mainEngine,
-              lengthOverall,
-              length: parseFloat(length),
-              depth: parseFloat(depth),
-              draft: parseFloat(draft),
-              tonnage: parseFloat(tonnage),
-              cargoCapacity,
-              buildCountry,
-              remarks,
-              description,
-              mainImage: uploadedMainImage,
-              images: [...oldImages, ...newImages],
-            }, */
+            data: Object.assign(Object.assign({}, parsed), { mainImage: mainImageUrl, images: imagesUrls }),
         });
         return res.status(200).json({
             message: "Ship updated successfully",

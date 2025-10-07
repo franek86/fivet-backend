@@ -1,6 +1,9 @@
 import z from "zod";
 
-const statusEnum = z.enum(["planned", "done", "canceled"]);
+export const EventStatusEnum = z.enum(["PLANNED", "DONE", "CANCELLED"]);
+export const EventPriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
+
+/* const statusEnum = z.enum(["planned", "done", "canceled"]);
 const priorityEnum = z.enum(["low", "medium", "high"]);
 
 export const eventSchema = z.object({
@@ -16,6 +19,19 @@ export const eventSchema = z.object({
   reminder: z.number().int().min(0).nullable().optional(),
   status: statusEnum.optional().default("planned"),
   priority: priorityEnum.nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  userId: z.string().uuid("User ID must be valid"),
+}); */
+
+export const CreateEventSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  start: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid start date" }),
+  end: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid end date" }),
+  location: z.string().optional(),
+  reminder: z.number().int().optional(),
+  status: EventStatusEnum.optional().default("PLANNED"),
+  priority: EventPriorityEnum.optional(),
   tags: z.array(z.string()).optional(),
   userId: z.string().uuid("User ID must be valid"),
 });
@@ -35,3 +51,5 @@ export const filterEventSchema = z.object({
 
   search: z.string().optional(),
 });
+
+export type CreateEventInput = z.infer<typeof CreateEventSchema>;

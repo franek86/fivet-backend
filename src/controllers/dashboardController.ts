@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
-import { getPaginationParams } from "../helpers/pagination";
-import { parseSortBy } from "../helpers/parseSortBy";
+
 import prisma from "../prismaClient";
 
 /* 

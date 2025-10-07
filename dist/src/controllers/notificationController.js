@@ -12,8 +12,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUnreadNotification = exports.getUnreadNotification = exports.getNotifications = void 0;
+exports.deleteNotification = exports.updateUnreadNotification = exports.getUnreadNotification = exports.getNotifications = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
+const errorHandler_1 = require("../helpers/errorHandler");
 const getNotifications = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -61,3 +62,25 @@ const updateUnreadNotification = (req, res) => __awaiter(void 0, void 0, void 0,
     }
 });
 exports.updateUnreadNotification = updateUnreadNotification;
+const deleteNotification = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const notificationId = Number(id);
+    if (!notificationId)
+        throw new errorHandler_1.ValidationError("ID does not exists.");
+    try {
+        const notification = yield prismaClient_1.default.notification.findUnique({ where: { id: notificationId } });
+        if (!notification)
+            throw new errorHandler_1.ValidationError("Notification not found.");
+        yield prismaClient_1.default.notification.delete({
+            where: { id: notificationId },
+        });
+        return res.status(200).json({
+            message: `Notification by ${id} deleted successfully`,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+exports.deleteNotification = deleteNotification;
