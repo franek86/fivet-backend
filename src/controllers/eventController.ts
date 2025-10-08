@@ -1,21 +1,21 @@
 import { NextFunction, Request, Response } from "express";
-import { CreateEventSchema, filterEventSchema } from "../schemas/event.schema";
+import { CreateEventSchema, EditEventSchema, filterEventSchema } from "../schemas/event.schema";
 import prisma from "../prismaClient";
 import { getPaginationParams } from "../helpers/pagination";
 import { ValidationError } from "../helpers/errorHandler";
 
 /*  CREATE EVENT AUTH USER */
-export const createEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const createEvent = async (req: Request, res: Response): Promise<any> => {
+  const userId = req.user?.userId;
+  if (!userId) return res.status(404).json({ message: "Unauthorized" });
   try {
     const validate = CreateEventSchema.parse(req.body);
-    const userId = req.user?.id;
-    if (!userId) return res.status(404).json({ message: "Unauthorized" });
 
     const newEvent = await prisma.event.create({ data: { ...validate, userId: userId } });
     return res.status(200).json(newEvent);
   } catch (error) {
     console.log(error);
-    next();
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -78,20 +78,22 @@ export const getSingleEvent = async (req: Request, res: Response, next: NextFunc
 };
 
 /* UPDATE EVENT BY ID */
-export const updateEventById = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const updateEventById = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
   if (!id) throw new ValidationError("Event ID does not exists.");
 
-  const parsedData = CreateEventSchema.safeParse(req.body);
-  if (!parsedData.success) {
-    return res.status(400).json({ errors: parsedData.error.errors });
-  }
+  const userId = req.user?.userId;
+  if (!userId) return res.status(404).json({ message: "Unauthorized" });
+
+  const parsedData = EditEventSchema.parse(req.body);
+
   try {
     const eventId = await prisma.event.findUnique({ where: { id } });
     if (!eventId) return res.status(404).json({ message: "Event is required" });
+
     const updateEvent = await prisma.event.update({
       where: { id },
-      data: parsedData.data,
+      data: { ...parsedData, userId: userId },
     });
     return res.status(200).json(updateEvent);
   } catch (error) {

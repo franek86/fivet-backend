@@ -110,7 +110,7 @@ model Ship {
 
   isPublished     Boolean  @default(false)
   createdAt       DateTime @default(now())
-  updatedAt       DateTime     @updatedAt
+  updatedAt       DateTime @updatedAt
   
 }
 
@@ -141,8 +141,10 @@ model AddressBook {
   company         String?
   address         String?
   note            String?
+
   user            User     @relation(fields: [userId], references: [id])
   userId          String
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -155,9 +157,10 @@ model Event {
   end         DateTime
   location    String?
   reminder    Int?       
-  status      EventStatus @default(PLANNED)
-  priority    EventPriority?    
+  status      EventStatus? @default(PLANNED)
+  priority    EventPriority? @default(MEDIUM)
   tags        String[] 
+
   user User @relation(fields: [userId], references: [id])
   userId String
   
@@ -170,6 +173,7 @@ model Notification {
   message  String
   type NotificationType @default(INFO)
   isRead    Boolean  @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

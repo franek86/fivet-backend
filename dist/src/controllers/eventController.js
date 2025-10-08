@@ -18,19 +18,19 @@ const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../helpers/pagination");
 const errorHandler_1 = require("../helpers/errorHandler");
 /*  CREATE EVENT AUTH USER */
-const createEvent = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const createEvent = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    if (!userId)
+        return res.status(404).json({ message: "Unauthorized" });
     try {
         const validate = event_schema_1.CreateEventSchema.parse(req.body);
-        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        if (!userId)
-            return res.status(404).json({ message: "Unauthorized" });
         const newEvent = yield prismaClient_1.default.event.create({ data: Object.assign(Object.assign({}, validate), { userId: userId }) });
         return res.status(200).json(newEvent);
     }
     catch (error) {
         console.log(error);
-        next();
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.createEvent = createEvent;
@@ -93,21 +93,22 @@ const getSingleEvent = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
 });
 exports.getSingleEvent = getSingleEvent;
 /* UPDATE EVENT BY ID */
-const updateEventById = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+const updateEventById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     const { id } = req.params;
     if (!id)
         throw new errorHandler_1.ValidationError("Event ID does not exists.");
-    const parsedData = event_schema_1.CreateEventSchema.safeParse(req.body);
-    if (!parsedData.success) {
-        return res.status(400).json({ errors: parsedData.error.errors });
-    }
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    if (!userId)
+        return res.status(404).json({ message: "Unauthorized" });
+    const parsedData = event_schema_1.EditEventSchema.parse(req.body);
     try {
         const eventId = yield prismaClient_1.default.event.findUnique({ where: { id } });
         if (!eventId)
             return res.status(404).json({ message: "Event is required" });
         const updateEvent = yield prismaClient_1.default.event.update({
             where: { id },
-            data: parsedData.data,
+            data: Object.assign(Object.assign({}, parsedData), { userId: userId }),
         });
         return res.status(200).json(updateEvent);
     }
