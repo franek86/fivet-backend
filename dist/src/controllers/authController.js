@@ -148,15 +148,15 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
     try {
         const { refresh_token } = req.cookies;
         if (!refresh_token) {
-            return new errorHandler_1.ValidationError("Unauthorized! No refresh token");
+            new errorHandler_1.ValidationError("Unauthorized! No refresh token");
         }
         const decoded = jsonwebtoken_1.default.verify(refresh_token, process.env.REFRESH_SECRET);
         if (!decoded || !decoded.userId || !decoded.role) {
-            return new jsonwebtoken_1.JsonWebTokenError("Forbidden! Invalid refresh token.");
+            new jsonwebtoken_1.JsonWebTokenError("Forbidden! Invalid refresh token.");
         }
         const new_access_token = generateAccessToken(decoded.userId, decoded.role);
         (0, setCookies_1.setCookie)(res, "access_token", new_access_token, 5 * 60 * 1000);
-        return res.json({
+        res.json({
             success: true,
             accessToken: new_access_token,
         });

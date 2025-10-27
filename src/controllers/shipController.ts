@@ -1,7 +1,6 @@
 import prisma from "../prismaClient";
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import { DeleteShipRequest } from "../types";
 import { getPaginationParams } from "../helpers/pagination";
 import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
@@ -15,9 +14,9 @@ import { formatDate } from "../utils/formatDate";
 CREATE SHIP 
 Authenticate user can create ship
 */
-export const createShip = async (req: Request, res: Response): Promise<any> => {
+export const createShip = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
-  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  if (!userId) res.status(401).json({ message: "Unauthorized" });
 
   try {
     const files = req.files as {
@@ -82,13 +81,13 @@ export const createShip = async (req: Request, res: Response): Promise<any> => {
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       message: "Ship added successfully! Awaiting admin approval.",
       data: newShip,
     });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -97,7 +96,7 @@ GET PUBLISHED SHIPS
 It is public route. Get all published ships with pagination, sort, filters
 TO DO: add filters
 */
-export const getAllPublishedShips = async (req: Request, res: Response): Promise<any> => {
+export const getAllPublishedShips = async (req: Request, res: Response): Promise<void> => {
   try {
     const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
     const filters = shipFilters(req.query);
@@ -120,44 +119,32 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
       prisma.ship.count({ where }),
     ]);
 
-    /*  const ships = await prisma.ship.findMany({
-      skip,
-      take: pageSize,
-      where: { ...filters, isPublished: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const totalShips = await prisma.ship.count({
-      where: {
-        isPublished: true,
-        ...filters,
-      },
-    }); */
-
-    return res.status(200).json({
+    res.status(200).json({
       page: pageNumber,
       limit: pageSize,
       totalShips,
       totalPages: Math.ceil(totalShips / pageSize),
       data: ships,
     });
-  } catch (error) {}
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 /* 
 PUBLISH SHIPS ADMIN ONLY
 */
-export const updatePublishedShip = async (req: Request, res: Response): Promise<any> => {
+export const updatePublishedShip = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const { isPublished } = req.body;
   if (!id) throw new ValidationError("Ship id not found");
 
   try {
     const updateShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
-    return res.status(200).json(updateShip);
+    res.status(200).json(updateShip);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -311,24 +298,24 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
 DELETE SHIP BY ID 
 Admin can delete all ship, but users can only delete their own ships
 */
-export const deleteShip = async (req: DeleteShipRequest, res: Response): Promise<any> => {
+export const deleteShip = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
   try {
     const ship = await prisma.ship.findUnique({ where: { id } });
 
     if (!ship) {
-      return res.status(404).json({ message: "Ship not found" });
+      res.status(404).json({ message: "Ship not found" });
     }
 
     await prisma.ship.delete({
       where: { id },
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       message: "Ship deleted successfully",
     });
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };

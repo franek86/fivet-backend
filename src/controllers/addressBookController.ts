@@ -1,17 +1,18 @@
-import { Response, Request, NextFunction } from "express";
+import { Response, Request } from "express";
 import { Prisma } from "@prisma/client";
-import { CustomJwtPayload } from "../middleware/verifyToken";
-import { addressBookSchema } from "../schemas/addressBook.schema";
+import { AddressBookSchema, CreateAddressBookInput, UpdateAddressBookInput, UpdateAddressBookSchema } from "../schemas/addressBook.schema";
 import prisma from "../prismaClient";
-import { ValidationError } from "../helpers/errorHandler";
 
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
-export const getAddressBook = async (req: Request, res: Response): Promise<any> => {
-  const { userId } = req.user as CustomJwtPayload;
+export const getAddressBook = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
   const { search } = req.query;
 
-  if (!userId) throw new ValidationError("User ID can not found");
-  const whereCondition: any = {};
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const whereCondition: Prisma.AddressBookWhereInput = {};
 
   if (userId) whereCondition.userId = userId;
 
@@ -31,87 +32,113 @@ export const getAddressBook = async (req: Request, res: Response): Promise<any> 
 
   try {
     const data = await prisma.addressBook.findMany({ where: whereCondition, orderBy: { createdAt: "desc" } });
-    return res.status(200).json(data);
+    res.status(200).json(data);
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* GET SINGLE ADDRESS BOOK */
-export const getSingleAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const getSingleAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
-  if (!id) throw new ValidationError("ID not found");
+  if (!id) {
+    res.status(401).json({ message: "Address book ID are required" });
+    return;
+  }
   try {
     const singleData = await prisma.addressBook.findUnique({ where: { id } });
-    if (!singleData) throw new ValidationError("Address book by id not found");
+    if (!singleData) {
+      res.status(404).json({ message: "Address book ID not found" });
+      return;
+    }
 
-    return res.status(200).json(singleData);
+    res.status(200).json(singleData);
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* CREATE ADDRESS BOOK ONLY USER */
-export const createAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-  const { userId } = req.user as CustomJwtPayload;
+export const createAddressBook = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
 
-  const body = addressBookSchema.parse(req.body);
+  const body: CreateAddressBookInput = AddressBookSchema.parse(req.body);
   try {
-    const addressBookData: Prisma.AddressBookUncheckedCreateInput = {
+    const addressBookData = {
       ...body,
       userId,
     };
     const createAddressBookData = await prisma.addressBook.create({ data: addressBookData });
-    return res.status(200).json(createAddressBookData);
+    res.status(201).json(createAddressBookData);
   } catch (error) {
-    console.log(error);
-    return next(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* UPDATE ADDRESS BOOK */
-export const updateAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const updateAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
-  if (!id) throw new ValidationError("ID does not exists.");
+  if (!id) {
+    res.status(401).json({ message: "Address book ID are required" });
+    return;
+  }
 
-  const { ...updateData } = req.body;
+  const parsedData = UpdateAddressBookSchema.safeParse(req.body);
+  if (!parsedData.success) {
+    res.status(400).json({ errors: parsedData.error.errors });
+    return;
+  }
+
+  const updateData: UpdateAddressBookInput = parsedData.data;
+  //const { ...updateData } = req.body;
 
   try {
     const uniqueAddressBook = await prisma.addressBook.findUnique({ where: { id } });
-    if (!uniqueAddressBook) throw new ValidationError("Address book not found");
+    if (!uniqueAddressBook) {
+      res.status(404).json({ message: "Address book not found" });
+      return;
+    }
 
     await prisma.addressBook.update({
       where: { id },
       data: updateData,
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Address book successfully updated.",
     });
   } catch (error) {
-    console.log(error);
-    return next(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* DELETE ADDRESS BOOK ONLY USER */
-export const deleteAddressBook = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const deleteAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
-  if (!id) throw new ValidationError("ID does not exists.");
+  if (!id) {
+    res.status(401).json({ message: "Address book ID are required" });
+    return;
+  }
   try {
     const uniqueAddressBook = await prisma.addressBook.findUnique({ where: { id } });
-    if (!uniqueAddressBook) throw new ValidationError("Address book not found.");
+    if (!uniqueAddressBook) {
+      res.status(404).json({ message: "Address book not found" });
+      return;
+    }
 
     await prisma.addressBook.delete({
       where: { id },
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       message: `Address book by ${id} deleted successfully`,
     });
   } catch (error) {
-    console.log(error);
-    return next(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

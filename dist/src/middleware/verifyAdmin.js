@@ -15,11 +15,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authAdmin = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     if (!req.user || req.user.role !== "ADMIN") {
-        return res.status(403).json({ message: "Access denied. Admins only." });
+        res.status(403).json({ message: "Access denied. Admins only." });
     }
     const token = req.cookies.access_token;
     if (!token)
-        return res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({ message: "Unauthorized" });
     const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();

@@ -17,14 +17,16 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const token = req.cookies.access_token;
     if (!token)
-        return res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({ message: "Unauthorized" });
     try {
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+        if (!decoded)
+            res.status(401).json({ message: "Unauthorized! Invalid token" });
         req.user = decoded;
         next();
     }
     catch (error) {
-        return res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({ message: "Unauthorized. Token expired or invalid." });
     }
 });
 exports.authenticateUser = authenticateUser;

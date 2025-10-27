@@ -1,38 +1,50 @@
-import { NextFunction, Request, Response } from "express";
-import { CreateEventSchema, EditEventSchema, filterEventSchema } from "../schemas/event.schema";
+import { Request, Response } from "express";
+import {
+  CreateEventInput,
+  CreateEventSchema,
+  EditEventInput,
+  EditEventSchema,
+  FilterEventQuery,
+  FilterEventSchema,
+} from "../schemas/event.schema";
 import prisma from "../prismaClient";
-import { getPaginationParams } from "../helpers/pagination";
-import { ValidationError } from "../helpers/errorHandler";
+
+import { EventPriority, EventStatus, Prisma } from "@prisma/client";
 
 /*  CREATE EVENT AUTH USER */
-export const createEvent = async (req: Request, res: Response): Promise<any> => {
+export const createEvent = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
-  if (!userId) return res.status(404).json({ message: "Unauthorized" });
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
   try {
-    const validate = CreateEventSchema.parse(req.body);
+    const validate: CreateEventInput = CreateEventSchema.parse(req.body);
 
     const newEvent = await prisma.event.create({ data: { ...validate, userId: userId } });
-    return res.status(200).json(newEvent);
+    res.status(201).json(newEvent);
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* GET ALL EVENTS WITH PAGINATION AND FILTER */
-export const getAllEvents = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-  const parsedEventData = filterEventSchema.safeParse(req.query);
+export const getAllEvents = async (req: Request, res: Response): Promise<void> => {
+  const parsedEventData = FilterEventSchema.safeParse(req.query);
   if (!parsedEventData.success) {
-    return res.status(400).json({ errors: parsedEventData.error.errors });
+    res.status(400).json({ errors: parsedEventData.error.errors });
+    return;
   }
 
-  const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
-  const { search, status, priority, startDate, endDate } = parsedEventData.data;
+  //const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+  const { pageNumber, pageSize, status, priority, startDate, endDate, search } = parsedEventData.data as FilterEventQuery;
+  const skip = (pageNumber - 1) * pageSize;
 
-  const where: any = {};
+  const where: Prisma.EventWhereInput = {};
 
-  if (status) where.status = status;
-  if (priority) where.priority = priority;
+  if (status) where.status = status as EventStatus;
+  if (priority) where.priority = priority as EventPriority;
 
   if (startDate && endDate) {
     where.AND = [{ start: { lte: endDate } }, { end: { gte: startDate } }];
@@ -54,72 +66,93 @@ export const getAllEvents = async (req: Request, res: Response, next: NextFuncti
       orderBy: { createdAt: "desc" },
     });
     const total = await prisma.event.count({ where });
-    return res.status(200).json({ events, page: pageNumber, limit: pageSize, total, totalPages: Math.ceil(total / pageSize) });
+    res.status(200).json({ events, page: pageNumber, limit: pageSize, total, totalPages: Math.ceil(total / pageSize) });
   } catch (error) {
-    console.log(error);
-    next();
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* SINGLE EVENT */
-export const getSingleEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const getSingleEvent = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
-  if (!id) return res.status(400).json({ message: "Id could not found" });
+  if (!id) {
+    res.status(400).json({ message: "Event ID is required" });
+    return;
+  }
 
   try {
     const findEvent = await prisma.event.findUnique({ where: { id } });
-    if (!findEvent) return res.status(400).json({ message: "Event could not found" });
+    if (!findEvent) {
+      res.status(404).json({ message: "Event could not found" });
+      return;
+    }
 
-    return res.status(200).json(findEvent);
+    res.status(200).json(findEvent);
   } catch (error) {
-    console.log(error);
-    next();
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* UPDATE EVENT BY ID */
-export const updateEventById = async (req: Request, res: Response): Promise<any> => {
+export const updateEventById = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
-  if (!id) throw new ValidationError("Event ID does not exists.");
+  if (!id) res.status(404).json({ message: "Event ID does not exists." });
 
   const userId = req.user?.userId;
-  if (!userId) return res.status(404).json({ message: "Unauthorized" });
+  if (!userId) {
+    res.status(404).json({ message: "Unauthorized" });
+    return;
+  }
 
-  const parsedData = EditEventSchema.parse(req.body);
+  const parsedData = EditEventSchema.safeParse(req.body);
+  if (!parsedData.success) {
+    res.status(400).json({ errors: parsedData.error.errors });
+    return;
+  }
+
+  const updatedData: EditEventInput = parsedData.data;
 
   try {
     const eventId = await prisma.event.findUnique({ where: { id } });
-    if (!eventId) return res.status(404).json({ message: "Event is required" });
+    if (!eventId) {
+      res.status(404).json({ message: "Event is required" });
+      return;
+    }
 
     const updateEvent = await prisma.event.update({
       where: { id },
-      data: { ...parsedData, userId: userId },
+      data: { ...updatedData, userId: userId },
     });
-    return res.status(200).json(updateEvent);
+    res.status(200).json(updateEvent);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* DELETE EVENT BY ID  */
-export const deleteEvent = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const deleteEvent = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
-  if (!id) throw new ValidationError("ID does not exists.");
+  if (!id) {
+    res.status(401).json({ message: "Event id are required" });
+    return;
+  }
 
   try {
     const findEventById = await prisma.event.findUnique({ where: { id } });
-    if (!findEventById) throw new ValidationError("Event not found.");
+    if (!findEventById) {
+      res.status(404).json({ message: "Event not found" });
+      return;
+    }
 
     await prisma.event.delete({
       where: { id },
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       message: `Event by ${id} deleted successfully`,
     });
   } catch (error) {
-    console.log(error);
-    next(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

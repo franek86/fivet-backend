@@ -49,20 +49,34 @@ enum NotificationType {
   REMINDER
 }
 
+enum PaymentStatus {
+  PENDING     
+  PAID        
+  FAILED     
+  CANCELED   
+}
+
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
   password    String
   fullName    String
   role        Role         @default(USER)
+
   subscription Subscription @default(STARTER)
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  payments Payment[]
+
   isActive    Boolean @default(true)
   lastLogin   DateTime?
+
   profile     Profile?
   ships       Ship[]
   addressBook AddressBook[]
   events Event[]
   notifications Notification[]
+
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -179,4 +193,17 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id])
   userId String
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  user User @relation(fields: [userId], references: [id])
+  userId String
+
+  status          PaymentStatus  @default(PENDING)
+  amout Float
+  currency String @default("EUR")
+  sripePaymentId String
+  createdAt DateTime @default(now())
 }

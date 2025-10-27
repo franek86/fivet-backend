@@ -21,7 +21,7 @@ export const EditEventSchema = CreateEventSchema.partial().extend({
   priority: EventPriorityEnum.optional().default("MEDIUM"),
 });
 
-export const filterEventSchema = z.object({
+export const FilterEventSchema = z.object({
   status: z.string().optional(),
   priority: z.string().optional(),
 
@@ -35,6 +35,10 @@ export const filterEventSchema = z.object({
     .optional(),
 
   search: z.string().optional(),
+  pageNumber: z.coerce.number().default(1),
+  pageSize: z.coerce.number().default(10),
 });
 
 export type CreateEventInput = z.infer<typeof CreateEventSchema>;
+export type FilterEventQuery = z.infer<typeof FilterEventSchema>;
+export type EditEventInput = z.infer<typeof EditEventSchema>;

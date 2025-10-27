@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const StatusEnum = z.enum(["REGULAR", "IMPORTANT"]);
 
-export const addressBookSchema = z.object({
+export const AddressBookSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
   email: z.string().email(),
   phone_number: z.string().optional().nullable(),
@@ -19,3 +19,8 @@ export const addressBookSchema = z.object({
   address: z.string().optional().nullable(),
   userId: z.string().uuid("User ID must be valid"),
 });
+
+export const UpdateAddressBookSchema = AddressBookSchema.partial();
+
+export type CreateAddressBookInput = z.infer<typeof AddressBookSchema>;
+export type UpdateAddressBookInput = z.infer<typeof UpdateAddressBookSchema>;

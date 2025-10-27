@@ -14,13 +14,18 @@ import addressBookRoute from "./routes/addressBookRoute";
 import eventsRoute from "./routes/eventsRoute";
 import notificationRoute from "./routes/notificationRoute";
 import dashboardRoute from "./routes/dashboardRoute";
+import webhookStripeRoute from "./routes/stripeWebhookRoute";
 import { errorMiddleware } from "./middleware";
 
 /* CONFIGURATION */
 dotenv.config();
 const app = express();
-app.use(express.json());
 app.use(morgan("common"));
+
+// webhooks stripe must be before bodyParser json
+app.use("/webhooks", webhookStripeRoute);
+
+app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());

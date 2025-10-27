@@ -8,7 +8,7 @@ import { ValidationError } from "../helpers/errorHandler";
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER
 */
-export const getAllProfiles = async (req: Request, res: Response): Promise<any> => {
+export const getAllProfiles = async (req: Request, res: Response): Promise<void> => {
   const { search } = req.query;
   const whereCondition: any = {};
 
@@ -36,19 +36,19 @@ export const getAllProfiles = async (req: Request, res: Response): Promise<any> 
       email: p.user.email,
       createdAt: p.createdAt,
     }));
-    return res.status(200).json(result);
+    res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* GET SINGLE USER PROFILE BY ID */
-export const getUserProfile = async (req: Request, res: Response): Promise<any> => {
+export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const { userId } = req.user as CustomJwtPayload;
 
-  if (!id) return res.status(400).json({ message: "User ID is required" });
-  if (!userId) return res.status(401).json({ message: "User ID can not found" });
+  if (!id) res.status(400).json({ message: "User ID is required" });
+  if (!userId) res.status(401).json({ message: "User ID can not found" });
 
   const parsedId = parseInt(id);
 
@@ -56,17 +56,17 @@ export const getUserProfile = async (req: Request, res: Response): Promise<any> 
     const data = await prisma.profile.findUnique({ where: { id: parsedId } });
 
     if (!data) {
-      return res.status(404).json({ message: "Profile not found" });
+      res.status(404).json({ message: "Profile not found" });
     }
 
-    return res.status(200).json({ data });
+    res.status(200).json({ data });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
 };
 
 /* CREATE PROFILE  */
-export const createProfile = async (req: Request, res: Response): Promise<any> => {
+export const createProfile = async (req: Request, res: Response): Promise<void> => {
   const { userId, fullName } = req.body;
   const avatar = req.file?.path;
 
@@ -81,7 +81,7 @@ export const createProfile = async (req: Request, res: Response): Promise<any> =
 
     res.status(200).json({ message: "Succefully created profile", data: profileData });
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -128,7 +128,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
 
     return res.status(200).json({ message: "Profile updated", profile: { ...updateProfile, email: updateUser.email } });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -147,7 +147,6 @@ export const deleteUserProfile = async (req: Request, res: Response, next: NextF
     await prisma.$transaction([prisma.profile.delete({ where: { id } }), prisma.user.delete({ where: { id: userProfile.userId } })]);
     res.status(200).json({ message: "User and profile deleted successfully." });
   } catch (error) {
-    console.log(error);
-    return next(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

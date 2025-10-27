@@ -5,7 +5,7 @@ import prisma from "../prismaClient";
 /* 
   SHIP STATISTIC ON DASHBAORD
  */
-export const getDashboardStatistic = async (req: Request, res: Response): Promise<any> => {
+export const getDashboardStatistic = async (req: Request, res: Response): Promise<void> => {
   try {
     const totalShips = await prisma.ship.count();
     const totalUsers = await prisma.user.count();
@@ -22,8 +22,8 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
         mainImage: true,
       },
     });
-    return res.json({ totalShips, totalUsers, totalEvents, topShips });
+    res.json({ totalShips, totalUsers, totalEvents, topShips });
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };

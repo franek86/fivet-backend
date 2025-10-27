@@ -12,23 +12,18 @@ export interface CustomJwtPayload {
   role: string;
 }
 
-export const authenticateUser = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const authenticateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const token = req.cookies.access_token;
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
+  if (!token) res.status(401).json({ message: "Unauthorized" });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as CustomJwtPayload;
-    if (!decoded) return res.status(401).json({ message: "Unauthorized! Invalid token" });
+    if (!decoded) res.status(401).json({ message: "Unauthorized! Invalid token" });
 
     req.user = decoded;
-    /* const account = await prisma.user.findUnique({ where: { id: decoded.userId } });
-
-    req.user = account;
-
-    if (!account) return res.status(401).json({ message: "Account not found" }); */
 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Unauthorized. Token expired or invalid." });
+    res.status(401).json({ message: "Unauthorized. Token expired or invalid." });
   }
 };
 

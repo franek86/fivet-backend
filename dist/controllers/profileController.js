@@ -12,28 +12,45 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getAllProfiles = void 0;
-const client_1 = require("@prisma/client");
+exports.deleteUserProfile = exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getAllProfiles = void 0;
 const cloudinaryConfig_1 = __importDefault(require("../cloudinaryConfig"));
 const fs_1 = __importDefault(require("fs"));
-const prisma = new client_1.PrismaClient();
+const prismaClient_1 = __importDefault(require("../prismaClient"));
+const errorHandler_1 = require("../helpers/errorHandler");
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER
 */
 const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { search } = req.query;
+    const whereCondition = {};
+    if (search && typeof search === "string" && search.trim().length > 0) {
+        whereCondition.OR = [
+            {
+                fullName: {
+                    contains: search.trim(),
+                    mode: "insensitive",
+                },
+            },
+        ];
+    }
     try {
-        const data = yield prisma.profile.findMany({ include: { user: { select: { email: true } } } });
+        const data = yield prismaClient_1.default.profile.findMany({
+            include: { user: { select: { email: true } } },
+            where: whereCondition,
+            orderBy: { createdAt: "desc" },
+        });
         const result = data.map((p) => ({
             id: p.id,
             fullName: p.fullName,
             avatar: p.avatar,
             userId: p.userId,
             email: p.user.email,
+            createdAt: p.createdAt,
         }));
-        return res.status(200).json(result);
+        res.status(200).json(result);
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getAllProfiles = getAllProfiles;
@@ -42,16 +59,16 @@ const getUserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function*
     const { id } = req.params;
     const { userId } = req.user;
     if (!id)
-        return res.status(400).json({ message: "User ID is required" });
+        res.status(400).json({ message: "User ID is required" });
     if (!userId)
-        return res.status(401).json({ message: "User ID can not found" });
+        res.status(401).json({ message: "User ID can not found" });
     const parsedId = parseInt(id);
     try {
-        const data = yield prisma.profile.findUnique({ where: { id: parsedId } });
+        const data = yield prismaClient_1.default.profile.findUnique({ where: { id: parsedId } });
         if (!data) {
-            return res.status(404).json({ message: "Profile not found" });
+            res.status(404).json({ message: "Profile not found" });
         }
-        return res.status(200).json({ data });
+        res.status(200).json({ data });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -64,7 +81,7 @@ const createProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const { userId, fullName } = req.body;
     const avatar = (_a = req.file) === null || _a === void 0 ? void 0 : _a.path;
     try {
-        const profileData = yield prisma.profile.create({
+        const profileData = yield prismaClient_1.default.profile.create({
             data: {
                 userId,
                 fullName,
@@ -74,7 +91,7 @@ const createProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         res.status(200).json({ message: "Succefully created profile", data: profileData });
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.createProfile = createProfile;
@@ -84,7 +101,7 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     const { fullName, email } = req.body;
     const userId = req.body.userId || ((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId);
     try {
-        const existingProfile = yield prisma.profile.findUnique({
+        const existingProfile = yield prismaClient_1.default.profile.findUnique({
             where: { userId },
             include: { user: true },
         });
@@ -101,15 +118,15 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 fs_1.default.unlinkSync(req.file.path);
             }
         }
-        const [updateProfile, updateUser] = yield prisma.$transaction([
-            prisma.profile.update({
+        const [updateProfile, updateUser] = yield prismaClient_1.default.$transaction([
+            prismaClient_1.default.profile.update({
                 where: { userId },
                 data: {
                     fullName: fullName !== null && fullName !== void 0 ? fullName : existingProfile.fullName,
                     avatar: avatarUrl,
                 },
             }),
-            prisma.user.update({
+            prismaClient_1.default.user.update({
                 where: { id: userId },
                 data: {
                     email: email !== null && email !== void 0 ? email : existingProfile.user.email,
@@ -119,7 +136,25 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         return res.status(200).json({ message: "Profile updated", profile: Object.assign(Object.assign({}, updateProfile), { email: updateUser.email }) });
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.updateProfile = updateProfile;
+/* DELETE USER PROFILE ADMIN ONLY */
+const deleteUserProfile = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = parseInt(req.params.id);
+    if (!id)
+        throw new errorHandler_1.ValidationError("ID must be a valid number.");
+    try {
+        const userProfile = yield prismaClient_1.default.profile.findUnique({ where: { id } });
+        if (!userProfile) {
+            return next(new errorHandler_1.ValidationError("User profile not found."));
+        }
+        yield prismaClient_1.default.$transaction([prismaClient_1.default.profile.delete({ where: { id } }), prismaClient_1.default.user.delete({ where: { id: userProfile.userId } })]);
+        res.status(200).json({ message: "User and profile deleted successfully." });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.deleteUserProfile = deleteUserProfile;

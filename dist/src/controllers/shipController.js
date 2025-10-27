@@ -30,7 +30,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     var _a, _b, _c, _d, _e;
     const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
     if (!userId)
-        return res.status(401).json({ message: "Unauthorized" });
+        res.status(401).json({ message: "Unauthorized" });
     try {
         const files = req.files;
         let mainImageUrl = "";
@@ -74,14 +74,14 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             });
             yield (0, sendMail_1.sendEmail)(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
         }
-        return res.status(200).json({
+        res.status(200).json({
             message: "Ship added successfully! Awaiting admin approval.",
             data: newShip,
         });
     }
     catch (error) {
         console.log(error);
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.createShip = createShip;
@@ -106,20 +106,7 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
             }),
             prismaClient_1.default.ship.count({ where }),
         ]);
-        /*  const ships = await prisma.ship.findMany({
-          skip,
-          take: pageSize,
-          where: { ...filters, isPublished: true },
-          orderBy: { createdAt: "desc" },
-        });
-    
-        const totalShips = await prisma.ship.count({
-          where: {
-            isPublished: true,
-            ...filters,
-          },
-        }); */
-        return res.status(200).json({
+        res.status(200).json({
             page: pageNumber,
             limit: pageSize,
             totalShips,
@@ -127,7 +114,9 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
             data: ships,
         });
     }
-    catch (error) { }
+    catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
 });
 exports.getAllPublishedShips = getAllPublishedShips;
 /*
@@ -140,11 +129,11 @@ const updatePublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, func
         throw new errorHandler_1.ValidationError("Ship id not found");
     try {
         const updateShip = yield prismaClient_1.default.ship.update({ where: { id }, data: { isPublished } });
-        return res.status(200).json(updateShip);
+        res.status(200).json(updateShip);
     }
     catch (error) {
         console.log(error);
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.updatePublishedShip = updatePublishedShip;
@@ -282,17 +271,17 @@ const deleteShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     try {
         const ship = yield prismaClient_1.default.ship.findUnique({ where: { id } });
         if (!ship) {
-            return res.status(404).json({ message: "Ship not found" });
+            res.status(404).json({ message: "Ship not found" });
         }
         yield prismaClient_1.default.ship.delete({
             where: { id },
         });
-        return res.status(200).json({
+        res.status(200).json({
             message: "Ship deleted successfully",
         });
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.deleteShip = deleteShip;

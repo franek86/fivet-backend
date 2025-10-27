@@ -28,13 +28,13 @@ const createShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 description,
             },
         });
-        return res.status(200).json({
+        res.status(201).json({
             message: "Ship type added successfully!",
             data: createNewData,
         });
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.createShipType = createShipType;
@@ -43,13 +43,17 @@ exports.createShipType = createShipType;
 */
 const updateShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    if (!id)
-        return res.status(400).json({ message: "Ship type id could not found" });
+    if (!id) {
+        res.status(400).json({ message: "Ship type id could not found" });
+        return;
+    }
     const { name, description } = req.body;
     try {
         const shipType = yield prismaClient_1.default.shipType.findUnique({ where: { id } });
-        if (!shipType)
-            return res.status(404).json({ message: "Ship type is required" });
+        if (!shipType) {
+            res.status(404).json({ message: "Ship type is required" });
+            return;
+        }
         const updateShipType = yield prismaClient_1.default.shipType.update({
             where: { id },
             data: {
@@ -57,10 +61,10 @@ const updateShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 description,
             },
         });
-        return res.status(200).json({ message: "Ship type updated successfully", data: updateShipType });
+        res.status(200).json({ message: "Ship type updated successfully", data: updateShipType });
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.updateShipType = updateShipType;
@@ -69,17 +73,21 @@ exports.updateShipType = updateShipType;
 */
 const deleteShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    if (!id)
-        return res.status(400).json({ message: "Ship type ID is required" });
+    if (!id) {
+        res.status(400).json({ message: "Ship type ID is required" });
+        return;
+    }
     try {
         const findShipType = yield prismaClient_1.default.shipType.findUnique({ where: { id } });
-        if (!findShipType)
-            return res.status(404).json({ message: "Ship type could not found" });
+        if (!findShipType) {
+            res.status(404).json({ message: "Ship type could not found" });
+            return;
+        }
         yield prismaClient_1.default.shipType.delete({ where: { id } });
-        return res.status(200).json({ message: "Ship type deleted successfully" });
+        res.status(200).json({ message: "Ship type deleted successfully" });
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.deleteShipType = deleteShipType;
@@ -112,7 +120,7 @@ const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             orderBy,
         });
         const totalShipsType = yield prismaClient_1.default.shipType.count();
-        return res.status(200).json({
+        res.status(200).json({
             page: pageNumber,
             limit: pageSize,
             totalShipsType,
@@ -121,8 +129,8 @@ const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         });
     }
     catch (error) {
-        console.log(error);
-        return res.status(500).json({ message: "Internal server error" });
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getShipType = getShipType;
@@ -134,10 +142,10 @@ const getAllShipType = (req, res) => __awaiter(void 0, void 0, void 0, function*
         const shipType = yield prismaClient_1.default.shipType.findMany({
             orderBy: { name: "desc" },
         });
-        return res.status(200).json(shipType);
+        res.status(200).json(shipType);
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getAllShipType = getAllShipType;

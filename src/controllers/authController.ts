@@ -15,7 +15,7 @@ const generateRefreshToken = (userId: string, role: string) => {
 };
 
 /*  REGISTER NEW USER WITH OTP */
-export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   try {
@@ -75,7 +75,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
 };
 
 /* LOGIN USER WITH ACCESS AND REFRESH TOKEN */
-export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, password, rememberMe } = req.body;
     if (!email || !password) throw new ValidationError("Email and password are required!");
@@ -105,23 +105,23 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 };
 
 /* REFRESH TOKEN */
-export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { refresh_token } = req.cookies;
 
     if (!refresh_token) {
-      return new ValidationError("Unauthorized! No refresh token");
+      new ValidationError("Unauthorized! No refresh token");
     }
     const decoded = jwt.verify(refresh_token, process.env.REFRESH_SECRET as string) as JwtPayload;
 
     if (!decoded || !decoded.userId || !decoded.role) {
-      return new JsonWebTokenError("Forbidden! Invalid refresh token.");
+      new JsonWebTokenError("Forbidden! Invalid refresh token.");
     }
 
     const new_access_token = generateAccessToken(decoded.userId, decoded.role);
     setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
 
-    return res.json({
+    res.json({
       success: true,
       accessToken: new_access_token,
     });

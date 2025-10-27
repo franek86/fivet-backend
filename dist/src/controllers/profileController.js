@@ -47,10 +47,10 @@ const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function*
             email: p.user.email,
             createdAt: p.createdAt,
         }));
-        return res.status(200).json(result);
+        res.status(200).json(result);
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getAllProfiles = getAllProfiles;
@@ -59,16 +59,16 @@ const getUserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function*
     const { id } = req.params;
     const { userId } = req.user;
     if (!id)
-        return res.status(400).json({ message: "User ID is required" });
+        res.status(400).json({ message: "User ID is required" });
     if (!userId)
-        return res.status(401).json({ message: "User ID can not found" });
+        res.status(401).json({ message: "User ID can not found" });
     const parsedId = parseInt(id);
     try {
         const data = yield prismaClient_1.default.profile.findUnique({ where: { id: parsedId } });
         if (!data) {
-            return res.status(404).json({ message: "Profile not found" });
+            res.status(404).json({ message: "Profile not found" });
         }
-        return res.status(200).json({ data });
+        res.status(200).json({ data });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -91,7 +91,7 @@ const createProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         res.status(200).json({ message: "Succefully created profile", data: profileData });
     }
     catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.createProfile = createProfile;
@@ -136,7 +136,7 @@ const updateProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         return res.status(200).json({ message: "Profile updated", profile: Object.assign(Object.assign({}, updateProfile), { email: updateUser.email }) });
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.updateProfile = updateProfile;
@@ -154,8 +154,7 @@ const deleteUserProfile = (req, res, next) => __awaiter(void 0, void 0, void 0, 
         res.status(200).json({ message: "User and profile deleted successfully." });
     }
     catch (error) {
-        console.log(error);
-        return next(error);
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.deleteUserProfile = deleteUserProfile;
