@@ -14,14 +14,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getAllPublishedShips = exports.createShip = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
-const pagination_1 = require("../helpers/pagination");
+const pagination_1 = require("../utils/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const ship_schema_1 = require("../schemas/ship.schema");
-const shipFilters_1 = require("../helpers/shipFilters");
-const parseSortBy_1 = require("../helpers/parseSortBy");
-const errorHandler_1 = require("../helpers/errorHandler");
+const shipFilters_1 = require("../utils/shipFilters");
+const sort_helpers_1 = require("../helpers/sort.helpers");
+const error_helpers_1 = require("../helpers/error.helpers");
 const sendMail_1 = require("../utils/sendMail");
-const formatDate_1 = require("../utils/formatDate");
+const date_helpers_1 = require("../helpers/date.helpers");
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -59,7 +59,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         const emailData = {
             shipTitle: newShip.shipName,
             shipIMO: newShip.imo,
-            createdAt: (0, formatDate_1.formatDate)(newShip.createdAt.toISOString()),
+            createdAt: (0, date_helpers_1.formatDate)(newShip.createdAt.toISOString()),
             fullName: fullName,
             reviewUrl: shipLink,
         };
@@ -92,25 +92,23 @@ TO DO: add filters
 */
 const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
+        const { page, limit, skip } = (0, pagination_1.parsePagination)(req.query);
         const filters = (0, shipFilters_1.shipFilters)(req.query);
         const { sortBy } = req.query;
-        const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["shipName", "price", "createdAt"], { createdAt: "desc" });
+        const orderBy = (0, sort_helpers_1.parseSortBy)(sortBy, ["shipName", "price", "createdAt"], { createdAt: "desc" });
         const where = Object.assign({ isPublished: true }, filters);
         const [ships, totalShips] = yield Promise.all([
             prismaClient_1.default.ship.findMany({
                 skip,
-                take: pageSize,
+                take: limit,
                 where,
                 orderBy,
             }),
             prismaClient_1.default.ship.count({ where }),
         ]);
+        const meta = (0, pagination_1.buildPageMeta)(totalShips, page, limit);
         res.status(200).json({
-            page: pageNumber,
-            limit: pageSize,
-            totalShips,
-            totalPages: Math.ceil(totalShips / pageSize),
+            meta,
             data: ships,
         });
     }
@@ -126,7 +124,7 @@ const updatePublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, func
     const { id } = req.params;
     const { isPublished } = req.body;
     if (!id)
-        throw new errorHandler_1.ValidationError("Ship id not found");
+        throw new error_helpers_1.ValidationError("Ship id not found");
     try {
         const updateShip = yield prismaClient_1.default.ship.update({ where: { id }, data: { isPublished } });
         res.status(200).json(updateShip);
@@ -144,24 +142,21 @@ TO DO: filter by status
 */
 const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, role } = req.user;
-    const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
+    const { page, limit, skip } = (0, pagination_1.parsePagination)(req.query);
+    const { sortBy } = req.query;
     const filters = (0, shipFilters_1.shipFilters)(req.query);
-    const { sortBy, search } = req.query;
     try {
-        let ships;
+        let data;
         const whereCondition = Object.assign({}, filters);
-        if (search && typeof search === "string" && search.trim().length > 0) {
-            whereCondition.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }];
-        }
+        // Sort handling
         if (role !== "ADMIN") {
             whereCondition.userId = userId;
         }
-        // Sort handling
-        const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["shipName", "price", "createdAt"], { createdAt: "desc" });
-        const totalShipsType = (ships = yield prismaClient_1.default.ship.count());
-        ships = yield prismaClient_1.default.ship.findMany({
+        const orderBy = (0, sort_helpers_1.parseSortBy)(sortBy, ["shipName", "price", "createdAt"], { createdAt: "desc" });
+        const totalShips = (data = yield prismaClient_1.default.ship.count());
+        data = yield prismaClient_1.default.ship.findMany({
             skip,
-            take: pageSize,
+            take: limit,
             where: whereCondition,
             orderBy,
             include: {
@@ -181,13 +176,11 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
                 },
             },
         });
+        const meta = (0, pagination_1.buildPageMeta)(totalShips, page, limit);
         return res.status(200).json({
             message: "Ships fetched successfully.",
-            page: pageNumber,
-            limit: pageSize,
-            totalShipsType,
-            totalPages: Math.ceil(totalShipsType / pageSize),
-            data: ships,
+            meta,
+            data,
         });
     }
     catch (error) {

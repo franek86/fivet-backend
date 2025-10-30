@@ -3,8 +3,9 @@ ONLY ADMIN CAN CREATE, DELETE AND UPDATE SHIP TYPE
 Verify Admin with authAdmin middleware in route
 */
 import { Request, Response } from "express";
-import { getPaginationParams } from "../helpers/pagination";
-import { parseSortBy } from "../helpers/parseSortBy";
+import { Prisma } from "@prisma/client";
+import { buildPageMeta, parsePagination } from "../utils/pagination";
+import { parseSortBy } from "../helpers/sort.helpers";
 import prisma from "../prismaClient";
 
 /* CREATE SHIP TYPE BY ADMIN 
@@ -93,12 +94,12 @@ export const deleteShipType = async (req: Request, res: Response): Promise<void>
   Public route
 */
 export const getShipType = async (req: Request, res: Response): Promise<void> => {
-  const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+  const { page, limit, skip } = parsePagination(req.query);
   const { sortBy, search } = req.query;
 
   const orderBy = parseSortBy(sortBy as string, ["name", "createdAt"], { createdAt: "desc" });
 
-  const whereCondition: any = {};
+  const whereCondition: Prisma.ShipTypeWhereInput = {};
   if (search && typeof search === "string" && search.trim().length > 0) {
     whereCondition.OR = [
       {
@@ -117,17 +118,16 @@ export const getShipType = async (req: Request, res: Response): Promise<void> =>
     const shipType = await prisma.shipType.findMany({
       where: whereCondition,
       skip,
-      take: pageSize,
+      take: skip,
       orderBy,
     });
 
-    const totalShipsType = await prisma.shipType.count();
+    const total = await prisma.shipType.count();
+
+    const meta = buildPageMeta(total, page, limit);
 
     res.status(200).json({
-      page: pageNumber,
-      limit: pageSize,
-      totalShipsType,
-      totalPages: Math.ceil(totalShipsType / pageSize),
+      meta,
       data: shipType,
     });
   } catch (error) {

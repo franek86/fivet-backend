@@ -1,14 +1,14 @@
 import prisma from "../prismaClient";
 import { Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import { getPaginationParams } from "../helpers/pagination";
+import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
-import { shipFilters } from "../helpers/shipFilters";
-import { parseSortBy } from "../helpers/parseSortBy";
-import { ValidationError } from "../helpers/errorHandler";
+import { shipFilters } from "../utils/shipFilters";
+import { parseSortBy } from "../helpers/sort.helpers";
+import { ValidationError } from "../helpers/error.helpers";
 import { sendEmail } from "../utils/sendMail";
-import { formatDate } from "../utils/formatDate";
+import { formatDate } from "../helpers/date.helpers";
 
 /* 
 CREATE SHIP 
@@ -60,6 +60,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     });
 
     const fullName = req.user?.fullName;
+
     const shipLink = `${process.env.FRONTEND_URL}/ships/${newShip?.id}`;
     const emailData = {
       shipTitle: newShip.shipName,
@@ -98,7 +99,7 @@ TO DO: add filters
 */
 export const getAllPublishedShips = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+    const { page, limit, skip } = parsePagination(req.query);
     const filters = shipFilters(req.query);
 
     const { sortBy } = req.query;
@@ -112,18 +113,17 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
     const [ships, totalShips] = await Promise.all([
       prisma.ship.findMany({
         skip,
-        take: pageSize,
+        take: limit,
         where,
         orderBy,
       }),
       prisma.ship.count({ where }),
     ]);
 
+    const meta = buildPageMeta(totalShips, page, limit);
+
     res.status(200).json({
-      page: pageNumber,
-      limit: pageSize,
-      totalShips,
-      totalPages: Math.ceil(totalShips / pageSize),
+      meta,
       data: ships,
     });
   } catch (error) {
@@ -156,32 +156,30 @@ TO DO: filter by status
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
   const { userId, role } = req.user as CustomJwtPayload;
 
-  const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
+  const { page, limit, skip } = parsePagination(req.query);
+  const { sortBy } = req.query;
+
   const filters = shipFilters(req.query);
-  const { sortBy, search } = req.query;
 
   try {
-    let ships;
+    let data;
 
     const whereCondition: any = {
       ...filters,
     };
 
-    if (search && typeof search === "string" && search.trim().length > 0) {
-      whereCondition.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }];
-    }
+    // Sort handling
 
     if (role !== "ADMIN") {
       whereCondition.userId = userId;
     }
 
-    // Sort handling
     const orderBy = parseSortBy(sortBy as string, ["shipName", "price", "createdAt"], { createdAt: "desc" });
+    const totalShips = (data = await prisma.ship.count());
 
-    const totalShipsType = (ships = await prisma.ship.count());
-    ships = await prisma.ship.findMany({
+    data = await prisma.ship.findMany({
       skip,
-      take: pageSize,
+      take: limit,
       where: whereCondition,
       orderBy,
       include: {
@@ -202,13 +200,12 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       },
     });
 
+    const meta = buildPageMeta(totalShips, page, limit);
+
     return res.status(200).json({
       message: "Ships fetched successfully.",
-      page: pageNumber,
-      limit: pageSize,
-      totalShipsType,
-      totalPages: Math.ceil(totalShipsType / pageSize),
-      data: ships,
+      meta,
+      data,
     });
   } catch (error) {
     console.log(error);

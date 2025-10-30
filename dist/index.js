@@ -19,13 +19,15 @@ const eventsRoute_1 = __importDefault(require("./routes/eventsRoute"));
 const notificationRoute_1 = __importDefault(require("./routes/notificationRoute"));
 const dashboardRoute_1 = __importDefault(require("./routes/dashboardRoute"));
 const stripeWebhookRoute_1 = __importDefault(require("./routes/stripeWebhookRoute"));
+const stripeRoute_1 = __importDefault(require("./routes/stripeRoute"));
+const paymentsRoute_1 = __importDefault(require("./routes/paymentsRoute"));
 const middleware_1 = require("./middleware");
 /* CONFIGURATION */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, morgan_1.default)("common"));
 // webhooks stripe must be before bodyParser json
-app.use("/webhooks", stripeWebhookRoute_1.default);
+app.use("/", stripeWebhookRoute_1.default);
 app.use(express_1.default.json());
 app.use(body_parser_1.default.json());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
@@ -47,6 +49,8 @@ app.use("/address-book", addressBookRoute_1.default);
 app.use("/events", eventsRoute_1.default);
 app.use("/notification", notificationRoute_1.default);
 app.use("/dashboard", dashboardRoute_1.default);
+app.use("/stripe", stripeRoute_1.default);
+app.use("/payments", paymentsRoute_1.default);
 app.use(middleware_1.errorMiddleware);
 /* SERVER */
 const port = Number(process.env.PORT) || 5000;

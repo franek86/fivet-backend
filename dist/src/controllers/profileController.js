@@ -16,7 +16,7 @@ exports.deleteUserProfile = exports.updateProfile = exports.createProfile = expo
 const cloudinaryConfig_1 = __importDefault(require("../cloudinaryConfig"));
 const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../prismaClient"));
-const errorHandler_1 = require("../helpers/errorHandler");
+const error_helpers_1 = require("../helpers/error.helpers");
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER
 */
@@ -144,11 +144,11 @@ exports.updateProfile = updateProfile;
 const deleteUserProfile = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const id = parseInt(req.params.id);
     if (!id)
-        throw new errorHandler_1.ValidationError("ID must be a valid number.");
+        throw new error_helpers_1.ValidationError("ID must be a valid number.");
     try {
         const userProfile = yield prismaClient_1.default.profile.findUnique({ where: { id } });
         if (!userProfile) {
-            return next(new errorHandler_1.ValidationError("User profile not found."));
+            return next(new error_helpers_1.ValidationError("User profile not found."));
         }
         yield prismaClient_1.default.$transaction([prismaClient_1.default.profile.delete({ where: { id } }), prismaClient_1.default.user.delete({ where: { id: userProfile.userId } })]);
         res.status(200).json({ message: "User and profile deleted successfully." });

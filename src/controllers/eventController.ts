@@ -37,7 +37,6 @@ export const getAllEvents = async (req: Request, res: Response): Promise<void> =
     return;
   }
 
-  //const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
   const { pageNumber, pageSize, status, priority, startDate, endDate, search } = parsedEventData.data as FilterEventQuery;
   const skip = (pageNumber - 1) * pageSize;
 

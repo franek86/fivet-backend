@@ -13,8 +13,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAllShipType = exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
-const pagination_1 = require("../helpers/pagination");
-const parseSortBy_1 = require("../helpers/parseSortBy");
+const pagination_1 = require("../utils/pagination");
+const sort_helpers_1 = require("../helpers/sort.helpers");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 /* CREATE SHIP TYPE BY ADMIN
   Only admin can create ship type
@@ -95,9 +95,9 @@ exports.deleteShipType = deleteShipType;
   Public route
 */
 const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { pageNumber, pageSize, skip } = (0, pagination_1.getPaginationParams)(req.query);
+    const { page, limit, skip } = (0, pagination_1.parsePagination)(req.query);
     const { sortBy, search } = req.query;
-    const orderBy = (0, parseSortBy_1.parseSortBy)(sortBy, ["name", "createdAt"], { createdAt: "desc" });
+    const orderBy = (0, sort_helpers_1.parseSortBy)(sortBy, ["name", "createdAt"], { createdAt: "desc" });
     const whereCondition = {};
     if (search && typeof search === "string" && search.trim().length > 0) {
         whereCondition.OR = [
@@ -116,15 +116,13 @@ const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         const shipType = yield prismaClient_1.default.shipType.findMany({
             where: whereCondition,
             skip,
-            take: pageSize,
+            take: skip,
             orderBy,
         });
-        const totalShipsType = yield prismaClient_1.default.shipType.count();
+        const total = yield prismaClient_1.default.shipType.count();
+        const meta = (0, pagination_1.buildPageMeta)(total, page, limit);
         res.status(200).json({
-            page: pageNumber,
-            limit: pageSize,
-            totalShipsType,
-            totalPages: Math.ceil(totalShipsType / pageSize),
+            meta,
             data: shipType,
         });
     }

@@ -202,8 +202,8 @@ model Payment {
   userId String
 
   status          PaymentStatus  @default(PENDING)
-  amout Float
+  amount Float
   currency String @default("EUR")
-  sripePaymentId String
+  stripePaymentId String
   createdAt DateTime @default(now())
 }

@@ -4,6 +4,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 export interface CustomJwtPayload {
   userId: string;
   role: string;
+  fullName: string;
 }
 
 const authAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

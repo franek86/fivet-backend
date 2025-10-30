@@ -1,17 +1,17 @@
 import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt, { JsonWebTokenError, JwtPayload } from "jsonwebtoken";
-import { AuthError, NotFoundError, ValidationError } from "../helpers/errorHandler";
-import { checkOtpRestrictions, sendOtp, trackOtpRequest, verifyOtp } from "../helpers/auth.helper";
+import { AuthError, NotFoundError, ValidationError } from "../helpers/error.helpers";
+import { checkOtpRestrictions, sendOtp, trackOtpRequest, verifyOtp } from "../helpers/auth.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 
-const generateAccessToken = (userId: string, role: string) => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
+const generateAccessToken = (userId: string, role: string, fullName: string) => {
+  return jwt.sign({ userId, role, fullName }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
 };
 
-const generateRefreshToken = (userId: string, role: string) => {
-  return jwt.sign({ userId, role }, process.env.REFRESH_SECRET as string, { expiresIn: "7d" });
+const generateRefreshToken = (userId: string, role: string, fullName: string) => {
+  return jwt.sign({ userId, role, fullName }, process.env.REFRESH_SECRET as string, { expiresIn: "7d" });
 };
 
 /*  REGISTER NEW USER WITH OTP */
@@ -86,8 +86,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const validatePassword = await bcrypt.compare(password, user.password);
     if (!validatePassword) throw new AuthError("Invalid credentails");
 
-    const accessToken = generateAccessToken(user.id, user.role);
-    const refreshToken = generateRefreshToken(user.id, user.role);
+    const accessToken = generateAccessToken(user.id, user.role, user.fullName);
+    const refreshToken = generateRefreshToken(user.id, user.role, user.fullName);
     /* 
       if is remember me, set token in 30 days other ways set token to 7 days
     */
@@ -118,7 +118,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       new JsonWebTokenError("Forbidden! Invalid refresh token.");
     }
 
-    const new_access_token = generateAccessToken(decoded.userId, decoded.role);
+    const new_access_token = generateAccessToken(decoded.userId, decoded.role, decoded.fullName);
     setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
 
     res.json({

@@ -1,7 +1,7 @@
 import { NextFunction } from "express";
 import redis from "../../redis/index";
 import { sendEmail } from "../utils/sendMail";
-import { ValidationError } from "./errorHandler";
+import { ValidationError } from "./error.helpers";
 
 // Utility function to generate 6-digit OTP
 function generateOTP() {

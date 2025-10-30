@@ -41,7 +41,6 @@ const getAllEvents = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         res.status(400).json({ errors: parsedEventData.error.errors });
         return;
     }
-    //const { pageNumber, pageSize, skip } = getPaginationParams(req.query);
     const { pageNumber, pageSize, status, priority, startDate, endDate, search } = parsedEventData.data;
     const skip = (pageNumber - 1) * pageSize;
     const where = {};

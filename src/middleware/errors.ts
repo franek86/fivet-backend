@@ -1,5 +1,5 @@
 import { Response, Request, NextFunction } from "express";
-import { AppError } from "../helpers/errorHandler";
+import { AppError } from "../helpers/error.helpers";
 
 const errorMiddleware = (err: Error, req: Request, res: Response, next: NextFunction): any => {
   if (err instanceof AppError) {

@@ -15,6 +15,8 @@ import eventsRoute from "./routes/eventsRoute";
 import notificationRoute from "./routes/notificationRoute";
 import dashboardRoute from "./routes/dashboardRoute";
 import webhookStripeRoute from "./routes/stripeWebhookRoute";
+import stripeRoute from "./routes/stripeRoute";
+import paymentsRoute from "./routes/paymentsRoute";
 import { errorMiddleware } from "./middleware";
 
 /* CONFIGURATION */
@@ -23,7 +25,7 @@ const app = express();
 app.use(morgan("common"));
 
 // webhooks stripe must be before bodyParser json
-app.use("/webhooks", webhookStripeRoute);
+app.use("/", webhookStripeRoute);
 
 app.use(express.json());
 app.use(bodyParser.json());
@@ -50,6 +52,8 @@ app.use("/address-book", addressBookRoute);
 app.use("/events", eventsRoute);
 app.use("/notification", notificationRoute);
 app.use("/dashboard", dashboardRoute);
+app.use("/stripe", stripeRoute);
+app.use("/payments", paymentsRoute);
 
 app.use(errorMiddleware);
 

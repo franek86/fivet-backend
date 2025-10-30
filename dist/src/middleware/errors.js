@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const errorHandler_1 = require("../helpers/errorHandler");
+const error_helpers_1 = require("../helpers/error.helpers");
 const errorMiddleware = (err, req, res, next) => {
-    if (err instanceof errorHandler_1.AppError) {
+    if (err instanceof error_helpers_1.AppError) {
         console.log(`Error ${req.method} ${req.url} - ${err.message}`);
         return res.status(err.statusCode).json(Object.assign({ status: "error", message: err.message }, (err.details && { details: err.details })));
     }

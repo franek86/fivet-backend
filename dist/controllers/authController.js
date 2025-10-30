@@ -52,11 +52,11 @@ const errorHandler_1 = require("../helpers/errorHandler");
 const auth_helper_1 = require("../helpers/auth.helper");
 const setCookies_1 = require("../utils/cookies/setCookies");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
-const generateAccessToken = (userId, role) => {
-    return jsonwebtoken_1.default.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: "5m" });
+const generateAccessToken = (userId, role, fullName) => {
+    return jsonwebtoken_1.default.sign({ userId, role, fullName }, process.env.JWT_SECRET, { expiresIn: "5m" });
 };
-const generateRefreshToken = (userId, role) => {
-    return jsonwebtoken_1.default.sign({ userId, role }, process.env.REFRESH_SECRET, { expiresIn: "7d" });
+const generateRefreshToken = (userId, role, fullName) => {
+    return jsonwebtoken_1.default.sign({ userId, role, fullName }, process.env.REFRESH_SECRET, { expiresIn: "7d" });
 };
 /*  REGISTER NEW USER WITH OTP */
 const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -126,8 +126,8 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         const validatePassword = yield bcryptjs_1.default.compare(password, user.password);
         if (!validatePassword)
             throw new errorHandler_1.AuthError("Invalid credentails");
-        const accessToken = generateAccessToken(user.id, user.role);
-        const refreshToken = generateRefreshToken(user.id, user.role);
+        const accessToken = generateAccessToken(user.id, user.role, user.fullName);
+        const refreshToken = generateRefreshToken(user.id, user.role, user.fullName);
         /*
           if is remember me, set token in 30 days other ways set token to 7 days
         */
@@ -154,7 +154,7 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         if (!decoded || !decoded.userId || !decoded.role) {
             new jsonwebtoken_1.JsonWebTokenError("Forbidden! Invalid refresh token.");
         }
-        const new_access_token = generateAccessToken(decoded.userId, decoded.role);
+        const new_access_token = generateAccessToken(decoded.userId, decoded.role, decoded.fullName);
         (0, setCookies_1.setCookie)(res, "access_token", new_access_token, 5 * 60 * 1000);
         res.json({
             success: true,

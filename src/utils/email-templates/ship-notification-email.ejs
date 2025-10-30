@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fivet Ship Notification</title>
-    <style type="text/css">
+    <!--  <style type="text/css">
       body {
         margin: 0;
         padding: 0;
@@ -66,9 +66,9 @@
         padding: 12px 24px;
         border-radius: 4px;
       }
-    </style>
+    </style> -->
   </head>
-  <body>
+  <!--  <body>
     <div class="email-wrapper">
       <div class="email-header">
         <h1>Ship notification - Fivet</h1>
@@ -83,5 +83,60 @@
         <p>Best,<br />Fivet Team</p>
       </div>
     </div>
+  </body> -->
+
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      min-width: 100%;
+      background-color: #fafafa;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: #222222;
+    "
+  >
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#fafafa">
+      <tr>
+        <td align="center" style="padding: 0; margin: 0">
+          <!-- Email wrapper -->
+          <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff">
+            <!-- Header -->
+            <tr>
+              <td
+                align="center"
+                bgcolor="#0070f3"
+                style="padding: 24px; color: #ffffff; font-size: 24px; font-weight: 700; line-height: 1.25"
+              >
+                Ship notification - Fivet
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding: 24px; color: #000000; font-size: 16px; line-height: 1.5; font-family: Arial, sans-serif">
+                <p style="margin-top: 0; margin-bottom: 24px">Hi Admin,</p>
+                <p style="margin-top: 0; margin-bottom: 24px">Created a new ship by <b><%= fullName %></b> at <%= createdAt %>.</p>
+                <p style="margin-top: 0; margin-bottom: 24px">Ship name: <b><%= shipTitle %></b>, IMO number: <b><%= shipIMO %></b>.</p>
+                <p style="margin-top: 0; margin-bottom: 24px">
+                  Please click
+                  <a href="<%= reviewUrl %>" style="color: #0070f3; text-decoration: none; font-weight: bold"> here </a>
+                  to review and publish it.
+                </p>
+                <p style="margin-top: 0; margin-bottom: 24px">Best,<br />Fivet Team</p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" bgcolor="#f6f6f6" style="padding: 24px; font-size: 14px; color: #555555; font-family: Arial, sans-serif">
+                &copy; <%= new Date().getFullYear() %> Fivet. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>

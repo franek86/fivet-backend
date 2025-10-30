@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const handleStripeWebhookController_1 = require("../controllers/handleStripeWebhookController");
-const body_parser_1 = __importDefault(require("body-parser"));
 const router = express_1.default.Router();
-router.post("/stripe-webhook", body_parser_1.default.raw({ type: "application/json" }), handleStripeWebhookController_1.postStripeWebhook);
+router.post("/session", handleStripeWebhookController_1.createCheckoutSession);
 exports.default = router;

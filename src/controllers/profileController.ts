@@ -3,7 +3,7 @@ import { CustomJwtPayload } from "../middleware/verifyToken";
 import cloudinary from "../cloudinaryConfig";
 import fs from "fs";
 import prisma from "../prismaClient";
-import { ValidationError } from "../helpers/errorHandler";
+import { ValidationError } from "../helpers/error.helpers";
 
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER

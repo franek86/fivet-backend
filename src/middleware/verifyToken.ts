@@ -10,6 +10,7 @@ declare module "express-serve-static-core" {
 export interface CustomJwtPayload {
   userId: string;
   role: string;
+  fullName: string;
 }
 
 export const authenticateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
