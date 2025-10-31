@@ -13,9 +13,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAllShipType = exports.getShipType = exports.deleteShipType = exports.updateShipType = exports.createShipType = void 0;
+const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../utils/pagination");
 const sort_helpers_1 = require("../helpers/sort.helpers");
-const prismaClient_1 = __importDefault(require("../prismaClient"));
 /* CREATE SHIP TYPE BY ADMIN
   Only admin can create ship type
 */
@@ -116,7 +116,7 @@ const getShipType = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         const shipType = yield prismaClient_1.default.shipType.findMany({
             where: whereCondition,
             skip,
-            take: skip,
+            take: limit,
             orderBy,
         });
         const total = yield prismaClient_1.default.shipType.count();

@@ -4,9 +4,10 @@ Verify Admin with authAdmin middleware in route
 */
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
+import prisma from "../prismaClient";
+
 import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
-import prisma from "../prismaClient";
 
 /* CREATE SHIP TYPE BY ADMIN 
   Only admin can create ship type
@@ -118,7 +119,7 @@ export const getShipType = async (req: Request, res: Response): Promise<void> =>
     const shipType = await prisma.shipType.findMany({
       where: whereCondition,
       skip,
-      take: skip,
+      take: limit,
       orderBy,
     });
 
