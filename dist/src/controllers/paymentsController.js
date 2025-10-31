@@ -15,17 +15,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPayments = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const paymentFilters_1 = require("../utils/paymentFilters");
+const pagination_1 = require("../utils/pagination");
 /* Get all payments
     ADMIN ONLY
 */
 const getPayments = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const { page, limit, skip } = (0, pagination_1.parsePagination)(req.query);
         const { where } = (0, paymentFilters_1.paymentFilters)(req.query);
-        const data = yield prismaClient_1.default.payment.findMany({
-            where,
-            orderBy: { createdAt: "desc" },
-        });
-        res.status(200).json({ data });
+        const [data, total] = yield Promise.all([
+            prismaClient_1.default.payment.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { createdAt: "desc" },
+            }),
+            prismaClient_1.default.payment.count(),
+        ]);
+        const meta = (0, pagination_1.buildPageMeta)(total, page, limit);
+        res.status(200).json({ meta, payload: data });
     }
     catch (error) {
         console.error(error);
