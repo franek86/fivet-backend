@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import http from "http";
 
 /* ROUTES IMPORT*/
 import authRoute from "./routes/authRoute";
@@ -17,16 +18,26 @@ import dashboardRoute from "./routes/dashboardRoute";
 import webhookStripeRoute from "./routes/stripeWebhookRoute";
 import stripeRoute from "./routes/stripeRoute";
 import paymentsRoute from "./routes/paymentsRoute";
+
+/* MIDDLEWARES */
 import { errorMiddleware } from "./middleware";
+
+/* SOCKET SERVICE */
+import { initializeSocket } from "./services/socket.service";
 
 /* CONFIGURATION */
 dotenv.config();
+
 const app = express();
+const httpServer = http.createServer(app);
+
+/* LOGGING */
 app.use(morgan("common"));
 
-// webhooks stripe must be before bodyParser json
+/* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", webhookStripeRoute);
 
+/* MIDDLEWARES */
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -57,7 +68,9 @@ app.use("/payments", paymentsRoute);
 
 app.use(errorMiddleware);
 
-/* SERVER */
-const port = Number(process.env.PORT) || 5000;
+// Socket.IO
+initializeSocket(httpServer);
 
-app.listen(port, () => `Server running on port ${port}`);
+/* SERVER START */
+const port = Number(process.env.PORT) || 5000;
+httpServer.listen(port, () => `Server running on port ${port}`);

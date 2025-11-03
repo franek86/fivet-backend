@@ -16,16 +16,6 @@ exports.postCheckoutSession = exports.postCancelSubscription = void 0;
 const stripe_service_1 = require("../services/stripe.service");
 const stripe_1 = require("../utils/stripe");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
-/* export const postCreateSubscription = async (req: Request, res: Response) => {
-  try {
-    const { userId, plan } = req.body;
-    const { clientSecret, subscriptionId } = await createSubscription(userId, plan);
-    res.json({ clientSecret, subscriptionId });
-  } catch (error: any) {
-    console.error("Create subscription error:", error);
-    res.status(500).json({ error: error.message });
-  }
-}; */
 const postCancelSubscription = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userId } = req.body;

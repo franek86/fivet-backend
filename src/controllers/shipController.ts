@@ -9,6 +9,7 @@ import { parseSortBy } from "../helpers/sort.helpers";
 import { ValidationError } from "../helpers/error.helpers";
 import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
+import { io } from "../services/socket.service";
 
 /* 
 CREATE SHIP 
@@ -79,6 +80,15 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
           userId: admin.id,
         },
       });
+
+      /* realtime notifikaction via socket.io */
+      io.to("admins").emit("newShip", {
+        shipId: newShip.id,
+        shipName: newShip.shipName,
+        createdBy: fullName,
+        createdAt: formatDate(newShip.createdAt.toISOString()),
+      });
+
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
 

@@ -9,6 +9,7 @@ const body_parser_1 = __importDefault(require("body-parser"));
 const cors_1 = __importDefault(require("cors"));
 const morgan_1 = __importDefault(require("morgan"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
+const http_1 = __importDefault(require("http"));
 /* ROUTES IMPORT*/
 const authRoute_1 = __importDefault(require("./routes/authRoute"));
 const shipRoute_1 = __importDefault(require("./routes/shipRoute"));
@@ -21,13 +22,19 @@ const dashboardRoute_1 = __importDefault(require("./routes/dashboardRoute"));
 const stripeWebhookRoute_1 = __importDefault(require("./routes/stripeWebhookRoute"));
 const stripeRoute_1 = __importDefault(require("./routes/stripeRoute"));
 const paymentsRoute_1 = __importDefault(require("./routes/paymentsRoute"));
+/* MIDDLEWARES */
 const middleware_1 = require("./middleware");
+/* SOCKET SERVICE */
+const socket_service_1 = require("./services/socket.service");
 /* CONFIGURATION */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
+const httpServer = http_1.default.createServer(app);
+/* LOGGING */
 app.use((0, morgan_1.default)("common"));
-// webhooks stripe must be before bodyParser json
+/* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", stripeWebhookRoute_1.default);
+/* MIDDLEWARES */
 app.use(express_1.default.json());
 app.use(body_parser_1.default.json());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
@@ -52,6 +59,8 @@ app.use("/dashboard", dashboardRoute_1.default);
 app.use("/stripe", stripeRoute_1.default);
 app.use("/payments", paymentsRoute_1.default);
 app.use(middleware_1.errorMiddleware);
-/* SERVER */
+// Socket.IO
+(0, socket_service_1.initializeSocket)(httpServer);
+/* SERVER START */
 const port = Number(process.env.PORT) || 5000;
-app.listen(port, () => `Server running on port ${port}`);
+httpServer.listen(port, () => `Server running on port ${port}`);

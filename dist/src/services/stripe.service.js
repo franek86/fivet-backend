@@ -15,49 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.cancelSubscription = exports.handleStripeEvent = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const stripe_1 = require("../utils/stripe");
-/* export const createCustomerIfNotExists = async (userId: string) => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new Error("User not found");
-
-  if (user.stripeCustomerId) return user.stripeCustomerId;
-
-  const customer = await stripe.customers.create({ email: user.email });
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { stripeCustomerId: customer.id },
-  });
-
-  return customer.id;
-};
-
-export const createSubscription = async (userId: string, plan: "STANDARD" | "PREMIUM") => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new Error("User not found");
-
-  const customerId = user.stripeCustomerId || (await createCustomerIfNotExists(userId));
-
-  const priceId = plan === "PREMIUM" ? process.env.STRIPE_PRICE_PREMIUM! : process.env.STRIPE_PRICE_STANDARD!;
-
-  const subscription = await stripe.subscriptions.create({
-    customer: customerId,
-    items: [{ price: priceId }],
-    payment_behavior: "default_incomplete",
-    expand: ["latest_invoice.payment_intent"],
-  });
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      stripeSubscriptionId: subscription.id,
-      subscription: plan,
-    },
-  });
-
-  const clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret;
-
-  return { clientSecret, subscriptionId: subscription.id };
-}; */
 const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     switch (event.type) {
@@ -68,6 +25,18 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                 where: { stripeCustomerId: customerId },
             });
             if (user) {
+                const subscriptionId = invoice.subscription;
+                let subscriptionType = "STARTER";
+                if (subscriptionId) {
+                    const stripeSubscription = yield stripe_1.stripe.subscriptions.retrieve(subscriptionId);
+                    const priceId = stripeSubscription.items.data[0].price.id;
+                    if (priceId === process.env.STRIPE_PRICE_STANDARD) {
+                        subscriptionType = "STANDARD";
+                    }
+                    else if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
+                        subscriptionType = "PREMIUM";
+                    }
+                }
                 yield prismaClient_1.default.payment.create({
                     data: {
                         userId: user.id,
@@ -90,7 +59,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                     data: {
                         userId: user.id,
                         amount: ((_b = invoice.amount_due) !== null && _b !== void 0 ? _b : 0) / 100,
-                        stripePaymentId: invoice.payment_intent,
+                        stripePaymentId: invoice.payment_intent || "",
                         status: "FAILED",
                     },
                 });

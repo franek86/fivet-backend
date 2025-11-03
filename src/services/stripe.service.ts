@@ -1,49 +1,6 @@
+import { Subscription } from "@prisma/client";
 import prisma from "../prismaClient";
 import { stripe } from "../utils/stripe";
-
-/* export const createCustomerIfNotExists = async (userId: string) => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new Error("User not found");
-
-  if (user.stripeCustomerId) return user.stripeCustomerId;
-
-  const customer = await stripe.customers.create({ email: user.email });
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { stripeCustomerId: customer.id },
-  });
-
-  return customer.id;
-};
-
-export const createSubscription = async (userId: string, plan: "STANDARD" | "PREMIUM") => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new Error("User not found");
-
-  const customerId = user.stripeCustomerId || (await createCustomerIfNotExists(userId));
-
-  const priceId = plan === "PREMIUM" ? process.env.STRIPE_PRICE_PREMIUM! : process.env.STRIPE_PRICE_STANDARD!;
-
-  const subscription = await stripe.subscriptions.create({
-    customer: customerId,
-    items: [{ price: priceId }],
-    payment_behavior: "default_incomplete",
-    expand: ["latest_invoice.payment_intent"],
-  });
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      stripeSubscriptionId: subscription.id,
-      subscription: plan,
-    },
-  });
-
-  const clientSecret = (subscription.latest_invoice as any)?.payment_intent?.client_secret;
-
-  return { clientSecret, subscriptionId: subscription.id };
-}; */
 
 export const handleStripeEvent = async (event: any) => {
   switch (event.type) {
@@ -56,6 +13,20 @@ export const handleStripeEvent = async (event: any) => {
       });
 
       if (user) {
+        const subscriptionId = invoice.subscription as string | null;
+        let subscriptionType: Subscription = "STARTER";
+
+        if (subscriptionId) {
+          const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const priceId = stripeSubscription.items.data[0].price.id;
+
+          if (priceId === process.env.STRIPE_PRICE_STANDARD) {
+            subscriptionType = "STANDARD";
+          } else if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
+            subscriptionType = "PREMIUM";
+          }
+        }
+
         await prisma.payment.create({
           data: {
             userId: user.id,
@@ -81,7 +52,7 @@ export const handleStripeEvent = async (event: any) => {
           data: {
             userId: user.id,
             amount: (invoice.amount_due ?? 0) / 100,
-            stripePaymentId: invoice.payment_intent as string,
+            stripePaymentId: invoice.payment_intent || "",
             status: "FAILED",
           },
         });

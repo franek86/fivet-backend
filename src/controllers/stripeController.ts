@@ -3,17 +3,6 @@ import { cancelSubscription } from "../services/stripe.service";
 import { stripe } from "../utils/stripe";
 import prisma from "../prismaClient";
 
-/* export const postCreateSubscription = async (req: Request, res: Response) => {
-  try {
-    const { userId, plan } = req.body;
-    const { clientSecret, subscriptionId } = await createSubscription(userId, plan);
-    res.json({ clientSecret, subscriptionId });
-  } catch (error: any) {
-    console.error("Create subscription error:", error);
-    res.status(500).json({ error: error.message });
-  }
-}; */
-
 export const postCancelSubscription = async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;

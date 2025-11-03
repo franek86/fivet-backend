@@ -22,6 +22,7 @@ const sort_helpers_1 = require("../helpers/sort.helpers");
 const error_helpers_1 = require("../helpers/error.helpers");
 const sendMail_1 = require("../utils/sendMail");
 const date_helpers_1 = require("../helpers/date.helpers");
+const socket_service_1 = require("../services/socket.service");
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -71,6 +72,13 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                     message: `${fullName} created a new ship: ${newShip.shipName}`,
                     userId: admin.id,
                 },
+            });
+            /* realtime notifikaction via socket.io */
+            socket_service_1.io.to("admins").emit("newShip", {
+                shipId: newShip.id,
+                shipName: newShip.shipName,
+                createdBy: fullName,
+                createdAt: (0, date_helpers_1.formatDate)(newShip.createdAt.toISOString()),
             });
             yield (0, sendMail_1.sendEmail)(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
         }
