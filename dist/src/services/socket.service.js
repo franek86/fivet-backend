@@ -9,26 +9,32 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.io = exports.initializeSocket = void 0;
+exports.users = exports.io = exports.initializeSocket = void 0;
 const socket_io_1 = require("socket.io");
 let io;
+const users = new Map();
+exports.users = users;
 const initializeSocket = (server) => __awaiter(void 0, void 0, void 0, function* () {
     exports.io = io = new socket_io_1.Server(server, {
         cors: {
             origin: process.env.FRONTEND_URL,
-            credentials: true,
             methods: ["GET", "POST"],
+            credentials: true,
         },
     });
-    io.on("connection", (socket) => __awaiter(void 0, void 0, void 0, function* () {
-        console.log("New socket user:", socket.id);
-        socket.on("admins", () => {
-            socket.join("admins");
-            console.log(`Socket ${socket.id} joined admins room`);
+    io.on("connection", (socket) => {
+        socket.on("joinUser", (userId) => {
+            users.set(userId, socket.id);
         });
         socket.on("disconnect", () => {
-            console.log("Socket disconnected:", socket.id);
+            for (const [userId, socketId] of users.entries()) {
+                if (socketId === socket.id) {
+                    users.delete(userId);
+                    console.log(`User ${userId} disconnected`);
+                    break;
+                }
+            }
         });
-    }));
+    });
 });
 exports.initializeSocket = initializeSocket;

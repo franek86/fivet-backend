@@ -30,6 +30,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = http.createServer(app);
+const allowedOrigins = [process.env.FRONTEND_URL || "", process.env.WEB_URL || ""];
 
 /* LOGGING */
 app.use(morgan("common"));
@@ -44,15 +45,14 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
 
 /* ROUTES */
-app.get("/", (req, res) => {
-  res.send("This is a home route");
-  console.log("home route");
+app.get("/health", (req, res) => {
+  res.send("Welcome to api");
 });
 
 app.use("/auth", authRoute);

@@ -12,9 +12,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteNotification = exports.updateUnreadNotification = exports.getUnreadNotification = exports.getNotifications = void 0;
+exports.deleteNotification = exports.updateUnreadNotification = exports.getUnreadNotification = exports.getNotifications = exports.sendNotification = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const notification_schema_1 = require("../schemas/notification.schema");
+const socket_service_1 = require("../services/socket.service");
+const sendNotification = (userId, message, type) => __awaiter(void 0, void 0, void 0, function* () {
+    const notification = yield prismaClient_1.default.notification.create({
+        data: {
+            userId,
+            message,
+            type,
+        },
+    });
+    const socketId = socket_service_1.users.get(userId);
+    if (socketId) {
+        console.log("socketid ......... ", socketId);
+        socket_service_1.io.to(socketId).emit("postApproved", notification);
+    }
+    return notification;
+});
+exports.sendNotification = sendNotification;
 const getNotifications = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {

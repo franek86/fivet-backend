@@ -19,10 +19,10 @@ const cloudinaryConfig_1 = require("../cloudinaryConfig");
 const ship_schema_1 = require("../schemas/ship.schema");
 const shipFilters_1 = require("../utils/shipFilters");
 const sort_helpers_1 = require("../helpers/sort.helpers");
-const error_helpers_1 = require("../helpers/error.helpers");
 const sendMail_1 = require("../utils/sendMail");
 const date_helpers_1 = require("../helpers/date.helpers");
-const socket_service_1 = require("../services/socket.service");
+const notificationController_1 = require("./notificationController");
+/* import { io, users } from "../services/socket.service"; */
 /*
 CREATE SHIP
 Authenticate user can create ship
@@ -73,13 +73,13 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                     userId: admin.id,
                 },
             });
-            /* realtime notifikaction via socket.io */
-            socket_service_1.io.to("admins").emit("newShip", {
-                shipId: newShip.id,
-                shipName: newShip.shipName,
-                createdBy: fullName,
-                createdAt: (0, date_helpers_1.formatDate)(newShip.createdAt.toISOString()),
-            });
+            /* realtime notification via socket.io */
+            /*   io.to("admin").emit("newShipAdded", {
+              shipId: newShip.id,
+              shipName: newShip.shipName,
+              createdBy: fullName,
+              createdAt: formatDate(newShip.createdAt.toISOString()),
+            }); */
             yield (0, sendMail_1.sendEmail)(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
         }
         res.status(200).json({
@@ -111,6 +111,30 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
                 take: limit,
                 where,
                 orderBy,
+                select: {
+                    id: true,
+                    shipName: true,
+                    imo: true,
+                    typeId: true,
+                    refitYear: true,
+                    buildYear: true,
+                    price: true,
+                    location: true,
+                    mainEngine: true,
+                    lengthOverall: true,
+                    beam: true,
+                    length: true,
+                    depth: true,
+                    draft: true,
+                    tonnage: true,
+                    cargoCapacity: true,
+                    buildCountry: true,
+                    remarks: true,
+                    description: true,
+                    mainImage: true,
+                    images: true,
+                    createdAt: true,
+                },
             }),
             prismaClient_1.default.ship.count({ where }),
         ]);
@@ -131,11 +155,26 @@ PUBLISH SHIPS ADMIN ONLY
 const updatePublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { isPublished } = req.body;
-    if (!id)
-        throw new error_helpers_1.ValidationError("Ship id not found");
+    if (!id) {
+        res.status(401).json({ message: "Id is required" });
+        return;
+    }
     try {
-        const updateShip = yield prismaClient_1.default.ship.update({ where: { id }, data: { isPublished } });
-        res.status(200).json(updateShip);
+        const updatedShip = yield prismaClient_1.default.ship.update({ where: { id }, data: { isPublished } });
+        if (isPublished && updatedShip.userId) {
+            console.log("Published");
+            /*  if (userSocketId) {
+              io.to(userSocketId).emit("postApproved", {
+                message: `Your "${updatedShip.shipName}" are published live!`,
+                id: updatedShip.id,
+                createdAt: formatDate(updatedShip.createdAt.toISOString()),
+              });
+            } else {
+              console.log(`User ${updatedShip.userId} not connected, skipping notification`);
+            } */
+            yield (0, notificationController_1.sendNotification)(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
+        }
+        res.status(200).json(updatedShip);
     }
     catch (error) {
         console.log(error);

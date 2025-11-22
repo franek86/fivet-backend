@@ -2,9 +2,19 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shipFilters = void 0;
 const date_helpers_1 = require("../helpers/date.helpers");
+// Helper to parse "min-max" numeric filter
+const parseRange = (value) => {
+    const [min, max] = value.split("-").map(Number);
+    const range = {};
+    if (!isNaN(min))
+        range.gte = min;
+    if (!isNaN(max))
+        range.lte = max;
+    return range;
+};
 // src/utils/shipFilters.ts
 const shipFilters = (query) => {
-    const { price, shipType, dateFrom, dateTo, isPublished, search } = query;
+    const { beam, price, shipType, dateFrom, dateTo, isPublished, search } = query;
     const where = {};
     if (search && typeof search === "string" && search.trim().length > 0) {
         where.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }];
@@ -30,6 +40,11 @@ const shipFilters = (query) => {
         where.shipType = {
             in: shipType.split(",").map((t) => t.trim()),
         };
+    }
+    //Beam
+    if (beam) {
+        const value = beam;
+        where.beam = parseRange(value);
     }
     // Date range
     const dateFromInit = (0, date_helpers_1.parseDate)(dateFrom);

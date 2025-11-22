@@ -6,10 +6,10 @@ import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
 import { shipFilters } from "../utils/shipFilters";
 import { parseSortBy } from "../helpers/sort.helpers";
-import { ValidationError } from "../helpers/error.helpers";
 import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
-import { io } from "../services/socket.service";
+import { sendNotification } from "./notificationController";
+/* import { io, users } from "../services/socket.service"; */
 
 /* 
 CREATE SHIP 
@@ -81,13 +81,13 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
         },
       });
 
-      /* realtime notifikaction via socket.io */
-      io.to("admins").emit("newShip", {
+      /* realtime notification via socket.io */
+      /*   io.to("admin").emit("newShipAdded", {
         shipId: newShip.id,
         shipName: newShip.shipName,
         createdBy: fullName,
         createdAt: formatDate(newShip.createdAt.toISOString()),
-      });
+      }); */
 
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
@@ -126,6 +126,30 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
         take: limit,
         where,
         orderBy,
+        select: {
+          id: true,
+          shipName: true,
+          imo: true,
+          typeId: true,
+          refitYear: true,
+          buildYear: true,
+          price: true,
+          location: true,
+          mainEngine: true,
+          lengthOverall: true,
+          beam: true,
+          length: true,
+          depth: true,
+          draft: true,
+          tonnage: true,
+          cargoCapacity: true,
+          buildCountry: true,
+          remarks: true,
+          description: true,
+          mainImage: true,
+          images: true,
+          createdAt: true,
+        },
       }),
       prisma.ship.count({ where }),
     ]);
@@ -147,11 +171,28 @@ PUBLISH SHIPS ADMIN ONLY
 export const updatePublishedShip = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const { isPublished } = req.body;
-  if (!id) throw new ValidationError("Ship id not found");
+  if (!id) {
+    res.status(401).json({ message: "Id is required" });
+    return;
+  }
 
   try {
-    const updateShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
-    res.status(200).json(updateShip);
+    const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
+    if (isPublished && updatedShip.userId) {
+      console.log("Published");
+      /*  if (userSocketId) {
+        io.to(userSocketId).emit("postApproved", {
+          message: `Your "${updatedShip.shipName}" are published live!`,
+          id: updatedShip.id,
+          createdAt: formatDate(updatedShip.createdAt.toISOString()),
+        });
+      } else {
+        console.log(`User ${updatedShip.userId} not connected, skipping notification`);
+      } */
+      await sendNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
+    }
+
+    res.status(200).json(updatedShip);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal server error" });

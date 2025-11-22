@@ -20,12 +20,13 @@ const loginRateLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 requests per windowMs
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: true,
   handler: (req, res: Response) => {
     return res.status(429).json({
       message: "Too many login attempts. Please try again after 15 minutes.",
     });
   },
+  keyGenerator: (req: any) => req.ip,
 });
 
 router.post("/register", registerUser);

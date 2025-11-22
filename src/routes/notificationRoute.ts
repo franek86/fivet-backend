@@ -9,9 +9,9 @@ import {
 
 const router = express.Router();
 
-router.get("/", authenticateUser, authAdmin, getNotifications);
-router.get("/unread", authenticateUser, authAdmin, getUnreadNotification);
-router.put("/:id/read", authenticateUser, authAdmin, updateUnreadNotification);
-router.delete("/:id", authenticateUser, authAdmin, deleteNotification);
+router.get("/", authenticateUser, getNotifications);
+router.get("/unread", authenticateUser, getUnreadNotification);
+router.put("/:id/read", authenticateUser, updateUnreadNotification);
+router.delete("/:id", authenticateUser, deleteNotification);
 
 export default router;

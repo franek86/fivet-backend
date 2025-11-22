@@ -13,12 +13,13 @@ const loginRateLimiter = (0, express_rate_limit_1.default)({
     windowMs: 1 * 60 * 1000, // 15 minutes
     max: 5, // Limit each IP to 5 requests per windowMs
     standardHeaders: true,
-    legacyHeaders: false,
+    legacyHeaders: true,
     handler: (req, res) => {
         return res.status(429).json({
             message: "Too many login attempts. Please try again after 15 minutes.",
         });
     },
+    keyGenerator: (req) => req.ip,
 });
 router.post("/register", authController_1.registerUser);
 router.post("/verify-user", authController_1.verifyUser);

@@ -30,6 +30,7 @@ const socket_service_1 = require("./services/socket.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const httpServer = http_1.default.createServer(app);
+const allowedOrigins = [process.env.FRONTEND_URL || "", process.env.WEB_URL || ""];
 /* LOGGING */
 app.use((0, morgan_1.default)("common"));
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
@@ -40,13 +41,12 @@ app.use(body_parser_1.default.json());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use((0, cookie_parser_1.default)());
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL,
+    origin: allowedOrigins,
     credentials: true,
 }));
 /* ROUTES */
-app.get("/", (req, res) => {
-    res.send("This is a home route");
-    console.log("home route");
+app.get("/health", (req, res) => {
+    res.send("Welcome to api");
 });
 app.use("/auth", authRoute_1.default);
 app.use("/ships", shipRoute_1.default);

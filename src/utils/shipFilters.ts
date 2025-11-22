@@ -1,8 +1,19 @@
 import { parseDate } from "../helpers/date.helpers";
 
+// Helper to parse "min-max" numeric filter
+const parseRange = (value: string) => {
+  const [min, max] = value.split("-").map(Number);
+  const range: any = {};
+
+  if (!isNaN(min)) range.gte = min;
+  if (!isNaN(max)) range.lte = max;
+
+  return range;
+};
+
 // src/utils/shipFilters.ts
 export const shipFilters = (query: any) => {
-  const { price, shipType, dateFrom, dateTo, isPublished, search } = query;
+  const { beam, price, shipType, dateFrom, dateTo, isPublished, search } = query;
 
   const where: any = {};
 
@@ -30,6 +41,12 @@ export const shipFilters = (query: any) => {
     where.shipType = {
       in: shipType.split(",").map((t: string) => t.trim()),
     };
+  }
+
+  //Beam
+  if (beam) {
+    const value = beam;
+    where.beam = parseRange(value);
   }
 
   // Date range

@@ -1,7 +1,27 @@
 import { Request, Response } from "express";
+import { NotificationType } from "@prisma/client";
 import prisma from "../prismaClient";
 
 import { UpdateNotificationInput, UpdateNotificationSchema } from "../schemas/notification.schema";
+import { io, users } from "../services/socket.service";
+
+export const sendNotification = async (userId: string, message: string, type: NotificationType) => {
+  const notification = await prisma.notification.create({
+    data: {
+      userId,
+      message,
+      type,
+    },
+  });
+
+  const socketId = users.get(userId);
+  if (socketId) {
+    console.log("socketid ......... ", socketId);
+    io.to(socketId).emit("postApproved", notification);
+  }
+
+  return notification;
+};
 
 export const getNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
