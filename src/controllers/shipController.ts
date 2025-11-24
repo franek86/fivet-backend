@@ -135,6 +135,8 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
           buildYear: true,
           price: true,
           location: true,
+          latitude: true,
+          longitude: true,
           mainEngine: true,
           lengthOverall: true,
           beam: true,
@@ -160,6 +162,25 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
       meta,
       data: ships,
     });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* 
+  GET SHIPS STATISTIC FOR NUMBERIC FIELDS. THAT WILL USE ON FRONTEND TO TAKE MINMAX NUMERIC FIELDS
+*/
+// GET /ships/stats
+export const getShipsNumericFields = async (req: Request, res: Response) => {
+  try {
+    // Compute min/max for numeric fields across all published ships
+    const numericStats = await prisma.ship.aggregate({
+      where: { isPublished: true },
+      _min: { beam: true, tonnage: true, draft: true, length: true, cargoCapacity: true, depth: true, price: true },
+      _max: { beam: true, tonnage: true, draft: true, length: true, cargoCapacity: true, depth: true, price: true },
+    });
+
+    res.status(200).json({ numericStats });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

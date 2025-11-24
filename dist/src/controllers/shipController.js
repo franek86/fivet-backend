@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getAllPublishedShips = exports.createShip = void 0;
+exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getShipsNumericFields = exports.getAllPublishedShips = exports.createShip = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../utils/pagination");
 const cloudinaryConfig_1 = require("../cloudinaryConfig");
@@ -120,6 +120,8 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
                     buildYear: true,
                     price: true,
                     location: true,
+                    latitude: true,
+                    longitude: true,
                     mainEngine: true,
                     lengthOverall: true,
                     beam: true,
@@ -149,6 +151,25 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 exports.getAllPublishedShips = getAllPublishedShips;
+/*
+  GET SHIPS STATISTIC FOR NUMBERIC FIELDS. THAT WILL USE ON FRONTEND TO TAKE MINMAX NUMERIC FIELDS
+*/
+// GET /ships/stats
+const getShipsNumericFields = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Compute min/max for numeric fields across all published ships
+        const numericStats = yield prismaClient_1.default.ship.aggregate({
+            where: { isPublished: true },
+            _min: { beam: true, tonnage: true, draft: true, length: true, cargoCapacity: true, depth: true, price: true },
+            _max: { beam: true, tonnage: true, draft: true, length: true, cargoCapacity: true, depth: true, price: true },
+        });
+        res.status(200).json({ numericStats });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.getShipsNumericFields = getShipsNumericFields;
 /*
 PUBLISH SHIPS ADMIN ONLY
 */

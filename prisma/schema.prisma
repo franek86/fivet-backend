@@ -103,6 +103,8 @@ model Ship {
   buildYear       Int?
   price           Float
   location        String?
+  latitude        Float?
+  longitude       Float?
   mainEngine      String?
   lengthOverall   Float?
   beam            Float?

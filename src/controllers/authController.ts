@@ -141,6 +141,8 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
         id: true,
         email: true,
         role: true,
+        subscription: true,
+        isActive: true,
         profile: {
           select: {
             id: true,
@@ -156,6 +158,8 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
     const result = {
       id: user.id,
       role: user.role,
+      subscription: user.subscription,
+      activeUser: user.isActive,
       profile: {
         ...user.profile,
         email: user.email,

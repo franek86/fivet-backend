@@ -4,6 +4,7 @@ import {
   createShip,
   deleteShip,
   getAllPublishedShips,
+  getShipsNumericFields,
   getDashboardShips,
   getShip,
   updatePublishedShip,
@@ -24,6 +25,7 @@ router.post(
   createShip
 );
 router.get("/published", getAllPublishedShips);
+router.get("/numeric-fields", getShipsNumericFields);
 router.get("/", authenticateUser, getDashboardShips);
 router.get("/:id", getShip);
 router.patch("/:id", authenticateUser, upload.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), updateShip);

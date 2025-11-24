@@ -178,6 +178,8 @@ const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
                 id: true,
                 email: true,
                 role: true,
+                subscription: true,
+                isActive: true,
                 profile: {
                     select: {
                         id: true,
@@ -193,6 +195,8 @@ const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
         const result = {
             id: user.id,
             role: user.role,
+            subscription: user.subscription,
+            activeUser: user.isActive,
             profile: Object.assign(Object.assign({}, user.profile), { email: user.email }),
         };
         res.json(result);

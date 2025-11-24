@@ -13,6 +13,7 @@ router.post("/create", middleware_1.authenticateUser, uploads_1.default.fields([
     { name: "images", maxCount: 10 },
 ]), shipController_1.createShip);
 router.get("/published", shipController_1.getAllPublishedShips);
+router.get("/numeric-fields", shipController_1.getShipsNumericFields);
 router.get("/", middleware_1.authenticateUser, shipController_1.getDashboardShips);
 router.get("/:id", shipController_1.getShip);
 router.patch("/:id", middleware_1.authenticateUser, uploads_1.default.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), shipController_1.updateShip);
