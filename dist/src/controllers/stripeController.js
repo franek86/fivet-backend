@@ -30,9 +30,9 @@ const postCancelSubscription = (req, res) => __awaiter(void 0, void 0, void 0, f
 exports.postCancelSubscription = postCancelSubscription;
 const postCheckoutSession = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { userId, plan } = req.body;
-        if (!userId || !plan) {
-            return res.status(400).json({ error: "Missing userId or plan" });
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ error: "Missing userId" });
         }
         // Find user
         const user = yield prismaClient_1.default.user.findUnique({ where: { id: userId } });
@@ -54,9 +54,9 @@ const postCheckoutSession = (req, res) => __awaiter(void 0, void 0, void 0, func
         }
         // Choose subscribe plam
         let priceId = "";
-        if (plan === "STANDARD")
+        if (user.subscription === "STANDARD")
             priceId = process.env.STRIPE_PRICE_STANDARD;
-        else if (plan === "PREMIUM")
+        else if (user.subscription === "PREMIUM")
             priceId = process.env.STRIPE_PRICE_PREMIUM;
         else
             return res.status(400).json({ error: "Invalid plan" });

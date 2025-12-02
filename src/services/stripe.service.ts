@@ -27,6 +27,16 @@ export const handleStripeEvent = async (event: any) => {
           }
         }
 
+        // Update user subscription & mark payment verified
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            subscription: subscriptionType,
+            verifyPayment: true,
+            stripeSubscriptionId: invoice.subscription as string,
+          },
+        });
+
         await prisma.payment.create({
           data: {
             userId: user.id,
@@ -64,10 +74,17 @@ export const handleStripeEvent = async (event: any) => {
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
 
-      await prisma.user.updateMany({
-        where: { stripeSubscriptionId: subscription.id },
+      const stripeSubId = subscription.id as string;
+
+      const user = await prisma.user.findFirst({ where: { stripeSubscriptionId: stripeSubId } });
+      if (!user) break;
+
+      await prisma.user.update({
+        where: { id: user.id },
         data: {
-          subscription: subscription.status === "active" ? "STANDARD" : "STARTER",
+          subscription: "STARTER",
+          verifyPayment: false,
+          stripeSubscriptionId: null,
         },
       });
       break;

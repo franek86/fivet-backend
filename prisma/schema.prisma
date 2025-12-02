@@ -64,6 +64,7 @@ model User {
   role        Role         @default(USER)
 
   subscription Subscription @default(STARTER)
+  verifyPayment Boolean @default(false)
   stripeCustomerId String?
   stripeSubscriptionId String?
   payments Payment[]

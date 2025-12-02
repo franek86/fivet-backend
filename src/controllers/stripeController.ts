@@ -16,10 +16,10 @@ export const postCancelSubscription = async (req: Request, res: Response) => {
 
 export const postCheckoutSession = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { userId, plan } = req.body;
+    const { userId } = req.body;
 
-    if (!userId || !plan) {
-      return res.status(400).json({ error: "Missing userId or plan" });
+    if (!userId) {
+      return res.status(400).json({ error: "Missing userId" });
     }
 
     // Find user
@@ -46,8 +46,8 @@ export const postCheckoutSession = async (req: Request, res: Response): Promise<
 
     // Choose subscribe plam
     let priceId = "";
-    if (plan === "STANDARD") priceId = process.env.STRIPE_PRICE_STANDARD!;
-    else if (plan === "PREMIUM") priceId = process.env.STRIPE_PRICE_PREMIUM!;
+    if (user.subscription === "STANDARD") priceId = process.env.STRIPE_PRICE_STANDARD!;
+    else if (user.subscription === "PREMIUM") priceId = process.env.STRIPE_PRICE_PREMIUM!;
     else return res.status(400).json({ error: "Invalid plan" });
 
     // Create checkout session

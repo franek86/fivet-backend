@@ -37,6 +37,15 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                         subscriptionType = "PREMIUM";
                     }
                 }
+                // Update user subscription & mark payment verified
+                yield prismaClient_1.default.user.update({
+                    where: { id: user.id },
+                    data: {
+                        subscription: subscriptionType,
+                        verifyPayment: true,
+                        stripeSubscriptionId: invoice.subscription,
+                    },
+                });
                 yield prismaClient_1.default.payment.create({
                     data: {
                         userId: user.id,
@@ -69,10 +78,16 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
         case "customer.subscription.updated":
         case "customer.subscription.deleted": {
             const subscription = event.data.object;
-            yield prismaClient_1.default.user.updateMany({
-                where: { stripeSubscriptionId: subscription.id },
+            const stripeSubId = subscription.id;
+            const user = yield prismaClient_1.default.user.findFirst({ where: { stripeSubscriptionId: stripeSubId } });
+            if (!user)
+                break;
+            yield prismaClient_1.default.user.update({
+                where: { id: user.id },
                 data: {
-                    subscription: subscription.status === "active" ? "STANDARD" : "STARTER",
+                    subscription: "STARTER",
+                    verifyPayment: false,
+                    stripeSubscriptionId: null,
                 },
             });
             break;
