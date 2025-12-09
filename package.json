@@ -7,7 +7,8 @@
     "start": "npm run build && node dist/index.js",
     "dev": "concurrently \"npx tsc -w\" \"nodemon --exec ts-node src/index.ts\"",
     "migrate": "npx prisma migrate dev --name init",
-    "migrate-and-start": "npm run migrate && npm dev"
+    "migrate-and-start": "npm run migrate && npm dev",
+    "seed": "ts-node prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
