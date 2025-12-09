@@ -10,7 +10,7 @@ cloudinary.config({
 /**
  * Uploads a single file to Cloudinary and removes local file
  */
-export const uploadSingleFile = async (filePath: string, folder: string): Promise<string> => {
+export const uploadSingleFile = async (filePath: string, folder: string): Promise<{ url: string; publicId: string }> => {
   const result = await cloudinary.uploader.upload(filePath, {
     folder,
   });
@@ -18,18 +18,18 @@ export const uploadSingleFile = async (filePath: string, folder: string): Promis
     fs.unlinkSync(filePath);
   }
 
-  return result.secure_url;
+  return { url: result.secure_url, publicId: result.public_id };
 };
 
 /**
  * Uploads multiple files to Cloudinary and removes local files
  */
-export const uploadMultipleFiles = async (files: Express.Multer.File[], folder: string): Promise<string[]> => {
-  const urls: string[] = [];
+export const uploadMultipleFiles = async (files: Express.Multer.File[], folder: string): Promise<{ url: string; publicId: string }[]> => {
+  const urls: { url: string; publicId: string }[] = [];
 
   for (const file of files) {
     const result = await cloudinary.uploader.upload(file.path, { folder });
-    urls.push(result.secure_url);
+    urls.push({ url: result.secure_url, publicId: result.public_id });
     if (fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }

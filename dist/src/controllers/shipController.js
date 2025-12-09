@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -15,7 +48,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getShipsNumericFields = exports.getAllPublishedShips = exports.createShip = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../utils/pagination");
-const cloudinaryConfig_1 = require("../cloudinaryConfig");
+const cloudinaryConfig_1 = __importStar(require("../cloudinaryConfig"));
 const ship_schema_1 = require("../schemas/ship.schema");
 const shipFilters_1 = require("../utils/shipFilters");
 const sort_helpers_1 = require("../helpers/sort.helpers");
@@ -28,23 +61,19 @@ CREATE SHIP
 Authenticate user can create ship
 */
 const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c;
     const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
     if (!userId)
         res.status(401).json({ message: "Unauthorized" });
     try {
         const files = req.files;
-        let mainImageUrl = "";
-        let imagesUrls = [];
-        if ((_c = (_b = files === null || files === void 0 ? void 0 : files["mainImage"]) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.path) {
-            mainImageUrl = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
-        }
-        if (files === null || files === void 0 ? void 0 : files["images"]) {
-            imagesUrls = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
-        }
-        const validateData = ship_schema_1.CreateShipSchema.parse(Object.assign(Object.assign({}, req.body), { mainImage: mainImageUrl, images: imagesUrls }));
+        const { url: mainImageUrl, publicId: mainImageId } = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
+        const imagesData = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
+        const imagesUrls = imagesData === null || imagesData === void 0 ? void 0 : imagesData.map((i) => i.url);
+        const imageIds = imagesData === null || imagesData === void 0 ? void 0 : imagesData.map((id) => id.publicId);
+        const validateData = ship_schema_1.CreateShipSchema.parse(Object.assign(Object.assign({}, req.body), { mainImage: mainImageUrl, mainImagePublicId: mainImageId, images: imagesUrls, imageIds }));
         const newShip = yield prismaClient_1.default.ship.create({
-            data: Object.assign(Object.assign({}, validateData), { userId: userId, mainImage: mainImageUrl, images: imagesUrls, isPublished: false }),
+            data: Object.assign(Object.assign({}, validateData), { userId: userId, mainImage: mainImageUrl, mainImagePublicId: mainImageId, images: imagesUrls, imageIds, isPublished: false }),
         });
         /* call notification for admin when ship created */
         /* Find admin first */
@@ -55,7 +84,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 email: true,
             },
         });
-        const fullName = (_d = req.user) === null || _d === void 0 ? void 0 : _d.fullName;
+        const fullName = (_b = req.user) === null || _b === void 0 ? void 0 : _b.fullName;
         const shipLink = `${process.env.FRONTEND_URL}/ships/${newShip === null || newShip === void 0 ? void 0 : newShip.id}`;
         const emailData = {
             shipTitle: newShip.shipName,
@@ -64,7 +93,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             fullName: fullName,
             reviewUrl: shipLink,
         };
-        const emailToSend = (_e = admin === null || admin === void 0 ? void 0 : admin.email) !== null && _e !== void 0 ? _e : "";
+        const emailToSend = (_c = admin === null || admin === void 0 ? void 0 : admin.email) !== null && _c !== void 0 ? _c : "";
         /* add notification */
         if (req.user.role !== "ADMIN" && admin) {
             yield prismaClient_1.default.notification.create({
@@ -300,17 +329,47 @@ const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         const parsed = ship_schema_1.EditShipSchema.parse(body);
         const files = req.files;
         let mainImageUrl = existingShip.mainImage;
+        let mainImageId = existingShip.mainImagePublicId;
         let imagesUrls = existingShip.images || [];
+        let imageIds = existingShip.imageIds || [];
+        /* main image update */
         if ((_b = (_a = files === null || files === void 0 ? void 0 : files["mainImage"]) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.path) {
-            mainImageUrl = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
+            //Delete old image from cloudinary
+            if (mainImageId) {
+                yield cloudinaryConfig_1.default.uploader.destroy(mainImageId);
+            }
+            //upload new main image
+            const uploadMainImage = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
+            mainImageUrl = uploadMainImage.url;
+            mainImageId = uploadMainImage.publicId;
         }
+        /* DELETE OLD IMAGES THAT USER WANTS TO REMOVE */
+        let deleteImageIds = [];
+        if (req.body.deleteImageIds) {
+            deleteImageIds = JSON.parse(req.body.deleteImageIds);
+        }
+        // 1. delete selected images from Cloudinary
+        for (const publicId of deleteImageIds) {
+            try {
+                yield cloudinaryConfig_1.default.uploader.destroy(publicId);
+            }
+            catch (err) {
+                console.log("Failed to delete image:", publicId);
+            }
+        }
+        // 2. remove them from arrays
+        imageIds = imageIds.filter((id) => !deleteImageIds.includes(id));
+        imagesUrls = imagesUrls.filter((_, index) => !deleteImageIds.includes(existingShip.imageIds[index]));
+        /* Multiple image update */
         if (files === null || files === void 0 ? void 0 : files["images"]) {
             const newImages = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
-            imagesUrls = [...imagesUrls, ...newImages];
+            //add new images
+            imagesUrls = [...imagesUrls, ...newImages.map((img) => img.url)];
+            imageIds = [...imageIds, ...newImages.map((img) => img.publicId)];
         }
         const updatedShip = yield prismaClient_1.default.ship.update({
             where: { id },
-            data: Object.assign(Object.assign({}, parsed), { mainImage: mainImageUrl, images: imagesUrls }),
+            data: Object.assign(Object.assign({}, parsed), { mainImage: mainImageUrl, mainImagePublicId: mainImageId, images: imagesUrls, imageIds: imageIds }),
         });
         return res.status(200).json({
             message: "Ship updated successfully",

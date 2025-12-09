@@ -117,8 +117,11 @@ model Ship {
   buildCountry    String?
   remarks         String?
   description     String?
+
   mainImage       String?
+  mainImagePublicId String?
   images          String[]
+  imageIds        String[]
 
   clicks          Int      @default(0)
 

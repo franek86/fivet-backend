@@ -2,7 +2,7 @@ import prisma from "../prismaClient";
 import { Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { buildPageMeta, parsePagination } from "../utils/pagination";
-import { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
+import cloudinary, { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
 import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
 import { shipFilters } from "../utils/shipFilters";
 import { parseSortBy } from "../helpers/sort.helpers";
@@ -24,20 +24,18 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       [fieldname: string]: Express.Multer.File[];
     };
 
-    let mainImageUrl: string = "";
-    let imagesUrls: string[] = [];
+    const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
+    const imagesData = await uploadMultipleFiles(files["images"], "ship/images");
 
-    if (files?.["mainImage"]?.[0]?.path) {
-      mainImageUrl = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
-    }
-    if (files?.["images"]) {
-      imagesUrls = await uploadMultipleFiles(files["images"], "ship/images");
-    }
+    const imagesUrls = imagesData?.map((i) => i.url);
+    const imageIds = imagesData?.map((id) => id.publicId);
 
     const validateData = CreateShipSchema.parse({
       ...req.body,
       mainImage: mainImageUrl,
+      mainImagePublicId: mainImageId,
       images: imagesUrls,
+      imageIds,
     });
 
     const newShip = await prisma.ship.create({
@@ -45,7 +43,9 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
         ...validateData,
         userId: userId,
         mainImage: mainImageUrl,
+        mainImagePublicId: mainImageId,
         images: imagesUrls,
+        imageIds,
         isPublished: false,
       },
     });
@@ -332,16 +332,53 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
     const parsed = EditShipSchema.parse(body);
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    let mainImageUrl = existingShip.mainImage;
-    let imagesUrls = existingShip.images || [];
 
+    let mainImageUrl = existingShip.mainImage;
+    let mainImageId = existingShip.mainImagePublicId;
+    let imagesUrls = existingShip.images || [];
+    let imageIds = existingShip.imageIds || [];
+
+    /* main image update */
     if (files?.["mainImage"]?.[0]?.path) {
-      mainImageUrl = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
+      //Delete old image from cloudinary
+      if (mainImageId) {
+        await cloudinary.uploader.destroy(mainImageId);
+      }
+
+      //upload new main image
+      const uploadMainImage = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
+
+      mainImageUrl = uploadMainImage.url;
+      mainImageId = uploadMainImage.publicId;
     }
 
+    /* DELETE OLD IMAGES THAT USER WANTS TO REMOVE */
+    let deleteImageIds: string[] = [];
+
+    if (req.body.deleteImageIds) {
+      deleteImageIds = JSON.parse(req.body.deleteImageIds);
+    }
+
+    // 1. delete selected images from Cloudinary
+    for (const publicId of deleteImageIds) {
+      try {
+        await cloudinary.uploader.destroy(publicId);
+      } catch (err) {
+        console.log("Failed to delete image:", publicId);
+      }
+    }
+
+    // 2. remove them from arrays
+    imageIds = imageIds.filter((id) => !deleteImageIds.includes(id));
+    imagesUrls = imagesUrls.filter((_, index) => !deleteImageIds.includes(existingShip.imageIds[index]));
+
+    /* Multiple image update */
     if (files?.["images"]) {
       const newImages = await uploadMultipleFiles(files["images"], "ship/images");
-      imagesUrls = [...imagesUrls, ...newImages];
+
+      //add new images
+      imagesUrls = [...imagesUrls, ...newImages.map((img) => img.url)];
+      imageIds = [...imageIds, ...newImages.map((img) => img.publicId)];
     }
 
     const updatedShip = await prisma.ship.update({
@@ -349,7 +386,9 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
       data: {
         ...parsed,
         mainImage: mainImageUrl,
+        mainImagePublicId: mainImageId,
         images: imagesUrls,
+        imageIds: imageIds,
       },
     });
 

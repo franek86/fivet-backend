@@ -30,7 +30,7 @@ const uploadSingleFile = (filePath, folder) => __awaiter(void 0, void 0, void 0,
     if (fs_1.default.existsSync(filePath)) {
         fs_1.default.unlinkSync(filePath);
     }
-    return result.secure_url;
+    return { url: result.secure_url, publicId: result.public_id };
 });
 exports.uploadSingleFile = uploadSingleFile;
 /**
@@ -40,7 +40,7 @@ const uploadMultipleFiles = (files, folder) => __awaiter(void 0, void 0, void 0,
     const urls = [];
     for (const file of files) {
         const result = yield cloudinary_1.v2.uploader.upload(file.path, { folder });
-        urls.push(result.secure_url);
+        urls.push({ url: result.secure_url, publicId: result.public_id });
         if (fs_1.default.existsSync(file.path)) {
             fs_1.default.unlinkSync(file.path);
         }
