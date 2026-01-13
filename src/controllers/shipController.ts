@@ -105,7 +105,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 /* 
 GET PUBLISHED SHIPS 
 It is public route. Get all published ships with pagination, sort, filters
-TO DO: add filters
+
 */
 export const getAllPublishedShips = async (req: Request, res: Response): Promise<void> => {
   try {

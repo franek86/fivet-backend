@@ -82,6 +82,13 @@ model User {
   updatedAt   DateTime     @updatedAt
 }
 
+model Otp {
+  id String   @id @default(uuid())
+  email String @unique
+  otp String
+  expiresAt DateTime
+}
+
 model Profile {
   id       Int  @id @default(autoincrement())
   fullName String?

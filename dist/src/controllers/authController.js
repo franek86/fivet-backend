@@ -52,6 +52,7 @@ const error_helpers_1 = require("../helpers/error.helpers");
 const auth_helpers_1 = require("../helpers/auth.helpers");
 const setCookies_1 = require("../utils/cookies/setCookies");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
+const generateOtp_helpers_1 = require("../helpers/generateOtp.helpers");
 const generateAccessToken = (userId, role, fullName, subscription) => {
     return jsonwebtoken_1.default.sign({ userId, role, fullName, subscription }, process.env.JWT_SECRET, { expiresIn: "5m" });
 };
@@ -69,9 +70,20 @@ const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         const existingUser = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (existingUser)
             throw new error_helpers_1.ValidationError("User already exists with this email");
-        yield (0, auth_helpers_1.checkOtpRestrictions)(email, next);
-        yield (0, auth_helpers_1.trackOtpRequest)(email, next);
-        yield (0, auth_helpers_1.sendOtp)(fullName, email, "user-activation-email");
+        /* await checkOtpRestrictions(email, next);
+        await trackOtpRequest(email, next); */
+        //existing otp
+        // generate otp
+        const otp = (0, generateOtp_helpers_1.generateOtp)(6);
+        //Save OTP to database
+        yield prismaClient_1.default.otp.create({
+            data: {
+                email,
+                otp,
+                expiresAt: new Date(Date.now() + 60 * 1000), // Expires in 1 minute
+            },
+        });
+        yield (0, auth_helpers_1.sendOtp)(fullName, email, "user-activation-email", otp);
         res.status(200).json({ message: "OTP send to email. Please verify your account" });
     }
     catch (error) {
@@ -88,7 +100,21 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         const existingUser = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (existingUser)
             return next(new error_helpers_1.ValidationError("User already exists!"));
-        yield (0, auth_helpers_1.verifyOtp)(email, otp, next);
+        //await verifyOtp(email, otp, next);
+        const recordOtp = yield prismaClient_1.default.otp.findUnique({ where: { email } });
+        if (!recordOtp) {
+            res.status(400).json({ message: "OTP not found. Request a new one." });
+            return;
+        }
+        if (recordOtp.expiresAt < new Date()) {
+            yield prismaClient_1.default.otp.delete({ where: { email } });
+            res.status(400).json({ message: "OTP expired. Request a new one." });
+            return;
+        }
+        if (recordOtp.otp !== otp) {
+            res.status(400).json({ message: "Invalid OTP" });
+            return;
+        }
         //Hash password
         const salt = yield bcryptjs_1.default.genSalt(10);
         const hashedPassword = yield bcryptjs_1.default.hash(password, salt);
@@ -104,6 +130,9 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
                     },
                 },
             },
+        });
+        yield prismaClient_1.default.otp.delete({
+            where: { email },
         });
         const accessToken = generateAccessToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription);
         const refreshToken = generateRefreshToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription);
@@ -229,9 +258,19 @@ const forgotPassword = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         const user = yield prismaClient_1.default.user.findUnique({ where: { email } });
         if (!user)
             throw new error_helpers_1.ValidationError("User not found.");
-        yield (0, auth_helpers_1.checkOtpRestrictions)(email, next);
-        yield (0, auth_helpers_1.trackOtpRequest)(email, next);
-        yield (0, auth_helpers_1.sendOtp)(user.fullName, email, "forgot-password-email");
+        /* await checkOtpRestrictions(email, next);
+        await trackOtpRequest(email, next); */
+        // generate otp
+        const otp = (0, generateOtp_helpers_1.generateOtp)(6);
+        //Save OTP to database
+        yield prismaClient_1.default.otp.update({
+            where: { email },
+            data: {
+                otp,
+                expiresAt: new Date(Date.now() + 60 * 1000), // Expires in 1 minute
+            },
+        });
+        yield (0, auth_helpers_1.sendOtp)(user.fullName, email, "forgot-password-email", otp);
         res.status(200).json({ message: "OTP send to email. Please verify your account." });
     }
     catch (error) {
@@ -245,7 +284,21 @@ const verifyForgotPassword = (req, res, next) => __awaiter(void 0, void 0, void 
         const { email, otp } = req.body;
         if (!email || !otp)
             throw new error_helpers_1.ValidationError("Email and OTP are required");
-        yield (0, auth_helpers_1.verifyOtp)(email, otp, next);
+        //await verifyOtp(email, otp, next);
+        const recordOtp = yield prismaClient_1.default.otp.findUnique({ where: { email } });
+        if (!recordOtp) {
+            res.status(400).json({ message: "OTP not found. Request a new one." });
+            return;
+        }
+        if (recordOtp.expiresAt < new Date()) {
+            yield prismaClient_1.default.otp.delete({ where: { email } });
+            res.status(400).json({ message: "OTP expired. Request a new one." });
+            return;
+        }
+        if (recordOtp.otp !== otp) {
+            res.status(400).json({ message: "Invalid OTP" });
+            return;
+        }
         res.status(200).json({ message: "OTP verified. You can reset you password" });
     }
     catch (error) {

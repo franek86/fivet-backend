@@ -1,14 +1,14 @@
-import { NextFunction } from "express";
-import redis from "../../redis/index";
+//import { NextFunction } from "express";
+//import redis from "../../redis/index";
 import { sendEmail } from "../utils/sendMail";
-import { ValidationError } from "./error.helpers";
+//import { ValidationError } from "./error.helpers";
 
 // Utility function to generate 6-digit OTP
 function generateOTP() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-export const checkOtpRestrictions = async (email: string, next: NextFunction) => {
+/* export const checkOtpRestrictions = async (email: string, next: NextFunction) => {
   if (await redis.get(`otp_lock:${email}`)) {
     return next(new ValidationError("Account locked due multiple failed attempts! Try again after 30 minutes."));
   }
@@ -19,9 +19,9 @@ export const checkOtpRestrictions = async (email: string, next: NextFunction) =>
   if (await redis.get(`otp_cooldown:${email}`)) {
     return next(new ValidationError("Please wait 1 minute before requesting a new OTP."));
   }
-};
+}; */
 
-export const trackOtpRequest = async (email: string, next: NextFunction) => {
+/* export const trackOtpRequest = async (email: string, next: NextFunction) => {
   const otpRequestKey = `otp_request_count:${email}`;
   let otpRequests = parseInt((await redis.get(otpRequestKey)) || "0");
   if (otpRequests >= 2) {
@@ -30,16 +30,16 @@ export const trackOtpRequest = async (email: string, next: NextFunction) => {
   }
 
   await redis.set(otpRequestKey, otpRequests + 1, "EX", 3600);
-};
+}; */
 
-export const sendOtp = async (name: string, email: string, template: string) => {
-  const otp = generateOTP();
+export const sendOtp = async (name: string, email: string, template: string, otp: string) => {
+  /*  const otp = generateOTP(); */
   await sendEmail(email, "Verify your email", template, { name, otp });
-  await redis.set(`otp:${email}`, otp, "EX", 300);
-  await redis.set(`otp_cooldown:${email}`, "true", "EX", 60);
+  /*  await redis.set(`otp:${email}`, otp, "EX", 300);
+  await redis.set(`otp_cooldown:${email}`, "true", "EX", 60); */
 };
 
-export const verifyOtp = async (email: string, otp: string, next: NextFunction) => {
+/* export const verifyOtp = async (email: string, otp: string, next: NextFunction) => {
   const storedOtp = await redis.get(`otp:${email}`);
   if (!storedOtp) throw new ValidationError("Invalid or expired OTP!");
 
@@ -57,4 +57,4 @@ export const verifyOtp = async (email: string, otp: string, next: NextFunction) 
   }
 
   await redis.del(`otp:${email}`, failedAttemptsKey);
-};
+}; */

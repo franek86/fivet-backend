@@ -125,7 +125,7 @@ exports.createShip = createShip;
 /*
 GET PUBLISHED SHIPS
 It is public route. Get all published ships with pagination, sort, filters
-TO DO: add filters
+
 */
 const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
