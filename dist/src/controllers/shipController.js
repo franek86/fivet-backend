@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteShip = exports.updateShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getShipsNumericFields = exports.getAllPublishedShips = exports.createShip = void 0;
+exports.deleteShip = exports.updateShip = exports.getPublishedShip = exports.getShip = exports.getDashboardShips = exports.updatePublishedShip = exports.getShipsNumericFields = exports.getAllPublishedShips = exports.createShip = void 0;
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const pagination_1 = require("../utils/pagination");
 const cloudinaryConfig_1 = __importStar(require("../cloudinaryConfig"));
@@ -145,6 +145,11 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
                     shipName: true,
                     imo: true,
                     typeId: true,
+                    shipType: {
+                        select: {
+                            name: true,
+                        }
+                    },
                     refitYear: true,
                     buildYear: true,
                     price: true,
@@ -164,6 +169,7 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
                     description: true,
                     mainImage: true,
                     images: true,
+                    clicks: true,
                     createdAt: true,
                 },
             }),
@@ -286,7 +292,7 @@ const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, functi
     }
 });
 exports.getDashboardShips = getDashboardShips;
-/* GET SINGLE SHIP BY ID */
+/* GET SINGLE SHIP BY ID DASHBOARD ONLY */
 const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     if (!id)
@@ -312,6 +318,43 @@ const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.getShip = getShip;
+/* GET PUBLISHED SINGLE SHIP BY ID AND UPDATE CLICKS */
+const getPublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    if (!id) {
+        res.status(404).json({ message: "Ship id are not found!" });
+        return;
+    }
+    try {
+        const ship = yield prismaClient_1.default.ship.findUnique({
+            where: { id, isPublished: true },
+            include: {
+                shipType: {
+                    select: {
+                        name: true,
+                    },
+                },
+            },
+        });
+        if (!ship) {
+            res.status(404).json({ message: "Ship not found" });
+            return;
+        }
+        const updateClicks = yield prismaClient_1.default.ship.update({
+            where: { id, isPublished: true },
+            data: {
+                clicks: {
+                    increment: 1
+                }
+            }
+        });
+        res.status(200).json(ship);
+    }
+    catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.getPublishedShip = getPublishedShip;
 /*
 UPDATE SHIPS BY ID
 Admin can update all ship, but users can only update their own ships

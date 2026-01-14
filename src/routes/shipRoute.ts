@@ -4,6 +4,7 @@ import {
   createShip,
   deleteShip,
   getAllPublishedShips,
+  getPublishedShip,
   getShipsNumericFields,
   getDashboardShips,
   getShip,
@@ -25,6 +26,7 @@ router.post(
   createShip
 );
 router.get("/published", getAllPublishedShips);
+router.get("/published/:id", getPublishedShip)
 router.get("/numeric-fields", getShipsNumericFields);
 router.get("/", authenticateUser, getDashboardShips);
 router.get("/:id", getShip);

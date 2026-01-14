@@ -131,6 +131,10 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
           shipName: true,
           imo: true,
           typeId: true,
+          shipType:{
+              select: {
+                name: true,
+          }},
           refitYear: true,
           buildYear: true,
           price: true,
@@ -150,8 +154,10 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
           description: true,
           mainImage: true,
           images: true,
+          clicks:true,
           createdAt: true,
         },
+
       }),
       prisma.ship.count({ where }),
     ]);
@@ -285,7 +291,7 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
   }
 };
 
-/* GET SINGLE SHIP BY ID */
+/* GET SINGLE SHIP BY ID DASHBOARD ONLY */
 export const getShip = async (req: Request, res: Response): Promise<any> => {
   const { id } = req.params;
   if (!id) return res.status(404).json({ message: "Ship id are not found!" });
@@ -308,6 +314,46 @@ export const getShip = async (req: Request, res: Response): Promise<any> => {
     return res.status(200).json(ship);
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+/* GET PUBLISHED SINGLE SHIP BY ID AND UPDATE CLICKS */
+export const getPublishedShip = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+  res.status(404).json({ message: "Ship id are not found!" });
+  return
+      }
+  try {
+    const ship = await prisma.ship.findUnique({
+      where: { id, isPublished:true },
+      include: {
+        shipType: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!ship) {
+      res.status(404).json({ message: "Ship not found" });
+      return
+    }
+
+    const updateClicks = await prisma.ship.update({
+        where: {id, isPublished:true},
+        data:{
+            clicks: {
+                increment: 1
+            }
+        }
+    })
+
+    res.status(200).json(ship);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
