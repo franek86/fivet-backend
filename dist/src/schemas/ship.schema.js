@@ -4,6 +4,7 @@ exports.EditShipSchema = exports.CreateShipSchema = void 0;
 const zod_1 = require("zod");
 exports.CreateShipSchema = zod_1.z.object({
     shipName: zod_1.z.string().min(1),
+    slug: zod_1.z.string().min(1),
     typeId: zod_1.z.string().optional(),
     imo: zod_1.z.coerce.number().int(),
     refitYear: zod_1.z.coerce.number().int().optional(),

@@ -129,12 +129,14 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
         select: {
           id: true,
           shipName: true,
+          slug: true,
           imo: true,
           typeId: true,
-          shipType:{
-              select: {
-                name: true,
-          }},
+          shipType: {
+            select: {
+              name: true,
+            },
+          },
           refitYear: true,
           buildYear: true,
           price: true,
@@ -154,10 +156,9 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
           description: true,
           mainImage: true,
           images: true,
-          clicks:true,
+          clicks: true,
           createdAt: true,
         },
-
       }),
       prisma.ship.count({ where }),
     ]);
@@ -229,7 +230,6 @@ export const updatePublishedShip = async (req: Request, res: Response): Promise<
 /* 
 GET ALL SHIPS 
 Get all ships from admin published or not published. Users can see only their own ships 
-TO DO: filter by status
 */
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
   const { userId, role } = req.user as CustomJwtPayload;
@@ -317,17 +317,16 @@ export const getShip = async (req: Request, res: Response): Promise<any> => {
   }
 };
 
-
 /* GET PUBLISHED SINGLE SHIP BY ID AND UPDATE CLICKS */
 export const getPublishedShip = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  if (!id) {
-  res.status(404).json({ message: "Ship id are not found!" });
-  return
-      }
+  const { slug } = req.params;
+  if (!slug) {
+    res.status(404).json({ message: "Ship slug are not found!" });
+    return;
+  }
   try {
     const ship = await prisma.ship.findUnique({
-      where: { id, isPublished:true },
+      where: { slug, isPublished: true },
       include: {
         shipType: {
           select: {
@@ -339,17 +338,17 @@ export const getPublishedShip = async (req: Request, res: Response) => {
 
     if (!ship) {
       res.status(404).json({ message: "Ship not found" });
-      return
+      return;
     }
 
-    const updateClicks = await prisma.ship.update({
-        where: {id, isPublished:true},
-        data:{
-            clicks: {
-                increment: 1
-            }
-        }
-    })
+    await prisma.ship.update({
+      where: { slug, isPublished: true },
+      data: {
+        clicks: {
+          increment: 1,
+        },
+      },
+    });
 
     res.status(200).json(ship);
   } catch (error) {

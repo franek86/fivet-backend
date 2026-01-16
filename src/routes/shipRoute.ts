@@ -26,7 +26,7 @@ router.post(
   createShip
 );
 router.get("/published", getAllPublishedShips);
-router.get("/published/:id", getPublishedShip)
+router.get("/published/:slug", getPublishedShip);
 router.get("/numeric-fields", getShipsNumericFields);
 router.get("/", authenticateUser, getDashboardShips);
 router.get("/:id", getShip);

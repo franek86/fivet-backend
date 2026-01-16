@@ -28,9 +28,9 @@ function main() {
         })));
         console.log("Ship types seeded:", shipTypes.map((t) => t.name));
         // 2️⃣ Users
-        const userIds = ["375e0384-a561-4f50-b66a-354a418dddbe", "5c427000-7760-474e-9294-9cef051707bb", "a2c55358-af24-4f86-863d-35352ab59118"];
+        const userIds = ["8a53c42e-6eeb-49a0-b8fb-1f318326f8b2", "bfae34d4-5d47-4f52-bc7e-c16b7d2bc0a8", "cbc34cd0-37a2-421f-9d78-60615866fec0"];
         // 3️⃣ Generate ships for each user
-        const shipsPerUser = 5;
+        const shipsPerUser = 15;
         let imoCounter = 1000000; // starting IMO number
         for (const userId of userIds) {
             for (let i = 0; i < shipsPerUser; i++) {
@@ -40,6 +40,7 @@ function main() {
                     update: {},
                     create: {
                         shipName: `${shipType.name} Ship ${i + 1}`,
+                        slug: `${shipType.name.toLowerCase()}-ship-${i + 1}`,
                         typeId: shipType.id,
                         imo: imoCounter++,
                         refitYear: 2010 + Math.floor(Math.random() * 10),

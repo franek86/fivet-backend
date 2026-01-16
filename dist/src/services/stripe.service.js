@@ -26,7 +26,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
             });
             if (user) {
                 const subscriptionId = invoice.subscription;
-                let subscriptionType = "STARTER";
+                let subscriptionType = "STANDARD";
                 if (subscriptionId) {
                     const stripeSubscription = yield stripe_1.stripe.subscriptions.retrieve(subscriptionId);
                     const priceId = stripeSubscription.items.data[0].price.id;
@@ -44,6 +44,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                         subscription: subscriptionType,
                         verifyPayment: true,
                         stripeSubscriptionId: invoice.subscription,
+                        // TO DO: add isActiveSubsciption to true
                     },
                 });
                 yield prismaClient_1.default.payment.create({
@@ -70,6 +71,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                         amount: ((_b = invoice.amount_due) !== null && _b !== void 0 ? _b : 0) / 100,
                         stripePaymentId: invoice.payment_intent || "",
                         status: "FAILED",
+                        // TO DO: add isActiveSubsciption to false
                     },
                 });
             }
@@ -85,7 +87,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
             yield prismaClient_1.default.user.update({
                 where: { id: user.id },
                 data: {
-                    subscription: "STARTER",
+                    subscription: "STANDARD",
                     verifyPayment: false,
                     stripeSubscriptionId: null,
                 },

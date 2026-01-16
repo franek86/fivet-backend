@@ -143,12 +143,13 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
                 select: {
                     id: true,
                     shipName: true,
+                    slug: true,
                     imo: true,
                     typeId: true,
                     shipType: {
                         select: {
                             name: true,
-                        }
+                        },
                     },
                     refitYear: true,
                     buildYear: true,
@@ -241,7 +242,6 @@ exports.updatePublishedShip = updatePublishedShip;
 /*
 GET ALL SHIPS
 Get all ships from admin published or not published. Users can see only their own ships
-TO DO: filter by status
 */
 const getDashboardShips = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, role } = req.user;
@@ -320,14 +320,14 @@ const getShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.getShip = getShip;
 /* GET PUBLISHED SINGLE SHIP BY ID AND UPDATE CLICKS */
 const getPublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { id } = req.params;
-    if (!id) {
-        res.status(404).json({ message: "Ship id are not found!" });
+    const { slug } = req.params;
+    if (!slug) {
+        res.status(404).json({ message: "Ship slug are not found!" });
         return;
     }
     try {
         const ship = yield prismaClient_1.default.ship.findUnique({
-            where: { id, isPublished: true },
+            where: { slug, isPublished: true },
             include: {
                 shipType: {
                     select: {
@@ -340,13 +340,13 @@ const getPublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, functio
             res.status(404).json({ message: "Ship not found" });
             return;
         }
-        const updateClicks = yield prismaClient_1.default.ship.update({
-            where: { id, isPublished: true },
+        yield prismaClient_1.default.ship.update({
+            where: { slug, isPublished: true },
             data: {
                 clicks: {
-                    increment: 1
-                }
-            }
+                    increment: 1,
+                },
+            },
         });
         res.status(200).json(ship);
     }

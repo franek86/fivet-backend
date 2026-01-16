@@ -7,12 +7,14 @@ import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 import { generateOtp } from "../helpers/generateOtp.helpers";
 
-const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string) => {
-  return jwt.sign({ userId, role, fullName, subscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
+const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
+  return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
 };
 
-const generateRefreshToken = (userId: string, role: string, fullName: string, subscription: string) => {
-  return jwt.sign({ userId, role, fullName, subscription }, process.env.REFRESH_SECRET as string, { expiresIn: "7d" });
+const generateRefreshToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
+  return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.REFRESH_SECRET as string, {
+    expiresIn: "7d",
+  });
 };
 
 /*  REGISTER NEW USER WITH OTP */
@@ -93,6 +95,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         password: hashedPassword,
         fullName,
         subscription,
+        isActiveSubscription: false,
         profile: {
           create: {
             fullName,
@@ -105,8 +108,14 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       where: { email },
     });
 
-    const accessToken = generateAccessToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription);
-    const refreshToken = generateRefreshToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription);
+    const accessToken = generateAccessToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription, newUser.isActiveSubscription);
+    const refreshToken = generateRefreshToken(
+      newUser.id,
+      newUser.role,
+      newUser.fullName,
+      newUser.subscription,
+      newUser.isActiveSubscription
+    );
 
     setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
     setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
@@ -132,8 +141,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const validatePassword = await bcrypt.compare(password, user.password);
     if (!validatePassword) throw new AuthError("Invalid credentails");
 
-    const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription);
-    const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription);
+    const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+    const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
     /* 
       if is remember me, set token in 30 days other ways set token to 7 days
     */
@@ -164,7 +173,13 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       new JsonWebTokenError("Forbidden! Invalid refresh token.");
     }
 
-    const new_access_token = generateAccessToken(decoded.userId, decoded.role, decoded.fullName, decoded.subscription);
+    const new_access_token = generateAccessToken(
+      decoded.userId,
+      decoded.role,
+      decoded.fullName,
+      decoded.subscription,
+      decoded.isActiveSubscription
+    );
     setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
 
     res.json({
@@ -189,6 +204,7 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
         role: true,
         subscription: true,
         verifyPayment: true,
+        isActiveSubscription: true,
         isActive: true,
         profile: {
           select: {
@@ -208,6 +224,7 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
       subscription: user.subscription,
       activeUser: user.isActive,
       verifyPayment: user.verifyPayment,
+      isActiveSubscription: user.isActiveSubscription,
       profile: {
         ...user.profile,
         email: user.email,

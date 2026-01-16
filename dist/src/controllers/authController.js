@@ -53,11 +53,13 @@ const auth_helpers_1 = require("../helpers/auth.helpers");
 const setCookies_1 = require("../utils/cookies/setCookies");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const generateOtp_helpers_1 = require("../helpers/generateOtp.helpers");
-const generateAccessToken = (userId, role, fullName, subscription) => {
-    return jsonwebtoken_1.default.sign({ userId, role, fullName, subscription }, process.env.JWT_SECRET, { expiresIn: "5m" });
+const generateAccessToken = (userId, role, fullName, subscription, isActiveSubscription) => {
+    return jsonwebtoken_1.default.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET, { expiresIn: "5m" });
 };
-const generateRefreshToken = (userId, role, fullName, subscription) => {
-    return jsonwebtoken_1.default.sign({ userId, role, fullName, subscription }, process.env.REFRESH_SECRET, { expiresIn: "7d" });
+const generateRefreshToken = (userId, role, fullName, subscription, isActiveSubscription) => {
+    return jsonwebtoken_1.default.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.REFRESH_SECRET, {
+        expiresIn: "7d",
+    });
 };
 /*  REGISTER NEW USER WITH OTP */
 const registerUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -124,6 +126,7 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
                 password: hashedPassword,
                 fullName,
                 subscription,
+                isActiveSubscription: false,
                 profile: {
                     create: {
                         fullName,
@@ -134,8 +137,8 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         yield prismaClient_1.default.otp.delete({
             where: { email },
         });
-        const accessToken = generateAccessToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription);
-        const refreshToken = generateRefreshToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription);
+        const accessToken = generateAccessToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription, newUser.isActiveSubscription);
+        const refreshToken = generateRefreshToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription, newUser.isActiveSubscription);
         (0, setCookies_1.setCookie)(res, "access_token", accessToken, 5 * 60 * 1000);
         (0, setCookies_1.setCookie)(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
         res.status(201).json({
@@ -160,8 +163,8 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         const validatePassword = yield bcryptjs_1.default.compare(password, user.password);
         if (!validatePassword)
             throw new error_helpers_1.AuthError("Invalid credentails");
-        const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription);
-        const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription);
+        const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+        const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
         /*
           if is remember me, set token in 30 days other ways set token to 7 days
         */
@@ -188,7 +191,7 @@ const refreshToken = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         if (!decoded || !decoded.userId || !decoded.role) {
             new jsonwebtoken_1.JsonWebTokenError("Forbidden! Invalid refresh token.");
         }
-        const new_access_token = generateAccessToken(decoded.userId, decoded.role, decoded.fullName, decoded.subscription);
+        const new_access_token = generateAccessToken(decoded.userId, decoded.role, decoded.fullName, decoded.subscription, decoded.isActiveSubscription);
         (0, setCookies_1.setCookie)(res, "access_token", new_access_token, 5 * 60 * 1000);
         res.json({
             success: true,
@@ -214,6 +217,7 @@ const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
                 role: true,
                 subscription: true,
                 verifyPayment: true,
+                isActiveSubscription: true,
                 isActive: true,
                 profile: {
                     select: {
@@ -233,6 +237,7 @@ const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
             subscription: user.subscription,
             activeUser: user.isActive,
             verifyPayment: user.verifyPayment,
+            isActiveSubscription: user.isActiveSubscription,
             profile: Object.assign(Object.assign({}, user.profile), { email: user.email }),
         };
         res.json(result);

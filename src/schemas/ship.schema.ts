@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const CreateShipSchema = z.object({
   shipName: z.string().min(1),
+  slug: z.string().min(1),
   typeId: z.string().optional(),
   imo: z.coerce.number().int(),
   refitYear: z.coerce.number().int().optional(),

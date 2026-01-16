@@ -17,6 +17,7 @@ export const postCancelSubscription = async (req: Request, res: Response) => {
 export const postCheckoutSession = async (req: Request, res: Response): Promise<any> => {
   try {
     const { userId } = req.body;
+    //const userId = req.user?.userId;
 
     if (!userId) {
       return res.status(400).json({ error: "Missing userId" });

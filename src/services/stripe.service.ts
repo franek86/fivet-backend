@@ -14,7 +14,7 @@ export const handleStripeEvent = async (event: any) => {
 
       if (user) {
         const subscriptionId = invoice.subscription as string | null;
-        let subscriptionType: Subscription = "STARTER";
+        let subscriptionType: Subscription = "STANDARD";
 
         if (subscriptionId) {
           const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -34,6 +34,7 @@ export const handleStripeEvent = async (event: any) => {
             subscription: subscriptionType,
             verifyPayment: true,
             stripeSubscriptionId: invoice.subscription as string,
+            // TO DO: add isActiveSubsciption to true
           },
         });
 
@@ -64,6 +65,7 @@ export const handleStripeEvent = async (event: any) => {
             amount: (invoice.amount_due ?? 0) / 100,
             stripePaymentId: invoice.payment_intent || "",
             status: "FAILED",
+            // TO DO: add isActiveSubsciption to false
           },
         });
       }
@@ -82,7 +84,7 @@ export const handleStripeEvent = async (event: any) => {
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          subscription: "STARTER",
+          subscription: "STANDARD",
           verifyPayment: false,
           stripeSubscriptionId: null,
         },

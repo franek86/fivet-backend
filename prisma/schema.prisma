@@ -64,6 +64,7 @@ model User {
   role        Role         @default(USER)
 
   subscription Subscription @default(STARTER)
+  isActiveSubscription Boolean @default(false)
   verifyPayment Boolean @default(false)
   stripeCustomerId String?
   stripeSubscriptionId String?
@@ -102,6 +103,7 @@ model Profile {
 model Ship {
   id              String   @id @default(uuid())
   shipName        String
+  slug            String @unique @default("default-slug")
 
   shipType        ShipType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
   typeId          String?
