@@ -34,7 +34,7 @@ export const handleStripeEvent = async (event: any) => {
             subscription: subscriptionType,
             verifyPayment: true,
             stripeSubscriptionId: invoice.subscription as string,
-            // TO DO: add isActiveSubsciption to true
+            isActiveSubscription: true,
           },
         });
 
@@ -87,6 +87,7 @@ export const handleStripeEvent = async (event: any) => {
           subscription: "STANDARD",
           verifyPayment: false,
           stripeSubscriptionId: null,
+          isActiveSubscription: false,
         },
       });
       break;

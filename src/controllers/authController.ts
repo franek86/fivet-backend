@@ -6,6 +6,7 @@ import { sendOtp } from "../helpers/auth.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 import { generateOtp } from "../helpers/generateOtp.helpers";
+import { CustomJwtPayload } from "../middleware/verifyToken";
 
 const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
   return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
@@ -143,6 +144,13 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
     const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+
+    //update is active user
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isActive: true },
+    });
+
     /* 
       if is remember me, set token in 30 days other ways set token to 7 days
     */
@@ -238,11 +246,22 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
 };
 
 /* LOGOUT AND CLEAR TOKENS */
-export const logout = async (req: Request, res: Response) => {
-  res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
-  res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId } = req.user as CustomJwtPayload;
 
-  res.json({ message: "Logged out successfully" });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+    });
+
+    res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
+    res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });
+
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    next(error);
+  }
 };
 
 /* FORGOT PASSWORD */

@@ -207,7 +207,6 @@ export const updatePublishedShip = async (req: Request, res: Response): Promise<
   try {
     const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
     if (isPublished && updatedShip.userId) {
-      console.log("Published");
       /*  if (userSocketId) {
         io.to(userSocketId).emit("postApproved", {
           message: `Your "${updatedShip.shipName}" are published live!`,

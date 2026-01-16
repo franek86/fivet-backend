@@ -44,7 +44,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                         subscription: subscriptionType,
                         verifyPayment: true,
                         stripeSubscriptionId: invoice.subscription,
-                        // TO DO: add isActiveSubsciption to true
+                        isActiveSubscription: true,
                     },
                 });
                 yield prismaClient_1.default.payment.create({
@@ -90,6 +90,7 @@ const handleStripeEvent = (event) => __awaiter(void 0, void 0, void 0, function*
                     subscription: "STANDARD",
                     verifyPayment: false,
                     stripeSubscriptionId: null,
+                    isActiveSubscription: false,
                 },
             });
             break;

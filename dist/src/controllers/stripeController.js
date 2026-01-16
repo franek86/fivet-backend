@@ -31,7 +31,6 @@ exports.postCancelSubscription = postCancelSubscription;
 const postCheckoutSession = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userId } = req.body;
-        //const userId = req.user?.userId;
         if (!userId) {
             return res.status(400).json({ error: "Missing userId" });
         }

@@ -219,7 +219,6 @@ const updatePublishedShip = (req, res) => __awaiter(void 0, void 0, void 0, func
     try {
         const updatedShip = yield prismaClient_1.default.ship.update({ where: { id }, data: { isPublished } });
         if (isPublished && updatedShip.userId) {
-            console.log("Published");
             /*  if (userSocketId) {
               io.to(userSocketId).emit("postApproved", {
                 message: `Your "${updatedShip.shipName}" are published live!`,

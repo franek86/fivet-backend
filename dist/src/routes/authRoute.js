@@ -26,7 +26,7 @@ router.post("/verify-user", authController_1.verifyUser);
 router.post("/login", loginRateLimiter, authController_1.loginUser);
 router.get("/me", middleware_1.authenticateUser, authController_1.userMe);
 router.post("/refresh-token", authController_1.refreshToken);
-router.post("/logout", authController_1.logout);
+router.post("/logout", middleware_1.authenticateUser, authController_1.logout);
 router.post("/forgot-password", authController_1.forgotPassword);
 router.post("/verify-forgot-password", authController_1.verifyForgotPassword);
 router.post("/reset-password", authController_1.resetUserPassword);

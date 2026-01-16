@@ -34,7 +34,7 @@ router.post("/verify-user", verifyUser);
 router.post("/login", loginRateLimiter, loginUser);
 router.get("/me", authenticateUser, userMe);
 router.post("/refresh-token", refreshToken);
-router.post("/logout", logout);
+router.post("/logout", authenticateUser, logout);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-forgot-password", verifyForgotPassword);
 router.post("/reset-password", resetUserPassword);

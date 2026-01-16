@@ -165,6 +165,11 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
             throw new error_helpers_1.AuthError("Invalid credentails");
         const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
         const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+        //update is active user
+        yield prismaClient_1.default.user.update({
+            where: { id: user.id },
+            data: { isActive: true },
+        });
         /*
           if is remember me, set token in 30 days other ways set token to 7 days
         */
@@ -248,10 +253,20 @@ const userMe = (req, res, next) => __awaiter(void 0, void 0, void 0, function* (
 });
 exports.userMe = userMe;
 /* LOGOUT AND CLEAR TOKENS */
-const logout = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
-    res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });
-    res.json({ message: "Logged out successfully" });
+const logout = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId } = req.user;
+        yield prismaClient_1.default.user.update({
+            where: { id: userId },
+            data: { isActive: false },
+        });
+        res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
+        res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });
+        res.json({ message: "Logged out successfully" });
+    }
+    catch (error) {
+        next(error);
+    }
 });
 exports.logout = logout;
 /* FORGOT PASSWORD */

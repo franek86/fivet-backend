@@ -70,7 +70,7 @@ model User {
   stripeSubscriptionId String?
   payments Payment[]
 
-  isActive    Boolean @default(true)
+  isActive    Boolean @default(false)
   lastLogin   DateTime?
 
   profile     Profile?
