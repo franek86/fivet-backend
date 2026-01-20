@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUserProfile = exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getAllProfiles = void 0;
+exports.deleteUserProfile = exports.updateProfile = exports.createProfile = exports.getUserProfile = exports.getLastFiveProfile = exports.getAllProfiles = void 0;
 const cloudinaryConfig_1 = __importDefault(require("../cloudinaryConfig"));
 const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../prismaClient"));
@@ -34,26 +34,59 @@ const getAllProfiles = (req, res) => __awaiter(void 0, void 0, void 0, function*
         ];
     }
     try {
-        const data = yield prismaClient_1.default.profile.findMany({
-            include: { user: { select: { email: true } } },
+        const usersData = yield prismaClient_1.default.user.findMany({
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                isActive: true,
+                subscription: true,
+                lastLogin: true,
+                createdAt: true,
+                profile: {
+                    select: {
+                        avatar: true,
+                    },
+                },
+            },
             where: whereCondition,
             orderBy: { createdAt: "desc" },
         });
-        const result = data.map((p) => ({
-            id: p.id,
-            fullName: p.fullName,
-            avatar: p.avatar,
-            userId: p.userId,
-            email: p.user.email,
-            createdAt: p.createdAt,
-        }));
-        res.status(200).json(result);
+        res.status(200).json(usersData);
     }
     catch (error) {
         res.status(500).json({ message: "Internal server error" });
     }
 });
 exports.getAllProfiles = getAllProfiles;
+/* GET LAST FIVE CREATED PROFILE */
+const getLastFiveProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const data = yield prismaClient_1.default.user.findMany({
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                isActive: true,
+                subscription: true,
+                lastLogin: true,
+                createdAt: true,
+                profile: {
+                    select: {
+                        avatar: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+        });
+        res.status(200).json(data);
+    }
+    catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+exports.getLastFiveProfile = getLastFiveProfile;
 /* GET SINGLE USER PROFILE BY ID */
 const getUserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;

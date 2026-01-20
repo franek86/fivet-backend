@@ -166,10 +166,10 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
         const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
         const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
         //update is active user
-        yield prismaClient_1.default.user.update({
-            where: { id: user.id },
-            data: { isActive: true },
-        });
+        /* await prisma.user.update({
+          where: { id: user.id },
+          data: { isActive: true },
+        }); */
         /*
           if is remember me, set token in 30 days other ways set token to 7 days
         */
@@ -255,11 +255,12 @@ exports.userMe = userMe;
 /* LOGOUT AND CLEAR TOKENS */
 const logout = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { userId } = req.user;
-        yield prismaClient_1.default.user.update({
-            where: { id: userId },
-            data: { isActive: false },
-        });
+        /*  const { userId } = req.user as CustomJwtPayload;
+    
+        await prisma.user.update({
+          where: { id: userId },
+          data: { isActive: false },
+        }); */
         res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
         res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });
         res.json({ message: "Logged out successfully" });

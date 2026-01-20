@@ -44,6 +44,8 @@ app.use((0, cors_1.default)({
     origin: allowedOrigins,
     credentials: true,
 }));
+// Socket.IO
+(0, socket_service_1.initializeSocket)(httpServer);
 /* ROUTES */
 app.get("/health", (req, res) => {
     res.send("Welcome to api");
@@ -59,8 +61,6 @@ app.use("/dashboard", dashboardRoute_1.default);
 app.use("/stripe", stripeRoute_1.default);
 app.use("/payments", paymentsRoute_1.default);
 app.use(middleware_1.errorMiddleware);
-// Socket.IO
-(0, socket_service_1.initializeSocket)(httpServer);
 /* SERVER START */
 const port = Number(process.env.PORT) || 5000;
 httpServer.listen(port, () => `Server running on port ${port}`);

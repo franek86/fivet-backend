@@ -9,7 +9,6 @@ import { parseSortBy } from "../helpers/sort.helpers";
 import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
 import { sendNotification } from "./notificationController";
-/* import { io, users } from "../services/socket.service"; */
 
 /* 
 CREATE SHIP 
@@ -80,14 +79,6 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
           userId: admin.id,
         },
       });
-
-      /* realtime notification via socket.io */
-      /*   io.to("admin").emit("newShipAdded", {
-        shipId: newShip.id,
-        shipName: newShip.shipName,
-        createdBy: fullName,
-        createdAt: formatDate(newShip.createdAt.toISOString()),
-      }); */
 
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
@@ -207,15 +198,6 @@ export const updatePublishedShip = async (req: Request, res: Response): Promise<
   try {
     const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
     if (isPublished && updatedShip.userId) {
-      /*  if (userSocketId) {
-        io.to(userSocketId).emit("postApproved", {
-          message: `Your "${updatedShip.shipName}" are published live!`,
-          id: updatedShip.id,
-          createdAt: formatDate(updatedShip.createdAt.toISOString()),
-        });
-      } else {
-        console.log(`User ${updatedShip.userId} not connected, skipping notification`);
-      } */
       await sendNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
     }
 

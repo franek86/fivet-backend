@@ -23,20 +23,55 @@ export const getAllProfiles = async (req: Request, res: Response): Promise<void>
     ];
   }
   try {
-    const data = await prisma.profile.findMany({
-      include: { user: { select: { email: true } } },
+    const usersData = await prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        subscription: true,
+        lastLogin: true,
+        createdAt: true,
+        profile: {
+          select: {
+            avatar: true,
+          },
+        },
+      },
       where: whereCondition,
       orderBy: { createdAt: "desc" },
     });
-    const result = data.map((p) => ({
-      id: p.id,
-      fullName: p.fullName,
-      avatar: p.avatar,
-      userId: p.userId,
-      email: p.user.email,
-      createdAt: p.createdAt,
-    }));
-    res.status(200).json(result);
+
+    res.status(200).json(usersData);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* GET LAST FIVE CREATED PROFILE */
+export const getLastFiveProfile = async (req: Request, res: Response) => {
+  try {
+    const data = await prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        subscription: true,
+        lastLogin: true,
+        createdAt: true,
+        profile: {
+          select: {
+            avatar: true,
+          },
+        },
+      },
+
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

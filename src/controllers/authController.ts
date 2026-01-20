@@ -146,10 +146,10 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
 
     //update is active user
-    await prisma.user.update({
+    /* await prisma.user.update({
       where: { id: user.id },
       data: { isActive: true },
-    });
+    }); */
 
     /* 
       if is remember me, set token in 30 days other ways set token to 7 days
@@ -248,12 +248,12 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
 /* LOGOUT AND CLEAR TOKENS */
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId } = req.user as CustomJwtPayload;
+    /*  const { userId } = req.user as CustomJwtPayload;
 
     await prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
-    });
+    }); */
 
     res.clearCookie("refresh_token", { httpOnly: true, secure: false, sameSite: "strict" });
     res.clearCookie("access_token", { httpOnly: true, secure: false, sameSite: "strict" });

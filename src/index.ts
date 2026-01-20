@@ -50,6 +50,9 @@ app.use(
   })
 );
 
+// Socket.IO
+initializeSocket(httpServer);
+
 /* ROUTES */
 app.get("/health", (req, res) => {
   res.send("Welcome to api");
@@ -67,9 +70,6 @@ app.use("/stripe", stripeRoute);
 app.use("/payments", paymentsRoute);
 
 app.use(errorMiddleware);
-
-// Socket.IO
-initializeSocket(httpServer);
 
 /* SERVER START */
 const port = Number(process.env.PORT) || 5000;

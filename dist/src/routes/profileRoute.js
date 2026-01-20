@@ -9,6 +9,7 @@ const middleware_1 = require("../middleware");
 const uploads_1 = __importDefault(require("../middleware/uploads"));
 const router = express_1.default.Router();
 router.get("/", middleware_1.authenticateUser, middleware_1.authAdmin, profileController_1.getAllProfiles);
+router.get("/last-users", middleware_1.authenticateUser, middleware_1.authAdmin, profileController_1.getLastFiveProfile);
 router.get("/:id", middleware_1.authenticateUser, profileController_1.getUserProfile);
 router.post("/create", middleware_1.authenticateUser, uploads_1.default.single("avatar"), profileController_1.createProfile);
 router.patch("/update", middleware_1.authenticateUser, uploads_1.default.single("avatar"), profileController_1.updateProfile);
