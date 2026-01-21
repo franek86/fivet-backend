@@ -114,5 +114,5 @@ async function emitOnlineUsersToAdmins() {
     where: { id: { in: onlineUserIds } },
   });
 
-  io.to("admins").emit("online-users", users);
+  io.to("admins").emit("online-users", { users, count: onlineUsers.size });
 }

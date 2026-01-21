@@ -102,6 +102,6 @@ function emitOnlineUsersToAdmins() {
         const users = yield prismaClient_1.default.user.findMany({
             where: { id: { in: onlineUserIds } },
         });
-        io.to("admins").emit("online-users", users);
+        io.to("admins").emit("online-users", { users, count: exports.onlineUsers.size });
     });
 }
