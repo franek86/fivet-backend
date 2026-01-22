@@ -10,7 +10,18 @@ cloudinary.config({
 /**
  * Uploads a single file to Cloudinary and removes local file
  */
-export const uploadSingleFile = async (filePath: string, folder: string): Promise<{ url: string; publicId: string }> => {
+export const uploadSingleFile = (buffer: Buffer, folder: string) =>
+  new Promise<{ url: string; publicId: string }>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream({ folder }, (error, result) => {
+      if (error) return reject(error);
+      if (!result) return reject(new Error("Upload failed"));
+
+      resolve({ url: result.secure_url, publicId: result.public_id });
+    });
+
+    stream.end(buffer);
+  });
+/* export const uploadSingleFile = async (filePath: string, folder: string): Promise<{ url: string; publicId: string }> => {
   const result = await cloudinary.uploader.upload(filePath, {
     folder,
   });
@@ -20,7 +31,7 @@ export const uploadSingleFile = async (filePath: string, folder: string): Promis
 
   return { url: result.secure_url, publicId: result.public_id };
 };
-
+ */
 /**
  * Uploads multiple files to Cloudinary and removes local files
  */

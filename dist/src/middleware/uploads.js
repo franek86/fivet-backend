@@ -4,10 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const multer_1 = __importDefault(require("multer"));
-const multer_storage_cloudinary_1 = require("multer-storage-cloudinary");
-const cloudinaryConfig_1 = __importDefault(require("../cloudinaryConfig"));
-const storage = new multer_storage_cloudinary_1.CloudinaryStorage({
-    cloudinary: cloudinaryConfig_1.default,
-});
+/* import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../cloudinaryConfig"; */
+/* const storage = new CloudinaryStorage({
+  cloudinary,
+}); */
+const storage = multer_1.default.memoryStorage();
 const upload = (0, multer_1.default)({ storage });
 exports.default = upload;

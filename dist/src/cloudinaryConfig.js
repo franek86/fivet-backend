@@ -23,16 +23,28 @@ cloudinary_1.v2.config({
 /**
  * Uploads a single file to Cloudinary and removes local file
  */
-const uploadSingleFile = (filePath, folder) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield cloudinary_1.v2.uploader.upload(filePath, {
-        folder,
+const uploadSingleFile = (buffer, folder) => new Promise((resolve, reject) => {
+    const stream = cloudinary_1.v2.uploader.upload_stream({ folder }, (error, result) => {
+        if (error)
+            return reject(error);
+        if (!result)
+            return reject(new Error("Upload failed"));
+        resolve({ url: result.secure_url, publicId: result.public_id });
     });
-    if (fs_1.default.existsSync(filePath)) {
-        fs_1.default.unlinkSync(filePath);
-    }
-    return { url: result.secure_url, publicId: result.public_id };
+    stream.end(buffer);
 });
 exports.uploadSingleFile = uploadSingleFile;
+/* export const uploadSingleFile = async (filePath: string, folder: string): Promise<{ url: string; publicId: string }> => {
+  const result = await cloudinary.uploader.upload(filePath, {
+    folder,
+  });
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  return { url: result.secure_url, publicId: result.public_id };
+};
+ */
 /**
  * Uploads multiple files to Cloudinary and removes local files
  */

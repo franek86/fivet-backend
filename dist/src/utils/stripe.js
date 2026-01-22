@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.endpointSecret = exports.stripe = void 0;
 const stripe_1 = __importDefault(require("stripe"));
 exports.stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-09-30.clover",
+    apiVersion: "2025-10-29.clover",
     typescript: true,
 });
 exports.endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;

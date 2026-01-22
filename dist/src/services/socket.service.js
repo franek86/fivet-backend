@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.initializeSocket = exports.onlineUsers = void 0;
+exports.getIO = exports.initializeSocket = exports.onlineUsers = void 0;
 const socket_io_1 = require("socket.io");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prismaClient_1 = __importDefault(require("../prismaClient"));
@@ -96,6 +96,12 @@ const initializeSocket = (server) => {
     }));
 };
 exports.initializeSocket = initializeSocket;
+const getIO = () => {
+    if (!io)
+        throw new Error("Socket.io not initialized");
+    return io;
+};
+exports.getIO = getIO;
 function emitOnlineUsersToAdmins() {
     return __awaiter(this, void 0, void 0, function* () {
         const onlineUserIds = Array.from(exports.onlineUsers.keys());

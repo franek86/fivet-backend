@@ -107,6 +107,11 @@ export const initializeSocket = (server: http.Server) => {
   });
 };
 
+export const getIO = () => {
+  if (!io) throw new Error("Socket.io not initialized");
+  return io;
+};
+
 async function emitOnlineUsersToAdmins() {
   const onlineUserIds = Array.from(onlineUsers.keys());
 

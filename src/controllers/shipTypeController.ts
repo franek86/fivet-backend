@@ -35,7 +35,7 @@ export const createShipType = async (req: Request, res: Response): Promise<void>
 /* UPDATE SHIP TYPE BY ADMIN 
   Only admin can edit ship type
 */
-export const updateShipType = async (req: Request, res: Response): Promise<void> => {
+export const updateShipType = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
 
   if (!id) {
@@ -69,7 +69,7 @@ export const updateShipType = async (req: Request, res: Response): Promise<void>
   Only admin can delete ship type
 */
 
-export const deleteShipType = async (req: Request, res: Response): Promise<void> => {
+export const deleteShipType = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
   if (!id) {
     res.status(400).json({ message: "Ship type ID is required" });

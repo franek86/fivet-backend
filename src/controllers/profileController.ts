@@ -78,7 +78,7 @@ export const getLastFiveProfile = async (req: Request, res: Response) => {
 };
 
 /* GET SINGLE USER PROFILE BY ID */
-export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
+export const getUserProfile = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
   const { userId } = req.user as CustomJwtPayload;
 
@@ -168,7 +168,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
 };
 
 /* DELETE USER PROFILE ADMIN ONLY */
-export const deleteUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteUserProfile = async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
   const id = parseInt(req.params.id);
 
   if (!id) throw new ValidationError("ID must be a valid number.");

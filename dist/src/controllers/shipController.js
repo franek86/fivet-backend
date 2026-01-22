@@ -55,19 +55,30 @@ const sort_helpers_1 = require("../helpers/sort.helpers");
 const sendMail_1 = require("../utils/sendMail");
 const date_helpers_1 = require("../helpers/date.helpers");
 const notificationController_1 = require("./notificationController");
+const socket_service_1 = require("../services/socket.service");
 /*
 CREATE SHIP
 Authenticate user can create ship
 */
 const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
     if (!userId)
         res.status(401).json({ message: "Unauthorized" });
     try {
         const files = req.files;
-        const { url: mainImageUrl, publicId: mainImageId } = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
-        const imagesData = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files["images"], "ship/images");
+        if (!((_b = files === null || files === void 0 ? void 0 : files.mainImage) === null || _b === void 0 ? void 0 : _b[0])) {
+            res.status(400).json({
+                error: "MAIN_IMAGE_REQUIRED",
+                message: "Main image is required",
+            });
+            return;
+        }
+        let imagesData = [];
+        const { url: mainImageUrl, publicId: mainImageId } = yield (0, cloudinaryConfig_1.uploadSingleFile)(files.mainImage[0].buffer, "ship/mainImage");
+        if ((_c = files === null || files === void 0 ? void 0 : files.images) === null || _c === void 0 ? void 0 : _c.length) {
+            imagesData = yield (0, cloudinaryConfig_1.uploadMultipleFiles)(files.images, "ship/images");
+        }
         const imagesUrls = imagesData === null || imagesData === void 0 ? void 0 : imagesData.map((i) => i.url);
         const imageIds = imagesData === null || imagesData === void 0 ? void 0 : imagesData.map((id) => id.publicId);
         const validateData = ship_schema_1.CreateShipSchema.parse(Object.assign(Object.assign({}, req.body), { mainImage: mainImageUrl, mainImagePublicId: mainImageId, images: imagesUrls, imageIds }));
@@ -83,7 +94,7 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 email: true,
             },
         });
-        const fullName = (_b = req.user) === null || _b === void 0 ? void 0 : _b.fullName;
+        const fullName = (_d = req.user) === null || _d === void 0 ? void 0 : _d.fullName;
         const shipLink = `${process.env.FRONTEND_URL}/ships/${newShip === null || newShip === void 0 ? void 0 : newShip.id}`;
         const emailData = {
             shipTitle: newShip.shipName,
@@ -92,9 +103,10 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             fullName: fullName,
             reviewUrl: shipLink,
         };
-        const emailToSend = (_c = admin === null || admin === void 0 ? void 0 : admin.email) !== null && _c !== void 0 ? _c : "";
+        const emailToSend = (_e = admin === null || admin === void 0 ? void 0 : admin.email) !== null && _e !== void 0 ? _e : "";
         /* add notification */
         if (req.user.role !== "ADMIN" && admin) {
+            //emit event to all admins new ship
             yield prismaClient_1.default.notification.create({
                 data: {
                     message: `${fullName} created a new ship: ${newShip.shipName}`,
@@ -103,6 +115,13 @@ const createShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             });
             yield (0, sendMail_1.sendEmail)(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
         }
+        const io = (0, socket_service_1.getIO)();
+        io.to("admins").emit("new-ship", {
+            ownerName: fullName,
+            shipTitle: newShip.shipName,
+            shipIMO: newShip.imo,
+            createdAt: (0, date_helpers_1.formatDate)(newShip.createdAt.toISOString()),
+        });
         res.status(200).json({
             message: "Ship added successfully! Awaiting admin approval.",
             data: newShip,
@@ -175,6 +194,7 @@ const getAllPublishedShips = (req, res) => __awaiter(void 0, void 0, void 0, fun
         });
     }
     catch (error) {
+        console.log(error);
         res.status(500).json({ message: "Internal server error" });
     }
 });
@@ -364,7 +384,7 @@ const updateShip = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                 yield cloudinaryConfig_1.default.uploader.destroy(mainImageId);
             }
             //upload new main image
-            const uploadMainImage = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].path, "ship/mainImage");
+            const uploadMainImage = yield (0, cloudinaryConfig_1.uploadSingleFile)(files["mainImage"][0].buffer, "ship/mainImage");
             mainImageUrl = uploadMainImage.url;
             mainImageId = uploadMainImage.publicId;
         }

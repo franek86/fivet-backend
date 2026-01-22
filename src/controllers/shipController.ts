@@ -9,6 +9,7 @@ import { parseSortBy } from "../helpers/sort.helpers";
 import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
 import { sendNotification } from "./notificationController";
+import { getIO } from "../services/socket.service";
 
 /* 
 CREATE SHIP 
@@ -20,11 +21,24 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
   try {
     const files = req.files as {
-      [fieldname: string]: Express.Multer.File[];
+      // [fieldname: string]: Express.Multer.File[];
+      mainImage?: Express.Multer.File[];
+      images?: Express.Multer.File[];
     };
 
-    const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
-    const imagesData = await uploadMultipleFiles(files["images"], "ship/images");
+    if (!files?.mainImage?.[0]) {
+      res.status(400).json({
+        error: "MAIN_IMAGE_REQUIRED",
+        message: "Main image is required",
+      });
+      return;
+    }
+
+    let imagesData: { url: string; publicId: string }[] = [];
+    const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files.mainImage[0].buffer, "ship/mainImage");
+    if (files?.images?.length) {
+      imagesData = await uploadMultipleFiles(files.images, "ship/images");
+    }
 
     const imagesUrls = imagesData?.map((i) => i.url);
     const imageIds = imagesData?.map((id) => id.publicId);
@@ -73,6 +87,8 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
     /* add notification */
     if (req.user!.role !== "ADMIN" && admin) {
+      //emit event to all admins new ship
+
       await prisma.notification.create({
         data: {
           message: `${fullName} created a new ship: ${newShip.shipName}`,
@@ -82,6 +98,14 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
+
+    const io = getIO();
+    io.to("admins").emit("new-ship", {
+      ownerName: fullName,
+      shipTitle: newShip.shipName,
+      shipIMO: newShip.imo,
+      createdAt: formatDate(newShip.createdAt.toISOString()),
+    });
 
     res.status(200).json({
       message: "Ship added successfully! Awaiting admin approval.",
@@ -161,6 +185,7 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
       data: ships,
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -187,7 +212,7 @@ export const getShipsNumericFields = async (req: Request, res: Response) => {
 /* 
 PUBLISH SHIPS ADMIN ONLY
 */
-export const updatePublishedShip = async (req: Request, res: Response): Promise<void> => {
+export const updatePublishedShip = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
   const { isPublished } = req.body;
   if (!id) {
@@ -273,7 +298,7 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
 };
 
 /* GET SINGLE SHIP BY ID DASHBOARD ONLY */
-export const getShip = async (req: Request, res: Response): Promise<any> => {
+export const getShip = async (req: Request<{ id: string }>, res: Response): Promise<any> => {
   const { id } = req.params;
   if (!id) return res.status(404).json({ message: "Ship id are not found!" });
   try {
@@ -299,7 +324,7 @@ export const getShip = async (req: Request, res: Response): Promise<any> => {
 };
 
 /* GET PUBLISHED SINGLE SHIP BY ID AND UPDATE CLICKS */
-export const getPublishedShip = async (req: Request, res: Response) => {
+export const getPublishedShip = async (req: Request<{ slug: string }>, res: Response) => {
   const { slug } = req.params;
   if (!slug) {
     res.status(404).json({ message: "Ship slug are not found!" });
@@ -341,7 +366,7 @@ export const getPublishedShip = async (req: Request, res: Response) => {
 UPDATE SHIPS BY ID 
 Admin can update all ship, but users can only update their own ships
 */
-export const updateShip = async (req: Request, res: Response): Promise<any> => {
+export const updateShip = async (req: Request<{ id: string }>, res: Response): Promise<any> => {
   const { id } = req.params;
 
   try {
@@ -372,7 +397,7 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
       }
 
       //upload new main image
-      const uploadMainImage = await uploadSingleFile(files["mainImage"][0].path, "ship/mainImage");
+      const uploadMainImage = await uploadSingleFile(files["mainImage"][0].buffer, "ship/mainImage");
 
       mainImageUrl = uploadMainImage.url;
       mainImageId = uploadMainImage.publicId;
@@ -432,7 +457,7 @@ export const updateShip = async (req: Request, res: Response): Promise<any> => {
 DELETE SHIP BY ID 
 Admin can delete all ship, but users can only delete their own ships
 */
-export const deleteShip = async (req: Request, res: Response): Promise<void> => {
+export const deleteShip = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   const { id } = req.params;
 
   try {
