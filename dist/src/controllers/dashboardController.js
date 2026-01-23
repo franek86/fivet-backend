@@ -19,22 +19,54 @@ const prismaClient_1 = __importDefault(require("../prismaClient"));
  */
 const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const totalShips = yield prismaClient_1.default.ship.count();
-        const totalUsers = yield prismaClient_1.default.user.count();
-        const totalEvents = yield prismaClient_1.default.event.count();
-        const topShips = yield prismaClient_1.default.ship.findMany({
-            orderBy: { clicks: "desc" },
-            take: 5,
-            select: {
-                id: true,
-                shipName: true,
-                imo: true,
-                clicks: true,
-                price: true,
-                mainImage: true,
-            },
+        const [totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionCounts] = yield Promise.all([
+            prismaClient_1.default.ship.count(),
+            prismaClient_1.default.user.count(),
+            prismaClient_1.default.event.count(),
+            prismaClient_1.default.ship.findMany({
+                orderBy: { clicks: "desc" },
+                take: 5,
+                select: {
+                    id: true,
+                    shipName: true,
+                    imo: true,
+                    clicks: true,
+                    price: true,
+                    mainImage: true,
+                },
+            }),
+            prismaClient_1.default.user.findMany({
+                select: {
+                    id: true,
+                    fullName: true,
+                    email: true,
+                    isActive: true,
+                    subscription: true,
+                    lastLogin: true,
+                    createdAt: true,
+                    profile: {
+                        select: {
+                            avatar: true,
+                        },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 5,
+            }),
+            prismaClient_1.default.user.groupBy({
+                by: ["subscription"],
+                _count: { subscription: true },
+            }),
+        ]);
+        const subscriptionStats = {
+            STARTER: 0,
+            STANDARD: 0,
+            PREMIUM: 0,
+        };
+        subscriptionCounts.forEach((item) => {
+            subscriptionStats[item.subscription] = item._count.subscription;
         });
-        res.json({ totalShips, totalUsers, totalEvents, topShips });
+        res.json({ totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionStats });
     }
     catch (error) {
         res.status(500).json({ message: "Internal server error" });
