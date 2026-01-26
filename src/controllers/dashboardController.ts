@@ -7,9 +7,26 @@ import prisma from "../prismaClient";
  */
 export const getDashboardStatistic = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionCounts] = await Promise.all([
-      prisma.ship.count(),
-      prisma.user.count(),
+    const year = new Date().getFullYear();
+
+    const monthlyStats = await Promise.all(
+      Array.from({ length: 12 }).map(async (_, monthIndex) => {
+        const start = new Date(year, monthIndex, 1);
+        const end = new Date(year, monthIndex + 1, 1);
+
+        const [users, ships] = await Promise.all([
+          prisma.user.count({ where: { createdAt: { gte: start, lt: end } } }),
+          prisma.ship.count({ where: { createdAt: { gte: start, lt: end } } }),
+        ]);
+        return {
+          month: monthIndex,
+          users,
+          ships,
+        };
+      }),
+    );
+
+    const [totalEvents, topShips, lastFiveUsers, subscriptionCounts] = await Promise.all([
       prisma.event.count(),
       prisma.ship.findMany({
         orderBy: { clicks: "desc" },
@@ -58,7 +75,7 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
       subscriptionStats[item.subscription] = item._count.subscription;
     });
 
-    res.json({ totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionStats });
+    res.json({ monthlyStats, totalEvents, topShips, lastFiveUsers, subscriptionStats });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
