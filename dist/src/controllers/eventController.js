@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteEvent = exports.updateEventById = exports.getSingleEvent = exports.getAllEvents = exports.createEvent = void 0;
+exports.recentEvents = exports.deleteEvent = exports.updateEventById = exports.getSingleEvent = exports.getAllEvents = exports.createEvent = void 0;
 const event_schema_1 = require("../schemas/event.schema");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 /*  CREATE EVENT AUTH USER */
@@ -24,8 +24,8 @@ const createEvent = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         return;
     }
     try {
-        const validate = event_schema_1.CreateEventSchema.parse(req.body);
-        const newEvent = yield prismaClient_1.default.event.create({ data: Object.assign(Object.assign({}, validate), { userId: userId }) });
+        const validate = event_schema_1.CreateEventSchema.parse(Object.assign(Object.assign({}, req.body), { userId: userId }));
+        const newEvent = yield prismaClient_1.default.event.create({ data: Object.assign({}, validate) });
         res.status(201).json(newEvent);
     }
     catch (error) {
@@ -36,6 +36,10 @@ const createEvent = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 exports.createEvent = createEvent;
 /* GET ALL EVENTS WITH PAGINATION AND FILTER */
 const getAllEvents = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId } = req.user;
+    if (!userId) {
+        res.status(404).json({ message: "User could not found" });
+    }
     const parsedEventData = event_schema_1.FilterEventSchema.safeParse(req.query);
     if (!parsedEventData.success) {
         res.status(400).json({ errors: parsedEventData.error.errors });
@@ -44,6 +48,8 @@ const getAllEvents = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     const { pageNumber, pageSize, status, priority, startDate, endDate, search } = parsedEventData.data;
     const skip = (pageNumber - 1) * pageSize;
     const where = {};
+    if (userId)
+        where.userId = userId;
     if (status)
         where.status = status;
     if (priority)
@@ -76,7 +82,7 @@ const getAllEvents = (req, res) => __awaiter(void 0, void 0, void 0, function* (
 });
 exports.getAllEvents = getAllEvents;
 /* SINGLE EVENT */
-const getSingleEvent = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getSingleEvent = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     if (!id) {
         res.status(400).json({ message: "Event ID is required" });
@@ -91,7 +97,7 @@ const getSingleEvent = (req, res) => __awaiter(void 0, void 0, void 0, function*
         res.status(200).json(findEvent);
     }
     catch (error) {
-        res.status(500).json({ message: "Internal server error" });
+        next(error);
     }
 });
 exports.getSingleEvent = getSingleEvent;
@@ -155,3 +161,41 @@ const deleteEvent = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.deleteEvent = deleteEvent;
+/* CREATE LAST FIVE EVENETS AND FILTER BY DATE WHERE ID = USER ID */
+const recentEvents = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId } = req.user;
+    if (!userId) {
+        res.status(404).json({ message: "User could not found." });
+        return;
+    }
+    const parsedEventData = event_schema_1.FilterEventSchema.safeParse(req.query);
+    if (!parsedEventData.success) {
+        res.status(400).json({ errors: parsedEventData.error.errors });
+        return;
+    }
+    const where = {};
+    const { startDate, endDate } = parsedEventData.data;
+    if (startDate && endDate) {
+        where.AND = [{ start: { lte: endDate } }, { end: { gte: startDate } }];
+    }
+    else if (startDate) {
+        where.end = { gte: startDate };
+    }
+    else if (endDate) {
+        where.start = { lte: endDate };
+    }
+    try {
+        if (userId)
+            where.userId = userId;
+        const data = yield prismaClient_1.default.event.findMany({
+            where,
+            take: 7,
+            orderBy: { createdAt: "desc" },
+        });
+        res.status(200).json(data);
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.recentEvents = recentEvents;

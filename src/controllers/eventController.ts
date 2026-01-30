@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import {
   CreateEventInput,
   CreateEventSchema,
@@ -10,6 +10,7 @@ import {
 import prisma from "../prismaClient";
 
 import { EventPriority, EventStatus, Prisma } from "@prisma/client";
+import { JwtPayload } from "jsonwebtoken";
 
 /*  CREATE EVENT AUTH USER */
 export const createEvent = async (req: Request, res: Response): Promise<void> => {
@@ -19,9 +20,9 @@ export const createEvent = async (req: Request, res: Response): Promise<void> =>
     return;
   }
   try {
-    const validate: CreateEventInput = CreateEventSchema.parse(req.body);
+    const validate: CreateEventInput = CreateEventSchema.parse({ ...req.body, userId: userId });
 
-    const newEvent = await prisma.event.create({ data: { ...validate, userId: userId } });
+    const newEvent = await prisma.event.create({ data: { ...validate } });
     res.status(201).json(newEvent);
   } catch (error) {
     console.error(error);
@@ -31,6 +32,12 @@ export const createEvent = async (req: Request, res: Response): Promise<void> =>
 
 /* GET ALL EVENTS WITH PAGINATION AND FILTER */
 export const getAllEvents = async (req: Request, res: Response): Promise<void> => {
+  const { userId } = req.user as JwtPayload;
+
+  if (!userId) {
+    res.status(404).json({ message: "User could not found" });
+  }
+
   const parsedEventData = FilterEventSchema.safeParse(req.query);
   if (!parsedEventData.success) {
     res.status(400).json({ errors: parsedEventData.error.errors });
@@ -41,6 +48,8 @@ export const getAllEvents = async (req: Request, res: Response): Promise<void> =
   const skip = (pageNumber - 1) * pageSize;
 
   const where: Prisma.EventWhereInput = {};
+
+  if (userId) where.userId = userId;
 
   if (status) where.status = status as EventStatus;
   if (priority) where.priority = priority as EventPriority;
@@ -72,7 +81,7 @@ export const getAllEvents = async (req: Request, res: Response): Promise<void> =
 };
 
 /* SINGLE EVENT */
-export const getSingleEvent = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+export const getSingleEvent = async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
   const { id } = req.params;
   if (!id) {
     res.status(400).json({ message: "Event ID is required" });
@@ -88,7 +97,7 @@ export const getSingleEvent = async (req: Request<{ id: string }>, res: Response
 
     res.status(200).json(findEvent);
   } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
+    next(error);
   }
 };
 
@@ -153,5 +162,45 @@ export const deleteEvent = async (req: Request<{ id: string }>, res: Response): 
     });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* CREATE LAST FIVE EVENETS AND FILTER BY DATE WHERE ID = USER ID */
+export const recentEvents = async (req: Request, res: Response, next: NextFunction) => {
+  const { userId } = req.user as JwtPayload;
+  if (!userId) {
+    res.status(404).json({ message: "User could not found." });
+    return;
+  }
+
+  const parsedEventData = FilterEventSchema.safeParse(req.query);
+  if (!parsedEventData.success) {
+    res.status(400).json({ errors: parsedEventData.error.errors });
+    return;
+  }
+
+  const where: Prisma.EventWhereInput = {};
+  const { startDate, endDate } = parsedEventData.data as FilterEventQuery;
+
+  if (startDate && endDate) {
+    where.AND = [{ start: { lte: endDate } }, { end: { gte: startDate } }];
+  } else if (startDate) {
+    where.end = { gte: startDate };
+  } else if (endDate) {
+    where.start = { lte: endDate };
+  }
+
+  try {
+    if (userId) where.userId = userId;
+
+    const data = await prisma.event.findMany({
+      where,
+      take: 7,
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.status(200).json(data);
+  } catch (error) {
+    next(error);
   }
 };

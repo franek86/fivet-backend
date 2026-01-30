@@ -53,6 +53,7 @@ const auth_helpers_1 = require("../helpers/auth.helpers");
 const setCookies_1 = require("../utils/cookies/setCookies");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 const generateOtp_helpers_1 = require("../helpers/generateOtp.helpers");
+const ip_location_api_1 = require("ip-location-api");
 const generateAccessToken = (userId, role, fullName, subscription, isActiveSubscription) => {
     return jsonwebtoken_1.default.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET, { expiresIn: "5m" });
 };
@@ -153,6 +154,7 @@ const verifyUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
 exports.verifyUser = verifyUser;
 /* LOGIN USER WITH ACCESS AND REFRESH TOKEN */
 const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { email, password, rememberMe } = req.body;
         if (!email || !password)
@@ -165,6 +167,12 @@ const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function
             throw new error_helpers_1.AuthError("Invalid credentails");
         const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
         const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+        //get user ip address
+        const ip = typeof req.headers["x-forwarded-for"] === "string"
+            ? req.headers["x-forwarded-for"].split(",")[0].trim()
+            : ((_a = req.socket.remoteAddress) !== null && _a !== void 0 ? _a : null);
+        const location = ip ? (0, ip_location_api_1.lookup)(ip) : null;
+        console.log("Country ", location);
         //update is active user
         /* await prisma.user.update({
           where: { id: user.id },

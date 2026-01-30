@@ -9,6 +9,7 @@ const eventController_1 = require("../controllers/eventController");
 const router = express_1.default.Router();
 router.post("/create", middleware_1.authenticateUser, eventController_1.createEvent);
 router.get("/", middleware_1.authenticateUser, eventController_1.getAllEvents);
+router.get("/recent", middleware_1.authenticateUser, eventController_1.recentEvents);
 router.get("/:id", middleware_1.authenticateUser, eventController_1.getSingleEvent);
 router.patch("/:id", middleware_1.authenticateUser, eventController_1.updateEventById);
 router.delete("/:id", middleware_1.authenticateUser, eventController_1.deleteEvent);

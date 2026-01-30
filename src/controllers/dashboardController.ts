@@ -26,7 +26,9 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
       }),
     );
 
-    const [totalEvents, topShips, lastFiveUsers, subscriptionCounts] = await Promise.all([
+    const [totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionCounts] = await Promise.all([
+      prisma.ship.count(),
+      prisma.user.count(),
       prisma.event.count(),
       prisma.ship.findMany({
         orderBy: { clicks: "desc" },
@@ -75,7 +77,7 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
       subscriptionStats[item.subscription] = item._count.subscription;
     });
 
-    res.json({ monthlyStats, totalEvents, topShips, lastFiveUsers, subscriptionStats });
+    res.json({ monthlyStats, totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionStats });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

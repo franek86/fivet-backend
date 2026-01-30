@@ -33,7 +33,9 @@ const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, fu
                 ships,
             };
         })));
-        const [totalEvents, topShips, lastFiveUsers, subscriptionCounts] = yield Promise.all([
+        const [totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionCounts] = yield Promise.all([
+            prismaClient_1.default.ship.count(),
+            prismaClient_1.default.user.count(),
             prismaClient_1.default.event.count(),
             prismaClient_1.default.ship.findMany({
                 orderBy: { clicks: "desc" },
@@ -78,7 +80,7 @@ const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, fu
         subscriptionCounts.forEach((item) => {
             subscriptionStats[item.subscription] = item._count.subscription;
         });
-        res.json({ monthlyStats, totalEvents, topShips, lastFiveUsers, subscriptionStats });
+        res.json({ monthlyStats, totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionStats });
     }
     catch (error) {
         res.status(500).json({ message: "Internal server error" });

@@ -6,7 +6,7 @@ import { sendOtp } from "../helpers/auth.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 import { generateOtp } from "../helpers/generateOtp.helpers";
-import { CustomJwtPayload } from "../middleware/verifyToken";
+import { lookup } from "ip-location-api";
 
 const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
   return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
@@ -115,7 +115,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       newUser.role,
       newUser.fullName,
       newUser.subscription,
-      newUser.isActiveSubscription
+      newUser.isActiveSubscription,
     );
 
     setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
@@ -144,6 +144,16 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
     const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+
+    //get user ip address
+    const ip =
+      typeof req.headers["x-forwarded-for"] === "string"
+        ? req.headers["x-forwarded-for"].split(",")[0].trim()
+        : (req.socket.remoteAddress ?? null);
+
+    const location = ip ? lookup(ip) : null;
+
+    console.log("Country ", location);
 
     //update is active user
     /* await prisma.user.update({
@@ -186,7 +196,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       decoded.role,
       decoded.fullName,
       decoded.subscription,
-      decoded.isActiveSubscription
+      decoded.isActiveSubscription,
     );
     setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
 
