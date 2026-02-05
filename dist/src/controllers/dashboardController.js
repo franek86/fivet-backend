@@ -95,6 +95,55 @@ const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, fu
         subscriptionCounts.forEach((item) => {
             subscriptionStats[item.subscription] = item._count.subscription;
         });
+        // Calculate trend
+        const today = new Date();
+        const last30Days = new Date();
+        last30Days.setDate(today.getDate() - 30);
+        const prev30Days = new Date();
+        prev30Days.setDate(last30Days.getDate() - 30);
+        //Helper function to get trend
+        const getTrend = (current, prev) => {
+            const change = current - prev;
+            const trend = change > 0 ? "up" : change < 0 ? "down" : "same";
+            const percentage = prev > 0 ? Math.round((change / prev) * 100) : 100;
+            return { trend, change: Math.abs(change) };
+        };
+        // trend ships
+        const shipsLast30 = yield prismaClient_1.default.ship.count({ where: { createdAt: { gte: last30Days, lt: today } } });
+        const shipsPrev30 = yield prismaClient_1.default.ship.count({ where: { createdAt: { gte: prev30Days, lt: last30Days } } });
+        const shipsTrend = getTrend(shipsLast30, shipsPrev30);
+        // Published ships
+        const publishedShipsLast30 = yield prismaClient_1.default.ship.count({
+            where: { createdAt: { gte: last30Days, lt: today }, isPublished: true },
+        });
+        const publishedShipsPrev30 = yield prismaClient_1.default.ship.count({
+            where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true },
+        });
+        const publishedShipsTrend = getTrend(publishedShipsLast30, publishedShipsPrev30);
+        // Users
+        const usersLast30 = yield prismaClient_1.default.user.count({ where: { createdAt: { gte: last30Days, lt: today } } });
+        const usersPrev30 = yield prismaClient_1.default.user.count({ where: { createdAt: { gte: prev30Days, lt: last30Days } } });
+        const usersTrend = getTrend(usersLast30, usersPrev30);
+        // Events
+        const eventsLast30 = yield prismaClient_1.default.event.count({ where: { createdAt: { gte: last30Days, lt: today } } });
+        const eventsPrev30 = yield prismaClient_1.default.event.count({ where: { createdAt: { gte: prev30Days, lt: last30Days } } });
+        const eventsTrend = getTrend(eventsLast30, eventsPrev30);
+        // Authenticated- current user trends
+        const userShipsLast30 = yield prismaClient_1.default.ship.count({
+            where: { createdAt: { gte: last30Days, lt: today }, userId },
+        });
+        const userShipsPrev30 = yield prismaClient_1.default.ship.count({
+            where: { createdAt: { gte: prev30Days, lt: last30Days }, userId },
+        });
+        const userShipsTrend = getTrend(userShipsLast30, userShipsPrev30);
+        // Published ships by this user
+        const userPublishedLast30 = yield prismaClient_1.default.ship.count({
+            where: { createdAt: { gte: last30Days, lt: today }, isPublished: true, userId },
+        });
+        const userPublishedPrev30 = yield prismaClient_1.default.ship.count({
+            where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true, userId },
+        });
+        const userPublishedTrend = getTrend(userPublishedLast30, userPublishedPrev30);
         // Compute ships stats per user
         const userStats = userShipStats
             .filter((user) => user.id === userId)
@@ -108,9 +157,25 @@ const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, fu
                 totalShips,
                 publishedShips,
                 totalEvents,
+                trends: {
+                    ships: userShipsTrend,
+                    publishedShips: userPublishedTrend,
+                },
             };
         });
-        res.json({ monthlyStats, totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionStats, userStats });
+        res.json({
+            monthlyStats,
+            totalShips,
+            shipsTrend,
+            totalUsers,
+            usersTrend,
+            totalEvents,
+            eventsTrend,
+            topShips,
+            lastFiveUsers,
+            subscriptionStats,
+            userStats,
+        });
     }
     catch (error) {
         res.status(500).json({ message: "Internal server error" });
