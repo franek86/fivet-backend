@@ -12,10 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDashboardStatistic = void 0;
+exports.getEarnings = exports.getDashboardStatistic = void 0;
+const date_fns_1 = require("date-fns");
 const prismaClient_1 = __importDefault(require("../prismaClient"));
 /*
-  SHIP STATISTIC ON DASHBAORD
+  STATISTIC DASHBAORD
  */
 const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
@@ -105,7 +106,6 @@ const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, fu
         const getTrend = (current, prev) => {
             const change = current - prev;
             const trend = change > 0 ? "up" : change < 0 ? "down" : "same";
-            const percentage = prev > 0 ? Math.round((change / prev) * 100) : 100;
             return { trend, change: Math.abs(change) };
         };
         // trend ships
@@ -182,3 +182,96 @@ const getDashboardStatistic = (req, res) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 exports.getDashboardStatistic = getDashboardStatistic;
+/*
+  EARNINGS
+ */
+const getEarnings = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const period = req.query.period;
+    const PERIOD_WINDOWS = {
+        week: 7,
+        month: 30,
+        year: 365,
+    };
+    if (!["month", "week", "year"].includes(period)) {
+        return res.status(400).json({ error: "Invalid period. Use month, week, or year." });
+    }
+    try {
+        // Fetch all paid payments
+        const payments = yield prismaClient_1.default.payment.findMany({
+            where: { status: "PAID" },
+            select: {
+                amount: true,
+                createdAt: true,
+                user: {
+                    select: {
+                        subscription: true,
+                    },
+                },
+            },
+        });
+        // Group and sum by period
+        const grouped = {};
+        payments.forEach((p) => {
+            let key = "";
+            if (period === "month") {
+                key = (0, date_fns_1.format)((0, date_fns_1.startOfMonth)(p.createdAt), "yyyy-MM");
+            }
+            else if (period === "week") {
+                key = (0, date_fns_1.format)((0, date_fns_1.startOfWeek)(p.createdAt, { weekStartsOn: 1 }), "yyyy-'W'II"); // ISO week
+            }
+            else if (period === "year") {
+                key = (0, date_fns_1.format)((0, date_fns_1.startOfYear)(p.createdAt), "yyyy");
+            }
+            if (!grouped[key])
+                grouped[key] = {};
+            if (!grouped[key][p.user.subscription]) {
+                grouped[key][p.user.subscription] = 0;
+            }
+            grouped[key][p.user.subscription] += p.amount;
+        });
+        // Convert to array for response
+        const data = Object.entries(grouped).map(([label, subscriptions]) => ({
+            label,
+            subscriptions,
+        }));
+        //Trend
+        const windowDays = PERIOD_WINDOWS[period];
+        const today = (0, date_fns_1.startOfDay)(new Date());
+        const currentStart = (0, date_fns_1.subDays)(today, windowDays);
+        const previousStart = (0, date_fns_1.subDays)(today, windowDays * 2);
+        let currentTotal = 0;
+        let previousTotal = 0;
+        payments.forEach((p) => {
+            const created = p.createdAt;
+            if (created >= currentStart) {
+                currentTotal += p.amount;
+            }
+            else if (created >= previousStart && created < currentStart) {
+                previousTotal += p.amount;
+            }
+        });
+        let trend = 0;
+        if (previousTotal === 0 && currentTotal > 0) {
+            trend = 100;
+        }
+        else if (previousTotal > 0) {
+            trend = ((currentTotal - previousTotal) / previousTotal) * 100;
+        }
+        trend = Number(trend.toFixed(2));
+        res.json({
+            period,
+            data,
+            trend: {
+                windowDays,
+                value: trend,
+                currentTotal,
+                previousTotal,
+            },
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.getEarnings = getEarnings;

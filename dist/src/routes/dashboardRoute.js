@@ -8,4 +8,5 @@ const middleware_1 = require("../middleware");
 const dashboardController_1 = require("../controllers/dashboardController");
 const router = express_1.default.Router();
 router.get("/statistic", middleware_1.authenticateUser, dashboardController_1.getDashboardStatistic);
+router.get("/earnings", middleware_1.authenticateUser, middleware_1.authAdmin, dashboardController_1.getEarnings);
 exports.default = router;
