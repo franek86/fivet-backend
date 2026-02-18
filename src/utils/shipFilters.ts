@@ -43,8 +43,30 @@ export const shipFilters = (query: any) => {
 
   const where: any = {};
 
-  if (search && typeof search === "string" && search.trim().length > 0) {
-    where.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }];
+  /* if (search && typeof search === "string" && search.trim().length > 0) {
+    where.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }, { imo: { contains: search.trim(), mode: "insensitive" } }];
+  } */
+  if (typeof search === "string") {
+    const trimmed = search.trim();
+
+    if (trimmed.length > 0) {
+      const orConditions: any[] = [
+        {
+          shipName: {
+            contains: trimmed,
+            mode: "insensitive",
+          },
+        },
+      ];
+
+      if (!isNaN(Number(trimmed))) {
+        orConditions.push({
+          imo: Number(trimmed),
+        });
+      }
+
+      where.AND = [...(where.AND || []), { OR: orConditions }];
+    }
   }
 
   // Is published
