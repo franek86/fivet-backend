@@ -1,12 +1,9 @@
 # ---------- BUILD STAGE ----------
 # Use official Node.js image with Alpine Linux for a smaller size
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 # Set working directory
 WORKDIR /app
-
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ bash
 
 # Copy package.json and package-lock.json first
 COPY package*.json ./
@@ -25,7 +22,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---------- PRODUCTION STAGE ----------
-FROM node:22-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
