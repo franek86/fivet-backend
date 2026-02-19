@@ -7,16 +7,17 @@ WORKDIR /app
 # Copy package.json and lockfile
 COPY package*.json ./
 
+# Copy Prisma schema so postinstall can run
+COPY prisma ./prisma
+
 # Install all dependencies (dev + prod) for build
 RUN npm install
 
 # Copy app files
 COPY tsconfig.json ./
-COPY prisma ./prisma
 COPY src ./src
 
-# Generate Prisma client and build TypeScript
-RUN npx prisma generate
+# Build TypeScript
 RUN npm run build
 
 # Remove dev dependencies to slim image
