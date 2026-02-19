@@ -1,40 +1,21 @@
 # ---------- BUILD STAGE ----------
-# Use official Node.js image with Alpine Linux for a smaller size
-FROM node:24-alpine AS builder
-
-# Set working directory
+FROM node:24-bullseye AS builder
 WORKDIR /app
-
-# Copy package.json and package-lock.json first
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
-
-COPY prisma ./prisma/
 COPY tsconfig.json ./
+COPY prisma ./prisma
 COPY src ./src
-
-# Generate Prisma client
 RUN npx prisma generate
-
-# Build TypeScript
 RUN npm run build
 
 # ---------- PRODUCTION STAGE ----------
-FROM node:24-alpine
-
+FROM node:24-bullseye
 WORKDIR /app
-
 COPY package*.json ./
-
-# Copy build files and prisma
+RUN npm install --production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules ./node_modules
-
-# Expose the application port
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 EXPOSE 5000
-
-# Run the application
 CMD ["node", "dist/index.js"]
