@@ -1,6 +1,6 @@
 # ---------- BUILD STAGE ----------
 # Use official Node.js image with Alpine Linux for a smaller size
-FROM node:22-alpine
+FROM node:22-alpine AS builder
 
 # Set working directory
 WORKDIR /app
