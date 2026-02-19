@@ -5,8 +5,11 @@ FROM node:22-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ bash
+
 # Copy package.json and package-lock.json first
-COPY package*.json .
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
