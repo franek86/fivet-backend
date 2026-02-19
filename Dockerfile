@@ -1,21 +1,29 @@
-# ---------- BUILD STAGE ----------
-FROM node:24-bullseye AS builder
+# Use Debian-based Node for Prisma compatibility
+FROM node:24-bullseye
+
+# Set working directory
 WORKDIR /app
+
+# Copy package.json and lockfile
 COPY package*.json ./
+
+# Install all dependencies (dev + prod) for build
 RUN npm install
+
+# Copy app files
 COPY tsconfig.json ./
 COPY prisma ./prisma
 COPY src ./src
+
+# Generate Prisma client and build TypeScript
 RUN npx prisma generate
 RUN npm run build
 
-# ---------- PRODUCTION STAGE ----------
-FROM node:24-bullseye
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --production
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Remove dev dependencies to slim image
+RUN npm prune --production
+
+# Expose port
 EXPOSE 5000
+
+# Start the app
 CMD ["node", "dist/index.js"]
