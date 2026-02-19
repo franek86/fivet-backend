@@ -1,5 +1,38 @@
+# Dependencies
 node_modules
+
+# logs
 npm-debug.log
-Dockerfile
-docker-compose.yml
+yarn-debug.log*
+yarn-error.log*
+
+# environment
 .env
+.env.*
+
+# docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# build output
+dist
+build
+
+# git
+.git
+.gitignore
+
+# OS
+.DS_Store
+
+# tests
+coverage
+.nyc_output
+
+# IDE
+.vscode
+.idea
+
+# misc
+*.md
