@@ -266,8 +266,8 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     }); */
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: "strict" });
-    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: "strict" });
+    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "strict" });
+    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "strict" });
 
     res.json({ message: "Logged out successfully" });
   } catch (error) {
