@@ -20,8 +20,6 @@ COPY src ./src
 # Build TypeScript
 RUN npm run build
 
-# Run Prisma migrations in production
-RUN npx prisma migrate deploy
 
 # Remove dev dependencies to slim image
 RUN npm prune --production
@@ -30,4 +28,4 @@ RUN npm prune --production
 EXPOSE 5000
 
 # Start the app
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
