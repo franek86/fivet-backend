@@ -1,5 +1,5 @@
 # Use Debian-based Node for Prisma compatibility
-FROM node:24-bullseye
+FROM node:20-bullseye
 
 # Set working directory
 WORKDIR /app
@@ -27,4 +27,4 @@ RUN npm prune --production
 EXPOSE 5000
 
 # Start the app
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]
