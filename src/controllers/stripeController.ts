@@ -16,10 +16,10 @@ export const postCancelSubscription = async (req: Request, res: Response) => {
 
 export const postCheckoutSession = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { userId } = req.body;
+    const { userId, plan } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ error: "Missing userId" });
+    if (!userId || !plan) {
+      return res.status(400).json({ error: "Missing userId or plan" });
     }
 
     // Find user
@@ -44,14 +44,63 @@ export const postCheckoutSession = async (req: Request, res: Response): Promise<
       });
     }
 
-    // Choose subscribe plam
+    // Choose subscribe plan
     let priceId = "";
+    if (plan === "STANDARD") {
+      priceId = process.env.STRIPE_PRICE_STANDARD!;
+    } else if (plan === "PREMIUM") {
+      priceId = process.env.STRIPE_PRICE_PREMIUM!;
+    } else {
+      return res.status(400).json({ error: "Invalid plan" });
+    }
+
+    if (!priceId) {
+      return res.status(500).json({ error: "Missing price configuration" });
+    }
+    /*   let priceId = "";
     if (user.subscription === "STANDARD") priceId = process.env.STRIPE_PRICE_STANDARD!;
     else if (user.subscription === "PREMIUM") priceId = process.env.STRIPE_PRICE_PREMIUM!;
-    else return res.status(400).json({ error: "Invalid plan" });
+    else return res.status(400).json({ error: "Invalid plan" }); */
+
+    console.log(priceId);
 
     // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+
+    // 🟢 CASE 1 — No subscription → Create Checkout
+    if (!user.stripeSubscriptionId) {
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
+      });
+
+      return res.json({ url: session.url });
+    }
+
+    // 🔵 CASE 2 — Has subscription → Upgrade/Downgrade safely
+    const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+
+    const currentItem = subscription.items.data[0];
+
+    // 🛑 Prevent duplicate plan selection
+    if (currentItem.price.id === priceId) {
+      return res.status(400).json({ error: "Already on this plan" });
+    }
+
+    await stripe.subscriptions.update(user.stripeSubscriptionId, {
+      items: [
+        {
+          id: currentItem.id,
+          price: priceId,
+        },
+      ],
+      proration_behavior: "create_prorations",
+    });
+
+    /* const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
@@ -64,8 +113,8 @@ export const postCheckoutSession = async (req: Request, res: Response): Promise<
       success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
     });
-
-    return res.json({ url: session.url });
+ */
+    return res.json({ success: true });
   } catch (error) {
     console.error("Create Checkout Session error:", error);
     res.status(500).json({ error: "Internal Server Error" });

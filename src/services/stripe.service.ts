@@ -59,23 +59,58 @@ export const handleStripeEvent = async (event: any) => {
       });
 
       if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            isActiveSubscription: false,
+          },
+        });
+
         await prisma.payment.create({
           data: {
             userId: user.id,
             amount: (invoice.amount_due ?? 0) / 100,
             stripePaymentId: invoice.payment_intent || "",
             status: "FAILED",
-            // TO DO: add isActiveSubsciption to false
           },
         });
       }
       break;
     }
 
-    case "customer.subscription.updated":
+    case "customer.subscription.updated": {
+      const subscription = event.data.object;
+      const stripeSubId = subscription.id as string;
+      const customerId = subscription.customer as string;
+
+      const user = await prisma.user.findFirst({
+        where: { stripeCustomerId: customerId },
+      });
+
+      if (!user) break;
+
+      const priceId = subscription.items.data[0].price.id;
+
+      let subscriptionType: Subscription = "STANDARD";
+
+      if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
+        subscriptionType = "PREMIUM";
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          subscription: subscriptionType,
+          stripeSubscriptionId: stripeSubId,
+          isActiveSubscription: subscription.status === "active",
+        },
+      });
+
+      break;
+    }
+
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
-
       const stripeSubId = subscription.id as string;
 
       const user = await prisma.user.findFirst({ where: { stripeSubscriptionId: stripeSubId } });
@@ -84,7 +119,7 @@ export const handleStripeEvent = async (event: any) => {
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          subscription: "STANDARD",
+          subscription: "STARTER",
           verifyPayment: false,
           stripeSubscriptionId: null,
           isActiveSubscription: false,
