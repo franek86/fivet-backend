@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import cloudinary from "../cloudinaryConfig";
+import cloudinary, { uploadSingleFile } from "../cloudinaryConfig";
 import fs from "fs";
 import prisma from "../prismaClient";
 import { ValidationError } from "../helpers/error.helpers";
@@ -135,14 +135,8 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
 
     let avatarUrl = existingProfile.avatar;
     if (req.file) {
-      const upload = await cloudinary.uploader.upload(req.file.path, {
-        folder: "avatars",
-        transformation: [{ width: 150, height: 150, crop: "fill" }],
-      });
-      avatarUrl = upload.secure_url;
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
+      const uploadResult = await uploadSingleFile(req.file.buffer, "avatars");
+      avatarUrl = uploadResult.url;
     }
 
     const [updateProfile, updateUser] = await prisma.$transaction([
