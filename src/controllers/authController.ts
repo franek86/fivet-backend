@@ -198,7 +198,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       decoded.subscription,
       decoded.isActiveSubscription,
     );
-    setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
+    setCookie(res, "access_token", new_access_token, 5 * 60 * 1000); //5 minute
 
     res.json({
       success: true,
@@ -291,9 +291,9 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const otp = generateOtp(6);
 
     //Save OTP to database
-    await prisma.otp.update({
-      where: { email },
+    await prisma.otp.create({
       data: {
+        email,
         otp,
         expiresAt: new Date(Date.now() + 60 * 1000), // Expires in 1 minute
       },
