@@ -125,13 +125,3 @@ async function emitOnlineUsersToAdmins() {
 
   io.to("admins").emit("online-users", { users, count: onlineUsers.size });
 }
-
-/**
- * Call this wherever the admin approves a ship
- */
-export const notifyUserShipApproved = async (shipId: string, userId: string) => {
-  io.to(`user:${userId}`).emit("ship-approved", {
-    shipId,
-    message: "Your ship has been approved ✅",
-  });
-};

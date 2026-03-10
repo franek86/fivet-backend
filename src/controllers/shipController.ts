@@ -9,7 +9,7 @@ import { parseSortBy } from "../helpers/sort.helpers";
 import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
 import { sendNotification } from "./notificationController";
-import { getIO, notifyUserShipApproved } from "../services/socket.service";
+import { getIO } from "../services/socket.service";
 
 /* 
 CREATE SHIP 
@@ -224,14 +224,16 @@ export const updatePublishedShip = async (req: Request<{ id: string }>, res: Res
     const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
     if (isPublished && updatedShip.userId) {
       await sendNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
+      // Send real-time notification to the ship owner
+      const io = getIO();
+      io.to(`user:${updatedShip.userId}`).emit("ship-published", {
+        shipTitle: updatedShip.shipName,
+        createdAt: formatDate(updatedShip.createdAt.toISOString()),
+      });
     }
-
-    // Send real-time notification to the ship owner
-    notifyUserShipApproved(updatedShip.id, updatedShip.userId);
 
     res.status(200).json(updatedShip);
   } catch (error) {
-    console.log(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
