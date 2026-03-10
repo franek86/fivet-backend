@@ -284,8 +284,13 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new ValidationError("User not found.");
 
-    /* await checkOtpRestrictions(email, next);
-    await trackOtpRequest(email, next); */
+    // Delete expired OTPs for this email first
+    await prisma.otp.deleteMany({
+      where: {
+        email,
+        expiresAt: { lt: new Date() },
+      },
+    });
 
     // generate otp
     const otp = generateOtp(6);
@@ -360,6 +365,7 @@ export const resetUserPassword = async (req: Request, res: Response, next: NextF
       where: { email },
       data: { password: hashPassword },
     });
+    await prisma.otp.deleteMany({ where: { email } });
 
     res.status(200).json({ message: "Password reset successfully!" });
   } catch (error) {

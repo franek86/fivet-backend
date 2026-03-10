@@ -51,6 +51,10 @@ export const initializeSocket = (server: http.Server) => {
       socket.join("admins");
     }
 
+    if (userId) {
+      socket.join(`user:${userId}`);
+    }
+
     // Add socket to user's set
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
@@ -121,3 +125,13 @@ async function emitOnlineUsersToAdmins() {
 
   io.to("admins").emit("online-users", { users, count: onlineUsers.size });
 }
+
+/**
+ * Call this wherever the admin approves a ship
+ */
+export const notifyUserShipApproved = async (shipId: string, userId: string) => {
+  io.to(`user:${userId}`).emit("ship-approved", {
+    shipId,
+    message: "Your ship has been approved ✅",
+  });
+};
