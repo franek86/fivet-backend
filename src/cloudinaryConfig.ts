@@ -1,5 +1,4 @@
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
@@ -21,17 +20,7 @@ export const uploadSingleFile = (buffer: Buffer, folder: string) =>
 
     stream.end(buffer);
   });
-/* export const uploadSingleFile = async (filePath: string, folder: string): Promise<{ url: string; publicId: string }> => {
-  const result = await cloudinary.uploader.upload(filePath, {
-    folder,
-  });
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
 
-  return { url: result.secure_url, publicId: result.public_id };
-};
- */
 /**
  * Uploads multiple files to Cloudinary and removes local files
  */
@@ -39,11 +28,21 @@ export const uploadMultipleFiles = async (files: Express.Multer.File[], folder: 
   const urls: { url: string; publicId: string }[] = [];
 
   for (const file of files) {
-    const result = await cloudinary.uploader.upload(file.path, { folder });
-    urls.push({ url: result.secure_url, publicId: result.public_id });
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    const result = await cloudinary.uploader.upload_stream({ folder }, (error, result) => {
+      if (error) throw error;
+      return result;
+    });
+
+    // Use a promise wrapper for upload_stream
+    const uploaded = await new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream({ folder }, (err, res) => {
+        if (err) reject(err);
+        else resolve(res!);
+      });
+      stream.end(file.buffer);
+    });
+
+    urls.push({ url: uploaded.secure_url, publicId: uploaded.public_id });
   }
 
   return urls;

@@ -29,3 +29,27 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+/* Delete payment by id,admin only */
+export const deletePayment = async (req: Request<{ id: string }>, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    res.status(404).json({ message: "Payment id not found" });
+  }
+
+  try {
+    const payment = await prisma.payment.findUnique({ where: { id } });
+    if (!payment) {
+      res.status(404).json({ message: "Payment not found" });
+    }
+    await prisma.payment.delete({
+      where: { id },
+    });
+
+    res.status(200).json({
+      message: "Payment deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

@@ -387,7 +387,13 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
     // Validate body
     const parsed = EditShipSchema.parse(body);
 
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files = req.files as
+      | {
+          // [fieldname: string]: Express.Multer.File[];
+          mainImage?: Express.Multer.File[];
+          images?: Express.Multer.File[];
+        }
+      | undefined;
 
     let mainImageUrl = existingShip.mainImage;
     let mainImageId = existingShip.mainImagePublicId;
@@ -395,7 +401,7 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
     let imageIds = existingShip.imageIds || [];
 
     /* main image update */
-    if (files?.["mainImage"]?.[0]?.path) {
+    if (files?.["mainImage"]?.[0]?.buffer) {
       //Delete old image from cloudinary
       if (mainImageId) {
         await cloudinary.uploader.destroy(mainImageId);
