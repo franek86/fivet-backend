@@ -30,19 +30,12 @@ dotenv.config();
 
 const app = express();
 const httpServer = http.createServer(app);
+app.set("trust proxy", 1);
 const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Boolean);
 
 /* LOGGING */
 app.use(morgan("common"));
 
-/* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
-app.use("/", webhookStripeRoute);
-
-/* MIDDLEWARES */
-app.use(express.json());
-//app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -57,6 +50,16 @@ app.use(
     credentials: true,
   }),
 );
+app.options("*", cors());
+
+/* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
+app.use("/", webhookStripeRoute);
+
+/* MIDDLEWARES */
+app.use(express.json());
+//app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 // Socket.IO
 initializeSocket(httpServer);
