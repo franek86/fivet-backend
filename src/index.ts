@@ -30,7 +30,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = http.createServer(app);
-const allowedOrigins = [process.env.FRONTEND_URL || "", process.env.WEB_URL || ""];
+const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Boolean);
 
 /* LOGGING */
 app.use(morgan("common"));
@@ -45,7 +45,15 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
