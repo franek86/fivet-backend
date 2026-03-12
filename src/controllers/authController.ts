@@ -155,12 +155,6 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     console.log("Country ", location);
 
-    //update is active user
-    /* await prisma.user.update({
-      where: { id: user.id },
-      data: { isActive: true },
-    }); */
-
     /* 
       if is remember me, set token in 30 days other ways set token to 7 days
     */
@@ -171,6 +165,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     res.json({
       message: "User loggedin successfully",
+      accessToken,
     });
   } catch (error) {
     next(error);
@@ -178,17 +173,19 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 };
 
 /* REFRESH TOKEN */
-export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const refreshToken = async (req: Request, res: Response): Promise<void> => {
   try {
     const { refresh_token } = req.cookies;
 
     if (!refresh_token) {
-      new ValidationError("Unauthorized! No refresh token");
+      res.status(401).json({ message: "No refresh token provided" });
+      return;
     }
     const decoded = jwt.verify(refresh_token, process.env.REFRESH_SECRET as string) as JwtPayload;
 
     if (!decoded || !decoded.userId || !decoded.role) {
-      new JsonWebTokenError("Forbidden! Invalid refresh token.");
+      res.status(401).json({ message: "Invalid refresh token" });
+      return;
     }
 
     const new_access_token = generateAccessToken(
@@ -198,14 +195,15 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       decoded.subscription,
       decoded.isActiveSubscription,
     );
-    setCookie(res, "access_token", new_access_token, 5 * 60 * 1000); //5 minute
+    setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
 
     res.json({
       success: true,
       accessToken: new_access_token,
     });
   } catch (error) {
-    next(error);
+    res.status(401).json({ message: "Invalid refresh token" });
+    return;
   }
 };
 
