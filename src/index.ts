@@ -50,7 +50,6 @@ app.use(
     credentials: true,
   }),
 );
-app.options("*", cors());
 
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", webhookStripeRoute);
