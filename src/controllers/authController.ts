@@ -160,7 +160,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     */
     const refreshTokenExpiry = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
 
-    setCookie(res, "access_token", accessToken, 5 * 60 * 1000); //5 minutes
+    //setCookie(res, "access_token", accessToken, 5 * 60 * 1000); //5 minutes
     setCookie(res, "refresh_token", refreshToken, refreshTokenExpiry); // 7 days
 
     res.json({
