@@ -256,16 +256,10 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
 /* LOGOUT AND CLEAR TOKENS */
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    /*  const { userId } = req.user as CustomJwtPayload;
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isActive: false },
-    }); */
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "strict" : "lax" });
-    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "strict" : "lax" });
+    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
+    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
 
     res.json({ message: "Logged out successfully" });
   } catch (error) {

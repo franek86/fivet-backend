@@ -5,7 +5,7 @@ export const setCookie = (res: Response, name: string, value: string, maxAge: nu
   res.cookie(name, value, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "strict" : "lax",
+    sameSite: isProduction ? "none" : "lax",
     maxAge,
     path: "/",
   });
