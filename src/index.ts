@@ -30,29 +30,25 @@ dotenv.config();
 
 const app = express();
 const httpServer = http.createServer(app);
+
 app.set("trust proxy", 1);
 const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Boolean);
 
-/* LOGGING */
-app.use(morgan("common"));
-
 const corsOptions = {
   origin: (origin: string | undefined, callback: any) => {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     console.log("Blocked CORS origin:", origin);
-    return callback(null, false);
+    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
+/* LOGGING */
+app.use(morgan("common"));
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", webhookStripeRoute);
