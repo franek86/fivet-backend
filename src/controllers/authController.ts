@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import jwt, { JsonWebTokenError, JwtPayload } from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { AuthError, NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { sendOtp } from "../helpers/auth.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
@@ -264,8 +264,8 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     }); */
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "strict" });
-    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "strict" });
+    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "strict" : "lax" });
+    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "strict" : "lax" });
 
     res.json({ message: "Logged out successfully" });
   } catch (error) {
