@@ -37,6 +37,7 @@ const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Bo
 app.use(morgan("common"));
 
 app.use(
+  "*",
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
@@ -44,15 +45,14 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-
-      return callback(new Error("Not allowed by CORS"));
+      console.log("Blocked CORS origin:", origin);
+      return callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-app.options("*", cors());
 
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", webhookStripeRoute);
