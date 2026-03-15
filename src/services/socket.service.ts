@@ -24,17 +24,17 @@ export const initializeSocket = (server: http.Server) => {
 
   // Socket.IO
   io.use((socket, next) => {
-    const cookieHeader = socket.handshake.headers.cookie;
+    const cookieHeader = socket.handshake.auth.token;
     if (!cookieHeader) return next(new Error("No cookies"));
 
     try {
-      const token = cookieHeader
+      /*  const token = cookieHeader
         .split("; ")
         .find((c) => c.startsWith("access_token="))
         ?.split("=")[1];
 
-      if (!token) return next(new Error("No auth token"));
-      const payload = jwt.verify(token, process.env.JWT_SECRET as string) as CustomJwtPayload;
+      if (!token) return next(new Error("No auth token")); */
+      const payload = jwt.verify(cookieHeader, process.env.JWT_SECRET as string) as CustomJwtPayload;
       socket.user = payload;
       console.log(`[SOCKET AUTH] User connected: ${payload.userId} | role: ${payload.role}`);
 
