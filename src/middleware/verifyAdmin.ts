@@ -24,10 +24,10 @@ const authAdmin = async (req: Request, res: Response, next: NextFunction): Promi
     return;
   }
 
-  if (!req.user || req.user.role !== "ADMIN") {
+  /*  if (!req.user || req.user.role !== "ADMIN") {
     res.status(403).json({ message: "Access denied. Admins only." });
   }
-
+ */
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
     if (!decoded) {
@@ -35,6 +35,11 @@ const authAdmin = async (req: Request, res: Response, next: NextFunction): Promi
       return;
     }
     req.user = decoded;
+
+    if (req.user.role !== "ADMIN") {
+      res.status(403).json({ message: "Access denied. Admins only." });
+      return;
+    }
     next();
   } catch (error) {
     res.status(401).json({ message: "Unauthorized. Token expired or invalid." });
