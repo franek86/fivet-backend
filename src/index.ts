@@ -32,7 +32,9 @@ const app = express();
 const httpServer = http.createServer(app);
 
 app.set("trust proxy", 1);
+
 const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Boolean);
+console.log("Allowed origins:", allowedOrigins);
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: any) => {
@@ -47,7 +49,9 @@ const corsOptions = {
 
 /* LOGGING */
 app.use(morgan("common"));
+
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", webhookStripeRoute);

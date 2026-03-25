@@ -184,7 +184,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       decoded.subscription,
       decoded.isActiveSubscription,
     );
-    setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
+    //setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
 
     res.json({
       success: true,
