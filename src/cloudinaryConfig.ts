@@ -26,7 +26,7 @@ export const uploadSingleFile = (buffer: Buffer, folder: string) =>
  * Uploads multiple files to Cloudinary and removes local files
  */
 export const uploadMultipleFiles = async (files: Express.Multer.File[], folder: string): Promise<{ url: string; publicId: string }[]> => {
-  const urls: { url: string; publicId: string }[] = [];
+  /* const urls: { url: string; publicId: string }[] = [];
 
   for (const file of files) {
     const result = await cloudinary.uploader.upload_stream({ folder }, (error, result) => {
@@ -46,7 +46,20 @@ export const uploadMultipleFiles = async (files: Express.Multer.File[], folder: 
     urls.push({ url: uploaded.secure_url, publicId: uploaded.public_id });
   }
 
-  return urls;
+  return urls; */
+  const uploadFile = (file: Express.Multer.File) =>
+    new Promise<{ url: string; publicId: string }>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream({ folder }, (err, res) => {
+        if (err) return reject(err);
+        resolve({ url: res!.secure_url, publicId: res!.public_id });
+      });
+      stream.end(file.buffer);
+    });
+
+  // Upload all files in parallel
+  const uploadedFiles = await Promise.all(files.map(uploadFile));
+
+  return uploadedFiles;
 };
 
 export default cloudinary;
