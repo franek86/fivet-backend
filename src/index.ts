@@ -51,7 +51,6 @@ const corsOptions = {
 app.use(morgan("common"));
 
 app.use(cors(corsOptions));
-app.options("(.*)", cors(corsOptions));
 
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
 app.use("/", webhookStripeRoute);
