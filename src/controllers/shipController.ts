@@ -24,7 +24,6 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
   try {
     const files = req.files as {
-      // [fieldname: string]: Express.Multer.File[];
       mainImage?: Express.Multer.File[];
       images?: Express.Multer.File[];
     };
@@ -37,25 +36,39 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Upload main image
-    const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files.mainImage[0].buffer, "ship/mainImage");
+    const mainImageFile = files.mainImage[0];
     const mainImageAlt = req.body.mainImageAlt || "";
 
+    // Upload main image
+    const mainImagePromise = uploadSingleFile(mainImageFile.buffer, "ship/mainImage");
+
+    // Upload main image
+    /*   const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files.mainImage[0].buffer, "ship/mainImage");
+    const mainImageAlt = req.body.mainImageAlt || ""; */
+
     // Upload multiple images
-    let imagesData: { url: string; publicId: string }[] = [];
+    /*  let imagesData: { url: string; publicId: string }[] = [];
 
     if (files?.images?.length) {
       imagesData = await uploadMultipleFiles(files.images, "ship/images");
-    }
+    } */
 
     // Image meta for frontend
-    let imagesMeta: { alt?: string }[] = [];
+    /*  let imagesMeta: { alt?: string }[] = []; */
+    // Upload multiple images in parallel
+    const imagesFiles = files.images || [];
+    const multipleImagesPromise = imagesFiles.length ? uploadMultipleFiles(imagesFiles, "ship/images") : Promise.resolve([]);
 
+    // Parse images metadata safely
+    let imagesMeta: { alt?: string }[] = [];
     try {
       imagesMeta = JSON.parse(req.body.imagesMeta || "[]");
     } catch {
       imagesMeta = [];
     }
+
+    // Wait for uploads in parallel
+    const [mainImageData, imagesData] = await Promise.all([mainImagePromise, multipleImagesPromise]);
 
     const formattedImages = imagesData.map((img, index) => ({
       url: img.url,
@@ -68,8 +81,8 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
     const validateData = CreateShipSchema.parse({
       ...req.body,
-      mainImage: mainImageUrl,
-      mainImagePublicId: mainImageId,
+      mainImage: mainImageData.url,
+      mainImagePublicId: mainImageData.publicId,
       mainImageAlt,
       images: formattedImages,
       //imageIds: formattedImages.map((i) => i.publicId),
@@ -79,10 +92,8 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       data: {
         ...validateData,
         userId: userId,
-
-        mainImage: mainImageUrl,
-        mainImagePublicId: mainImageId,
-
+        mainImage: mainImageData.url,
+        mainImagePublicId: mainImageData.publicId,
         images: {
           create: formattedImages.map((img) => ({
             alt: img.alt,
@@ -90,7 +101,6 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
             publicId: img.publicId,
           })),
         },
-        //imageIds: formattedImages.map((i) => i.publicId),
         isPublished: false,
       },
     });
@@ -106,7 +116,6 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     });
 
     const fullName = req.user?.fullName;
-
     const shipLink = `${process.env.FRONTEND_URL}/ships/${newShip?.id}`;
     const emailData = {
       shipTitle: newShip.shipName,
