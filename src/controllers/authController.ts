@@ -6,7 +6,6 @@ import { sendOtp } from "../helpers/auth.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 import { generateOtp } from "../helpers/generateOtp.helpers";
-import { lookup } from "ip-location-api";
 
 const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
   return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
@@ -144,16 +143,6 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
     const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
-
-    //get user ip address
-    const ip =
-      typeof req.headers["x-forwarded-for"] === "string"
-        ? req.headers["x-forwarded-for"].split(",")[0].trim()
-        : (req.socket.remoteAddress ?? null);
-
-    const location = ip ? lookup(ip) : null;
-
-    console.log("Country ", location);
 
     /* 
       if is remember me, set token in 30 days other ways set token to 7 days
