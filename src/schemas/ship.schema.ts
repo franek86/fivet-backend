@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const ImageSchema = z.object({
+  alt: z.string().optional(),
+  url: z.string().url(),
+  publicId: z.string().optional(),
+});
+
 export const CreateShipSchema = z.object({
   shipName: z.string().min(1),
   slug: z.string().min(1),
@@ -21,7 +27,8 @@ export const CreateShipSchema = z.object({
   remarks: z.string().optional(),
   description: z.string().optional(),
   mainImage: z.string().url(),
-  images: z.array(z.string()).optional(),
+  mainImageAlt: z.string().optional(),
+  images: z.array(ImageSchema).optional(),
   isPublished: z.coerce.boolean().optional().default(false),
 });
 

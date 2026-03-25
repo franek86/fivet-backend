@@ -101,6 +101,7 @@ model Profile {
   updatedAt DateTime @updatedAt
 }
 
+
 model Ship {
   id              String   @id @default(uuid())
   shipName        String
@@ -129,9 +130,10 @@ model Ship {
   description     String?
 
   mainImage       String?
+  mainImageAlt    String?
   mainImagePublicId String?
-  images          String[]
-  imageIds        String[]
+
+  images          ShipImages[]
 
   clicks          Int      @default(0)
 
@@ -142,6 +144,18 @@ model Ship {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+}
+
+model ShipImages {
+  id      String    @id @default(uuid())
+  alt     String?
+  url     String
+  publicId String?
+
+  shipId  String
+  ship    Ship   @relation(fields: [shipId], references: [id],onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
 

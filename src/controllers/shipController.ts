@@ -17,7 +17,10 @@ Authenticate user can create ship
 */
 export const createShip = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
-  if (!userId) res.status(401).json({ message: "Unauthorized" });
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
 
   try {
     const files = req.files as {
@@ -34,31 +37,60 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    let imagesData: { url: string; publicId: string }[] = [];
+    // Upload main image
     const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files.mainImage[0].buffer, "ship/mainImage");
+    const mainImageAlt = req.body.mainImageAlt || "";
+
+    // Upload multiple images
+    let imagesData: { url: string; publicId: string }[] = [];
+
     if (files?.images?.length) {
       imagesData = await uploadMultipleFiles(files.images, "ship/images");
     }
 
-    const imagesUrls = imagesData?.map((i) => i.url);
-    const imageIds = imagesData?.map((id) => id.publicId);
+    // Image meta for frontend
+    let imagesMeta: { alt?: string }[] = [];
+
+    try {
+      imagesMeta = JSON.parse(req.body.imagesMeta || "[]");
+    } catch {
+      imagesMeta = [];
+    }
+
+    const formattedImages = imagesData.map((img, index) => ({
+      url: img.url,
+      publicId: img.publicId,
+      alt: imagesMeta[index]?.alt || "",
+    }));
+
+    /*  const imagesUrls = imagesData?.map((i) => i.url);
+    const imageIds = imagesData?.map((id) => id.publicId); */
 
     const validateData = CreateShipSchema.parse({
       ...req.body,
       mainImage: mainImageUrl,
       mainImagePublicId: mainImageId,
-      images: imagesUrls,
-      imageIds,
+      mainImageAlt,
+      images: formattedImages,
+      //imageIds: formattedImages.map((i) => i.publicId),
     });
 
     const newShip = await prisma.ship.create({
       data: {
         ...validateData,
         userId: userId,
+
         mainImage: mainImageUrl,
         mainImagePublicId: mainImageId,
-        images: imagesUrls,
-        imageIds,
+
+        images: {
+          create: formattedImages.map((img) => ({
+            alt: img.alt,
+            url: img.url,
+            publicId: img.publicId,
+          })),
+        },
+        //imageIds: formattedImages.map((i) => i.publicId),
         isPublished: false,
       },
     });
@@ -107,7 +139,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       createdAt: formatDate(newShip.createdAt.toISOString()),
     });
 
-    res.status(200).json({
+    res.status(201).json({
       message: "Ship added successfully! Awaiting admin approval.",
       data: newShip,
     });
@@ -315,6 +347,14 @@ export const getShip = async (req: Request<{ id: string }>, res: Response): Prom
             name: true,
           },
         },
+        images: {
+          select: {
+            id: true,
+            url: true,
+            alt: true,
+            publicId: true,
+          },
+        },
       },
     });
 
@@ -375,10 +415,11 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
   const { id } = req.params;
 
   try {
-    const existingShip = await prisma.ship.findUnique({ where: { id } });
+    const existingShip = await prisma.ship.findUnique({ where: { id }, include: { images: true } });
 
     if (!existingShip) {
-      return res.status(404).json({ message: "Ship not found" });
+      res.status(404).json({ message: "Ship not found" });
+      return;
     }
     const body = {
       ...req.body,
@@ -397,10 +438,12 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
 
     let mainImageUrl = existingShip.mainImage;
     let mainImageId = existingShip.mainImagePublicId;
-    let imagesUrls = existingShip.images || [];
-    let imageIds = existingShip.imageIds || [];
 
-    /* main image update */
+    /* let imagesUrls = existingShip.images || [];
+    let imageIds = existingShip.imageIds || []; */
+    //let images = (existingShip.images as { url: string; alt?: string }[]) || [];
+
+    /* ---------------- MAIN IMAGE UPDATE ---------------- */
     if (files?.["mainImage"]?.[0]?.buffer) {
       //Delete old image from cloudinary
       if (mainImageId) {
@@ -414,33 +457,72 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
       mainImageId = uploadMainImage.publicId;
     }
 
-    /* DELETE OLD IMAGES THAT USER WANTS TO REMOVE */
+    /* ---------------- DELETE IMAGES ---------------- */
+    //let deleteImageIds: string[] = [];
     let deleteImageIds: string[] = [];
 
-    if (req.body.deleteImageIds) {
+    /*  if (req.body.deleteImageIds) {
       deleteImageIds = JSON.parse(req.body.deleteImageIds);
+    } */
+    try {
+      deleteImageIds = JSON.parse(req.body.deleteImageIds || "[]");
+    } catch {
+      deleteImageIds = [];
     }
 
     // 1. delete selected images from Cloudinary
-    for (const publicId of deleteImageIds) {
+    /*  for (const publicId of deleteImageIds) {
       try {
         await cloudinary.uploader.destroy(publicId);
       } catch (err) {
         console.log("Failed to delete image:", publicId);
       }
+    } */
+    if (deleteImageIds.length) {
+      const imagesToDelete = existingShip.images.filter((img) => deleteImageIds.includes(img.id));
+
+      for (const img of imagesToDelete) {
+        if (img.publicId) {
+          await cloudinary.uploader.destroy(img.publicId);
+        }
+      }
+
+      await prisma.shipImages.deleteMany({
+        where: {
+          id: { in: deleteImageIds },
+          shipId: id,
+        },
+      });
     }
 
     // 2. remove them from arrays
-    imageIds = imageIds.filter((id) => !deleteImageIds.includes(id));
+    /*  imageIds = imageIds.filter((id) => !deleteImageIds.includes(id));
     imagesUrls = imagesUrls.filter((_, index) => !deleteImageIds.includes(existingShip.imageIds[index]));
+ */
+    //images = images.filter((img) => !deleteImageUrls.includes(img.url));
 
     /* Multiple image update */
-    if (files?.["images"]) {
-      const newImages = await uploadMultipleFiles(files["images"], "ship/images");
+    let newImages: any[] = [];
+    if (files?.images?.length) {
+      //const newImages = await uploadMultipleFiles(files["images"], "ship/images");
+      const newUploads = await uploadMultipleFiles(files.images, "ship/images");
 
+      let imagesMeta: { alt?: string }[] = [];
       //add new images
-      imagesUrls = [...imagesUrls, ...newImages.map((img) => img.url)];
-      imageIds = [...imageIds, ...newImages.map((img) => img.publicId)];
+      /*  imagesUrls = [...imagesUrls, ...newImages.map((img) => img.url)];
+      imageIds = [...imageIds, ...newImages.map((img) => img.publicId)]; */
+      try {
+        imagesMeta = JSON.parse(req.body.imagesMeta || "[]");
+      } catch {
+        imagesMeta = [];
+      }
+
+      newImages = newUploads.map((img, index) => ({
+        alt: imagesMeta[index]?.alt || "",
+        url: img.url,
+        publicId: img.publicId,
+      }));
+      //images = [...images, ...newImages];
     }
 
     const updatedShip = await prisma.ship.update({
@@ -449,8 +531,12 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
         ...parsed,
         mainImage: mainImageUrl,
         mainImagePublicId: mainImageId,
-        images: imagesUrls,
-        imageIds: imageIds,
+        images: {
+          create: newImages,
+        },
+
+        /* images: imagesUrls,
+        imageIds: imageIds, */
       },
     });
 
