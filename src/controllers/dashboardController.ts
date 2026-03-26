@@ -3,10 +3,16 @@ import { startOfMonth, startOfWeek, startOfYear, format, subDays, startOfDay } f
 
 import prisma from "../prismaClient";
 
+export function getTrend(current: number, prev: number) {
+  const change = current - prev;
+  const trend = change > 0 ? "up" : change < 0 ? "down" : "same";
+  return { trend, change: Math.abs(change) };
+}
+
 /* 
   STATISTIC DASHBAORD
  */
-export const getDashboardStatistic = async (req: Request, res: Response): Promise<void> => {
+export const getAdminDashboardStatistic = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
 
   if (!userId) {
@@ -32,7 +38,7 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
       }),
     );
 
-    const [totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionCounts, userShipStats] = await Promise.all([
+    const [totalShips, totalUsers, totalEvents, topShips, lastFiveUsers, subscriptionCounts] = await Promise.all([
       prisma.ship.count(),
       prisma.user.count(),
       prisma.event.count(),
@@ -101,26 +107,10 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
     const prev30Days = new Date();
     prev30Days.setDate(last30Days.getDate() - 30);
 
-    //Helper function to get trend
-    const getTrend = (current: number, prev: number) => {
-      const change = current - prev;
-      const trend = change > 0 ? "up" : change < 0 ? "down" : "same";
-      return { trend, change: Math.abs(change) };
-    };
-
     // trend ships
     const shipsLast30 = await prisma.ship.count({ where: { createdAt: { gte: last30Days, lt: today } } });
     const shipsPrev30 = await prisma.ship.count({ where: { createdAt: { gte: prev30Days, lt: last30Days } } });
     const shipsTrend = getTrend(shipsLast30, shipsPrev30);
-
-    // Published ships
-    const publishedShipsLast30 = await prisma.ship.count({
-      where: { createdAt: { gte: last30Days, lt: today }, isPublished: true },
-    });
-    const publishedShipsPrev30 = await prisma.ship.count({
-      where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true },
-    });
-    const publishedShipsTrend = getTrend(publishedShipsLast30, publishedShipsPrev30);
 
     // Users
     const usersLast30 = await prisma.user.count({ where: { createdAt: { gte: last30Days, lt: today } } });
@@ -131,48 +121,6 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
     const eventsLast30 = await prisma.event.count({ where: { createdAt: { gte: last30Days, lt: today } } });
     const eventsPrev30 = await prisma.event.count({ where: { createdAt: { gte: prev30Days, lt: last30Days } } });
     const eventsTrend = getTrend(eventsLast30, eventsPrev30);
-
-    // Authenticated- current user trends
-    const userShipsLast30 = await prisma.ship.count({
-      where: { createdAt: { gte: last30Days, lt: today }, userId },
-    });
-
-    const userShipsPrev30 = await prisma.ship.count({
-      where: { createdAt: { gte: prev30Days, lt: last30Days }, userId },
-    });
-
-    const userShipsTrend = getTrend(userShipsLast30, userShipsPrev30);
-
-    // Published ships by this user
-    const userPublishedLast30 = await prisma.ship.count({
-      where: { createdAt: { gte: last30Days, lt: today }, isPublished: true, userId },
-    });
-
-    const userPublishedPrev30 = await prisma.ship.count({
-      where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true, userId },
-    });
-
-    const userPublishedTrend = getTrend(userPublishedLast30, userPublishedPrev30);
-
-    // Compute ships stats per user
-    const userStats = userShipStats
-      .filter((user) => user.id === userId)
-      .map((user) => {
-        const totalShips = user.ships.length;
-        const publishedShips = user.ships.filter((s) => s.isPublished).length;
-        const totalEvents = user.events.length;
-        return {
-          id: user.id,
-          fullName: user.fullName,
-          totalShips,
-          publishedShips,
-          totalEvents,
-          trends: {
-            ships: userShipsTrend,
-            publishedShips: userPublishedTrend,
-          },
-        };
-      });
 
     res.json({
       monthlyStats,
@@ -185,9 +133,83 @@ export const getDashboardStatistic = async (req: Request, res: Response): Promis
       topShips,
       lastFiveUsers,
       subscriptionStats,
-      userStats,
     });
   } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* CURRENT USER STATISTIC */
+export const getCurrentUserStats = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    res.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  try {
+    const today = new Date();
+    const last30Days = new Date();
+    last30Days.setDate(today.getDate() - 30);
+
+    const prev30Days = new Date();
+    prev30Days.setDate(last30Days.getDate() - 30);
+
+    //Ship trend
+    const userShipsLast30 = await prisma.ship.count({
+      where: { createdAt: { gte: last30Days, lt: today }, userId },
+    });
+    const userShipsPrev30 = await prisma.ship.count({
+      where: { createdAt: { gte: prev30Days, lt: last30Days }, userId },
+    });
+    const userShipsTrend = getTrend(userShipsLast30, userShipsPrev30);
+
+    /* Published ship trend */
+    const userPublishedLast30 = await prisma.ship.count({
+      where: { createdAt: { gte: last30Days, lt: today }, isPublished: true, userId },
+    });
+    const userPublishedPrev30 = await prisma.ship.count({
+      where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true, userId },
+    });
+    const userPublishedTrend = getTrend(userPublishedLast30, userPublishedPrev30);
+
+    /* Event trend */
+    const eventsLast30 = await prisma.event.count({ where: { createdAt: { gte: last30Days, lt: today } } });
+    const eventsPrev30 = await prisma.event.count({ where: { createdAt: { gte: prev30Days, lt: last30Days } } });
+    const eventsTrend = getTrend(eventsLast30, eventsPrev30);
+
+    // Fetch counts in parallel
+    const [totalShips, totalPublishedShips, totalEvents, topShips] = await Promise.all([
+      prisma.ship.count({ where: { userId } }),
+      prisma.ship.count({ where: { userId, isPublished: true } }),
+      prisma.event.count({ where: { userId } }),
+      prisma.ship.findMany({
+        where: { userId },
+        orderBy: { clicks: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          shipName: true,
+          imo: true,
+          clicks: true,
+          price: true,
+          mainImage: true,
+        },
+      }),
+    ]);
+
+    res.json({
+      totalShips,
+      totalPublishedShips,
+      totalEvents,
+      userPublishedTrend,
+      userShipsTrend,
+      eventsTrend,
+      topShips,
+    });
+  } catch (error) {
+    console.error("Error fetching user stats:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -1,10 +1,11 @@
 import express from "express";
 import { authAdmin, authenticateUser } from "../middleware";
-import { getDashboardStatistic, getEarnings } from "../controllers/dashboardController";
+import { getAdminDashboardStatistic, getEarnings, getCurrentUserStats } from "../controllers/dashboardController";
 
 const router = express.Router();
 
-router.get("/statistic", authenticateUser, getDashboardStatistic);
-router.get("/earnings", authenticateUser, authAdmin, getEarnings);
+router.get("/admin-statistic", authenticateUser, authAdmin, getAdminDashboardStatistic);
+router.get("/admin-earnings", authenticateUser, authAdmin, getEarnings);
+router.get("/user-statistic", authenticateUser, getCurrentUserStats);
 
 export default router;
