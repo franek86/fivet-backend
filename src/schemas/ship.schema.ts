@@ -53,6 +53,7 @@ export const EditShipSchema = z.object({
   remarks: z.string().optional(),
   description: z.string().optional(),
   isPublished: z.coerce.boolean().optional(),
+  mainImageAlt: z.string().optional(),
   // Do NOT include mainImage or images here
 });
 

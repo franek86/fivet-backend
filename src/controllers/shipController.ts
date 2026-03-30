@@ -42,19 +42,6 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     // Upload main image
     const mainImagePromise = uploadSingleFile(mainImageFile.buffer, "ship/mainImage");
 
-    // Upload main image
-    /*   const { url: mainImageUrl, publicId: mainImageId } = await uploadSingleFile(files.mainImage[0].buffer, "ship/mainImage");
-    const mainImageAlt = req.body.mainImageAlt || ""; */
-
-    // Upload multiple images
-    /*  let imagesData: { url: string; publicId: string }[] = [];
-
-    if (files?.images?.length) {
-      imagesData = await uploadMultipleFiles(files.images, "ship/images");
-    } */
-
-    // Image meta for frontend
-    /*  let imagesMeta: { alt?: string }[] = []; */
     // Upload multiple images in parallel
     const imagesFiles = files.images || [];
     const multipleImagesPromise = imagesFiles.length ? uploadMultipleFiles(imagesFiles, "ship/images") : Promise.resolve([]);
@@ -432,14 +419,13 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
     }
     const body = {
       ...req.body,
-      isPublished: req.body.isPublished === "true", // string -> boolean
+      isPublished: req.body.isPublished === "true",
     };
     // Validate body
     const parsed = EditShipSchema.parse(body);
 
     const files = req.files as
       | {
-          // [fieldname: string]: Express.Multer.File[];
           mainImage?: Express.Multer.File[];
           images?: Express.Multer.File[];
         }
@@ -447,10 +433,6 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
 
     let mainImageUrl = existingShip.mainImage;
     let mainImageId = existingShip.mainImagePublicId;
-
-    /* let imagesUrls = existingShip.images || [];
-    let imageIds = existingShip.imageIds || []; */
-    //let images = (existingShip.images as { url: string; alt?: string }[]) || [];
 
     /* ---------------- MAIN IMAGE UPDATE ---------------- */
     if (files?.["mainImage"]?.[0]?.buffer) {
@@ -470,23 +452,12 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
     //let deleteImageIds: string[] = [];
     let deleteImageIds: string[] = [];
 
-    /*  if (req.body.deleteImageIds) {
-      deleteImageIds = JSON.parse(req.body.deleteImageIds);
-    } */
     try {
       deleteImageIds = JSON.parse(req.body.deleteImageIds || "[]");
     } catch {
       deleteImageIds = [];
     }
 
-    // 1. delete selected images from Cloudinary
-    /*  for (const publicId of deleteImageIds) {
-      try {
-        await cloudinary.uploader.destroy(publicId);
-      } catch (err) {
-        console.log("Failed to delete image:", publicId);
-      }
-    } */
     if (deleteImageIds.length) {
       const imagesToDelete = existingShip.images.filter((img) => deleteImageIds.includes(img.id));
 
@@ -505,10 +476,6 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
     }
 
     // 2. remove them from arrays
-    /*  imageIds = imageIds.filter((id) => !deleteImageIds.includes(id));
-    imagesUrls = imagesUrls.filter((_, index) => !deleteImageIds.includes(existingShip.imageIds[index]));
- */
-    //images = images.filter((img) => !deleteImageUrls.includes(img.url));
 
     /* Multiple image update */
     let newImages: any[] = [];
@@ -517,9 +484,7 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
       const newUploads = await uploadMultipleFiles(files.images, "ship/images");
 
       let imagesMeta: { alt?: string }[] = [];
-      //add new images
-      /*  imagesUrls = [...imagesUrls, ...newImages.map((img) => img.url)];
-      imageIds = [...imageIds, ...newImages.map((img) => img.publicId)]; */
+
       try {
         imagesMeta = JSON.parse(req.body.imagesMeta || "[]");
       } catch {
@@ -531,8 +496,26 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
         url: img.url,
         publicId: img.publicId,
       }));
-      //images = [...images, ...newImages];
     }
+
+    let existingImagesMeta: { id: string; alt?: string }[] = [];
+
+    try {
+      existingImagesMeta = JSON.parse(req.body.existingImagesMeta || "[]");
+    } catch {
+      existingImagesMeta = [];
+    }
+
+    console.log(existingImagesMeta);
+
+    await Promise.all(
+      existingImagesMeta.map((img) =>
+        prisma.shipImages.updateMany({
+          where: { id: img.id, shipId: id },
+          data: { alt: img.alt ?? "" },
+        }),
+      ),
+    );
 
     const updatedShip = await prisma.ship.update({
       where: { id },
@@ -540,12 +523,14 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
         ...parsed,
         mainImage: mainImageUrl,
         mainImagePublicId: mainImageId,
+        mainImageAlt: req.body.mainImageAlt ?? existingShip.mainImageAlt,
         images: {
-          create: newImages,
+          create: newImages.map((img) => ({
+            alt: img.alt,
+            url: img.url,
+            publicId: img.publicId,
+          })),
         },
-
-        /* images: imagesUrls,
-        imageIds: imageIds, */
       },
     });
 
