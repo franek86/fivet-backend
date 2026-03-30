@@ -30,11 +30,6 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) throw new ValidationError("User already exists with this email");
 
-    /* await checkOtpRestrictions(email, next);
-    await trackOtpRequest(email, next); */
-
-    //existing otp
-
     // generate otp
     const otp = generateOtp(6);
 
@@ -58,14 +53,13 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 /* VERIFY USER WITH OTP */
 export const verifyUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, fullName, password, subscription, otp } = req.body;
+    const { email, fullName, address, zipCode, city, country, password, subscription, otp } = req.body;
 
-    if (!email || !fullName || !password || !subscription || !otp) return next(new ValidationError("All fields are required!"));
+    if (!email || !fullName || !address || !zipCode || !city || !country || !password || !subscription || !otp)
+      return next(new ValidationError("All fields are required!"));
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return next(new ValidationError("User already exists!"));
-
-    //await verifyOtp(email, otp, next);
 
     const recordOtp = await prisma.otp.findUnique({ where: { email } });
     if (!recordOtp) {
@@ -94,6 +88,10 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         email,
         password: hashedPassword,
         fullName,
+        address,
+        zipCode,
+        city,
+        country,
         subscription,
         isActiveSubscription: false,
         profile: {

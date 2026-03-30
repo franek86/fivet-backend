@@ -72,6 +72,10 @@ model User {
 
   isActive    Boolean @default(false)
   lastLogin   DateTime?
+
+  address     String?
+  zipCode     String?
+  city        String?
   country     String?
 
   profile     Profile?
