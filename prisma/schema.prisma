@@ -56,6 +56,21 @@ enum PaymentStatus {
   CANCELED   
 }
 
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BlockType {
+  PARAGRAPH
+  HEADING
+  IMAGE
+  QUOTE
+  CODE
+  LIST
+}
+
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
@@ -83,6 +98,7 @@ model User {
   addressBook AddressBook[]
   events Event[]
   notifications Notification[]
+  posts Post[]
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -99,7 +115,7 @@ model Profile {
   id       Int  @id @default(autoincrement())
   fullName String?
   avatar   String?
-  user     User    @relation(fields: [userId], references: [id])
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId   String  @unique
   createdAt   DateTime     @default(now())
   updatedAt DateTime @updatedAt
@@ -240,4 +256,83 @@ model Payment {
   currency String @default("EUR")
   stripePaymentId String
   createdAt DateTime @default(now())
+}
+
+model Post {
+  id String @id @default(uuid())
+
+  author User @relation(fields: [authorId], references: [id])
+  authorId String
+
+  title String
+  subTitle String?
+  slug String @unique @default("post-slug")
+  status PostStatus @default(DRAFT)
+
+  blocks PostBlock[]
+
+  category PostCategory? @relation(fields: [categoryId], references: [id])
+  categoryId Int?
+
+  tags String[]
+
+  bannerImage String?
+  bannerImageAlt String?
+  gallery PostGallery[]
+
+  publishedAt DateTime?
+
+  metaTitle String?
+  metaDescription String?
+  metaKeywords String?
+
+  ogImage String?
+  canonicalUrl String?
+
+  readingTime Int?
+  views Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status])
+}
+
+model PostBlock {
+  id      String    @id @default(uuid())
+
+  postId  String
+  post    Post   @relation(fields: [postId], references: [id],onDelete: Cascade)
+
+  text      String?   @db.Text
+  imageUrl  String?
+  imageAlt  String?
+
+  order     Int
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model PostGallery {
+  id      String    @id @default(uuid())
+  alt     String?
+  url     String
+  publicId String?
+
+  postId  String
+  post    Post   @relation(fields: [postId], references: [id],onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model PostCategory {
+  id Int  @id @default(autoincrement())
+  title String
+
+  post Post[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
