@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../prismaClient";
 
 import { CreatePostSchema } from "../schemas/post.schema";
+import { uploadSingleFile } from "../cloudinaryConfig";
 
 /* Create post. admin only */
 export const createPost = async (req: Request, res: Response) => {
@@ -12,11 +13,34 @@ export const createPost = async (req: Request, res: Response) => {
   } */
 
   try {
+    const files = req.files as {
+      bannerImage?: Express.Multer.File[];
+    };
+
+    let bannerImageUrl;
+    let bannerImagePublicId;
+
+    if (files.bannerImage?.length) {
+      const bannerImage = files.bannerImage[0];
+
+      const upload = await uploadSingleFile(bannerImage.buffer, "posts/bannerImage");
+
+      bannerImageUrl = upload.url;
+      bannerImagePublicId = upload.publicId;
+    }
+
     const validateData = CreatePostSchema.parse(req.body);
+    if (!validateData) {
+      return res.status(400).json({ message: "Validation failed" });
+    }
+
+    console.log(validateData);
+    return;
 
     const newPost = await prisma.post.create({
       data: {
         ...validateData,
+        bannerImage: bannerImageUrl,
         blocks: validateData.blocks ? { create: validateData.blocks } : undefined,
         gallery: validateData.gallery ? { create: validateData.gallery } : undefined,
       },
