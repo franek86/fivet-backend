@@ -277,6 +277,7 @@ model Post {
   tags String[]
 
   bannerImage String?
+  bannerPublicId String?
   bannerImageAlt String?
   gallery PostGallery[]
 

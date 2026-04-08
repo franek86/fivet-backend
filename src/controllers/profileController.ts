@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import cloudinary, { uploadSingleFile } from "../cloudinaryConfig";
-import fs from "fs";
+
 import prisma from "../prismaClient";
 import { ValidationError } from "../helpers/error.helpers";
 
@@ -101,7 +100,7 @@ export const getUserProfile = async (req: Request<{ id: string }>, res: Response
 };
 
 /* CREATE PROFILE  */
-export const createProfile = async (req: Request, res: Response): Promise<void> => {
+/* export const createProfile = async (req: Request, res: Response): Promise<void> => {
   const { userId, fullName } = req.body;
   const avatar = req.file?.path;
 
@@ -118,11 +117,11 @@ export const createProfile = async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
-};
+}; */
 
 /* UPDATE PROFILE */
 export const updateProfile = async (req: Request, res: Response): Promise<any> => {
-  const { fullName, email } = req.body;
+  const { fullName, email, avatar } = req.body;
   const userId = req.body.userId || req.user?.userId;
 
   try {
@@ -133,18 +132,12 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
 
     if (!existingProfile) return res.status(404).json({ message: "Profile not found" });
 
-    let avatarUrl = existingProfile.avatar;
-    if (req.file) {
-      const uploadResult = await uploadSingleFile(req.file.buffer, "avatars");
-      avatarUrl = uploadResult.url;
-    }
-
     const [updateProfile, updateUser] = await prisma.$transaction([
       prisma.profile.update({
         where: { userId },
         data: {
           fullName: fullName ?? existingProfile.fullName,
-          avatar: avatarUrl,
+          avatar,
         },
       }),
       prisma.user.update({

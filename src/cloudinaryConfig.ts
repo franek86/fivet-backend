@@ -1,5 +1,8 @@
 import { v2 as cloudinary } from "cloudinary";
 
+/* Types */
+import type { UploadApiResponse } from "cloudinary";
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -60,6 +63,31 @@ export const uploadMultipleFiles = async (files: Express.Multer.File[], folder: 
   const uploadedFiles = await Promise.all(files.map(uploadFile));
 
   return uploadedFiles;
+};
+
+/* Upload blog image */
+export const uploadSingleFileToCloudinary = (buffer: Buffer, folder: string, publicId?: string): Promise<UploadApiResponse | undefined> => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        {
+          allowed_formats: ["png", "jpg", "webp"],
+          resource_type: "image",
+          folder: folder,
+          public_id: publicId,
+          transformation: { quality: "auto" },
+        },
+        (err, result) => {
+          if (err) {
+            console.log("Error uploading image to Cloundinary");
+            reject(err);
+          }
+
+          resolve(result);
+        },
+      )
+      .end(buffer);
+  });
 };
 
 export default cloudinary;

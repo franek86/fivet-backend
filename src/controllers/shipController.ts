@@ -68,8 +68,8 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
     const validateData = CreateShipSchema.parse({
       ...req.body,
-      mainImage: mainImageData.url,
-      mainImagePublicId: mainImageData.publicId,
+      mainImage: mainImageData?.url,
+      mainImagePublicId: mainImageData?.publicId,
       mainImageAlt,
       images: formattedImages,
       //imageIds: formattedImages.map((i) => i.publicId),
@@ -79,8 +79,8 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       data: {
         ...validateData,
         userId: userId,
-        mainImage: mainImageData.url,
-        mainImagePublicId: mainImageData.publicId,
+        mainImage: mainImageData?.url,
+        mainImagePublicId: mainImageData?.publicId,
         images: {
           create: formattedImages.map((img) => ({
             alt: img.alt,
@@ -444,8 +444,8 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
       //upload new main image
       const uploadMainImage = await uploadSingleFile(files["mainImage"][0].buffer, "ship/mainImage");
 
-      mainImageUrl = uploadMainImage.url;
-      mainImageId = uploadMainImage.publicId;
+      mainImageUrl = uploadMainImage?.url;
+      mainImageId = uploadMainImage?.publicId;
     }
 
     /* ---------------- DELETE IMAGES ---------------- */
