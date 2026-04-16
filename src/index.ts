@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -25,6 +25,7 @@ import { errorMiddleware } from "./middleware";
 
 /* SOCKET SERVICE */
 import { initializeSocket } from "./services/socket.service";
+import helmet from "helmet";
 
 /* CONFIGURATION */
 dotenv.config();
@@ -33,6 +34,9 @@ const app = express();
 const httpServer = http.createServer(app);
 
 app.set("trust proxy", 1);
+
+/* Security middlewears to set various http headers */
+app.use(helmet());
 
 const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Boolean);
 console.log("Allowed origins:", allowedOrigins);
@@ -66,8 +70,8 @@ app.use(cookieParser());
 initializeSocket(httpServer);
 
 /* ROUTES */
-app.get("/health", (req, res) => {
-  res.send("Welcome to api");
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "OK", message: "Servis is healthy" });
 });
 
 app.use("/auth", authRoute);

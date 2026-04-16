@@ -6,6 +6,8 @@ import { sendOtp } from "../helpers/auth.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
 import prisma from "../prismaClient";
 import { generateOtp } from "../helpers/generateOtp.helpers";
+import { ForgotPasswordSchema, LoginSchema, RegisterUserSchema, VerifyOtpSchema, VerifyUserSchema } from "../schemas/auth.schema";
+import { UserMeResponseSchema } from "../schemas/user.schema";
 
 const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
   return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
@@ -19,14 +21,14 @@ const generateRefreshToken = (userId: string, role: string, fullName: string, su
 
 /*  REGISTER NEW USER WITH OTP */
 export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
   try {
-    const { email, fullName } = req.body;
-
-    if (!emailRegex.test(email)) {
-      throw new ValidationError("Invalid email format!");
+    const parsed = RegisterUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(parsed.error.flatten().fieldErrors);
     }
+
+    const { email, fullName } = parsed.data;
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) throw new ValidationError("User already exists with this email");
 
@@ -53,10 +55,11 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 /* VERIFY USER WITH OTP */
 export const verifyUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, fullName, address, zipCode, city, country, password, subscription, otp } = req.body;
-
-    if (!email || !fullName || !address || !zipCode || !city || !country || !password || !subscription || !otp)
-      return next(new ValidationError("All fields are required!"));
+    const parsed = VerifyUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(parsed.error.flatten().fieldErrors);
+    }
+    const { email, fullName, password, otp } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return next(new ValidationError("User already exists!"));
@@ -88,12 +91,6 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         email,
         password: hashedPassword,
         fullName,
-        address,
-        zipCode,
-        city,
-        country,
-        subscription,
-        isActiveSubscription: false,
         profile: {
           create: {
             fullName,
@@ -130,8 +127,13 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
 /* LOGIN USER WITH ACCESS AND REFRESH TOKEN */
 export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, password, rememberMe } = req.body;
-    if (!email || !password) throw new ValidationError("Email and password are required!");
+    const parsed = LoginSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return next(parsed.error.flatten().fieldErrors);
+    }
+
+    const { email, password, rememberMe } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new AuthError("User does not exists.");
@@ -197,10 +199,14 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 /* AUTHENTICATED USER */
 export const userMe = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const authUser = req.user;
-    if (!authUser) throw new ValidationError("User not found.");
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ValidationError("Unauthorized");
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: authUser?.userId as string },
+      where: { id: userId },
       select: {
         id: true,
         email: true,
@@ -220,21 +226,27 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
       },
     });
 
-    if (!user) return res.status(500).json({ message: "User not found" });
-    const result = {
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+    const response = {
       id: user.id,
       role: user.role,
       subscription: user.subscription,
-      activeUser: user.isActive,
+      isActive: user.isActive,
       verifyPayment: user.verifyPayment,
       isActiveSubscription: user.isActiveSubscription,
-      profile: {
-        ...user.profile,
-        email: user.email,
-      },
+      profile: user.profile
+        ? {
+            ...user.profile,
+            email: user.email,
+          }
+        : null,
     };
 
-    res.json(result);
+    const validatedResponse = UserMeResponseSchema.parse(response);
+
+    return res.status(200).json(validatedResponse);
   } catch (error) {
     next(error);
   }
@@ -257,8 +269,12 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
 /* FORGOT PASSWORD */
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
-    if (!email) throw new ValidationError("Email is required");
+    const parsed = ForgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(parsed.error.flatten().fieldErrors);
+    }
+
+    const { email } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new ValidationError("User not found.");
@@ -294,10 +310,13 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 /* VERIFY FORGOT PASSWORD OTP*/
 export const verifyForgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp) throw new ValidationError("Email and OTP are required");
+    const parsed = VerifyOtpSchema.safeParse(req.body);
 
-    //await verifyOtp(email, otp, next);
+    if (!parsed.success) {
+      return next(parsed.error.flatten().fieldErrors);
+    }
+
+    const { email, otp } = parsed.data;
 
     const recordOtp = await prisma.otp.findUnique({ where: { email } });
     if (!recordOtp) {

@@ -36,8 +36,8 @@ export const CreatePostSchema = z.object({
   metaKeywords: z.string().optional(),
   ogImage: z.string().url().optional(),
   canonicalUrl: z.string().url().optional(),
-  readingTime: z.number().int().positive().optional(),
-  views: z.number().int().positive().default(0),
+  /* readingTime: z.number().int().positive().optional(),
+  views: z.number().int().positive().default(0), */
 });
 
 export const UpdatePostSchema = CreatePostSchema.partial();
