@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import { uploadSingleFileToCloudinary } from "../cloudinaryConfig";
-import prisma from "src/prismaClient";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 

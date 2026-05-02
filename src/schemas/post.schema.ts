@@ -6,7 +6,7 @@ export const PostBlockSchema = z.object({
   text: z.string().optional(),
   imageUrl: z.string().url().optional(),
   imageAlt: z.string().optional(),
-  order: z.number().int().min(0),
+  order: z.number().int().min(0).default(0),
 });
 
 export const PostGallerySchema = z.object({
@@ -27,7 +27,7 @@ export const CreatePostSchema = z.object({
   tags: z.array(z.string()).default([]),
   bannerImage: z.string().url().optional(),
   bannerImageAlt: z.string().optional(),
-  categoryId: z.number().int().optional(),
+  categoryId: z.coerce.number().int().positive().optional(),
   blocks: z.array(PostBlockSchema).optional(),
   gallery: z.array(PostGallerySchema).default([]),
   publishedAt: z.coerce.date().optional(),
