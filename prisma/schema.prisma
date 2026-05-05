@@ -262,6 +262,7 @@ model Post {
 
   title String
   subTitle String?
+  shortDescription String?
   slug String @unique @default("post-slug")
   status PostStatus @default(DRAFT)
 

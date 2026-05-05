@@ -19,6 +19,7 @@ export const CreatePostSchema = z.object({
   authorId: z.string().uuid(),
   title: z.string().min(1),
   subTitle: z.string().optional(),
+  shortDescription: z.string().optional(),
   slug: z
     .string()
     .min(1)

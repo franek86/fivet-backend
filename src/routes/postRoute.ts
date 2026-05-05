@@ -1,5 +1,5 @@
 import express from "express";
-import { createPost } from "../controllers/postController";
+import { createPost, getAllPosts, getPublishedPosts } from "../controllers/postController";
 
 import { authAdmin, authenticateUser } from "../middleware";
 import upload from "../middleware/uploads";
@@ -16,5 +16,7 @@ router.post(
   ]),
   createPost,
 );
+router.get("/", authenticateUser, authAdmin, getAllPosts);
+router.get("/published", getPublishedPosts);
 
 export default router;
