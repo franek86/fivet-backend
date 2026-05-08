@@ -1,5 +1,5 @@
 import express from "express";
-import { createPost, getAllPosts, getPublishedPosts } from "../controllers/postController";
+import { createPost, deletePost, getAllPosts, getPublishedPosts } from "../controllers/postController";
 
 import { authAdmin, authenticateUser } from "../middleware";
 import upload from "../middleware/uploads";
@@ -18,5 +18,6 @@ router.post(
 );
 router.get("/", authenticateUser, authAdmin, getAllPosts);
 router.get("/published", getPublishedPosts);
+router.delete("/:id", authenticateUser, authAdmin, deletePost);
 
 export default router;

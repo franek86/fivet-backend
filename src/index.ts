@@ -19,6 +19,7 @@ import webhookStripeRoute from "./routes/stripeWebhookRoute";
 import stripeRoute from "./routes/stripeRoute";
 import paymentsRoute from "./routes/paymentsRoute";
 import postRoute from "./routes/postRoute";
+import postCategoryRoute from "./routes/postCategoryRoute";
 
 /* MIDDLEWARES */
 import { errorMiddleware } from "./middleware";
@@ -85,6 +86,7 @@ app.use("/dashboard", dashboardRoute);
 app.use("/stripe", stripeRoute);
 app.use("/payments", paymentsRoute);
 app.use("/posts", postRoute);
+app.use("/posts-category", postCategoryRoute);
 
 app.use(errorMiddleware);
 

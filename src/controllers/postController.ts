@@ -5,6 +5,7 @@ import { CreatePostSchema } from "../schemas/post.schema";
 import { uploadSingleFileToCloudinary } from "../cloudinaryConfig";
 import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
+import { blogFilters } from "../utils/blogFilters";
 
 /* Create post. admin only */
 export const createPost = async (req: Request, res: Response) => {
@@ -29,19 +30,21 @@ export const createPost = async (req: Request, res: Response) => {
     const blocks = req.body.blocks;
     const blockImages = files.blockImages || [];
 
-    const createdBlocks = await Promise.all(
-      blocks.map(async (block: any, index: number) => {
-        const imageFile = blockImages[index];
+    const createdBlocks = blocks
+      ? await Promise.all(
+          blocks.map(async (block: any, index: number) => {
+            const imageFile = blockImages[index];
 
-        const image = imageFile ? await uploadSingleFileToCloudinary(imageFile.buffer, "posts/blockImage") : null;
+            const image = imageFile ? await uploadSingleFileToCloudinary(imageFile.buffer, "posts/blockImage") : null;
 
-        return {
-          text: block.text,
-          imageAlt: block.imageAlt,
-          imageUrl: image?.secure_url,
-        };
-      }),
-    );
+            return {
+              text: block.text,
+              imageAlt: block.imageAlt,
+              imageUrl: image?.secure_url,
+            };
+          }),
+        )
+      : undefined;
 
     const validateData = CreatePostSchema.parse({
       ...req.body,
@@ -72,17 +75,18 @@ export const createPost = async (req: Request, res: Response) => {
 export const getAllPosts = async (req: Request, res: Response) => {
   try {
     const { page, skip, limit } = parsePagination(req.query);
-
+    const filters = blogFilters(req.query);
     const { sortBy } = req.query;
     const orderBy = parseSortBy(sortBy as string, ["status", "views", "createdAt"], { createdAt: "desc" });
 
     const [posts, totalPosts] = await Promise.all([
       prisma.post.findMany({
         skip,
+        where: filters,
         take: limit,
         orderBy,
       }),
-      prisma.post.count(),
+      prisma.post.count({ where: filters }),
     ]);
 
     const meta = buildPageMeta(totalPosts, page, limit);
@@ -123,6 +127,31 @@ export const getPublishedPosts = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* 
+DELETE POST BY ID 
+*/
+export const deletePost = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  try {
+    const currentPost = await prisma.post.findUnique({ where: { id } });
+
+    if (!currentPost) {
+      res.status(404).json({ message: "Post not found" });
+    }
+
+    await prisma.post.delete({
+      where: { id },
+    });
+
+    res.status(200).json({
+      message: "Post deleted successfully",
+    });
+  } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
 };
