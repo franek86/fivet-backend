@@ -217,7 +217,7 @@ export const getCurrentUserStats = async (req: Request, res: Response): Promise<
 /* 
   EARNINGS
  */
-export const getEarnings = async (req: Request, res: Response) => {
+/* export const getEarningsOld = async (req: Request, res: Response) => {
   const period = req.query.period as string;
 
   const PERIOD_WINDOWS: Record<string, number> = {
@@ -314,6 +314,73 @@ export const getEarnings = async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}; */
+
+export const getEarnings = async (_req: Request, res: Response) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { status: "PAID" },
+      select: {
+        amount: true,
+        createdAt: true,
+      },
+    });
+
+    const weekMap = new Map<string, number>();
+    const monthMap = new Map<string, number>();
+    const yearMap = new Map<string, number>();
+
+    for (const p of payments) {
+      const date = new Date(p.createdAt);
+
+      // ---------------- WEEK ----------------
+      const weekKey = `${date.getFullYear()}-W${Math.ceil((date.getDate() + 6 - date.getDay()) / 7)}`;
+      weekMap.set(weekKey, (weekMap.get(weekKey) || 0) + p.amount);
+
+      // ---------------- MONTH ----------------
+      const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + p.amount);
+
+      // ---------------- YEAR ----------------
+      const yearKey = `${date.getFullYear()}`;
+      yearMap.set(yearKey, (yearMap.get(yearKey) || 0) + p.amount);
+    }
+
+    const formatMap = (map: Map<string, number>, type: "week" | "month" | "year") => {
+      return Array.from(map.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => {
+          let name = key;
+
+          if (type === "month") {
+            const [, m] = key.split("-");
+            name = new Date(2024, Number(m) - 1).toLocaleString("en", {
+              month: "short",
+            });
+          }
+
+          if (type === "week") {
+            name = key.split("-")[1]; // W1, W2...
+          }
+
+          return {
+            name,
+            v: value,
+          };
+        });
+    };
+
+    res.json({
+      earningsData: {
+        weeks: formatMap(weekMap, "week"),
+        months: formatMap(monthMap, "month"),
+        year: formatMap(yearMap, "year"),
+      },
+    });
+  } catch (err) {
+    console.error("getEarnings error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
