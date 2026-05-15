@@ -481,9 +481,9 @@ export const getEarnings = async (_req: Request, res: Response) => {
 };
 
 export const getGeoWorld = async (req: Request, res: Response) => {
-  const filePath = path.join(__dirname, "../../public/geo/world.json");
+  const filePath = path.join(process.cwd(), "public/geo/world.json");
   console.log(filePath);
-  const file = fs.readFileSync(filePath, "utf-8");
+  const file = await fs.promises.readFile(filePath, "utf-8");
 
   res.setHeader("Content-Type", "application/json");
 
