@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
-import path from "path";
-import fs from "fs";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -477,22 +475,3 @@ export const getEarnings = async (_req: Request, res: Response) => {
     });
   }
 };
-
-/* export const getGeoWorld = async (req: Request, res: Response) => {
-  try {
-    const filePath = path.join(process.cwd(), "public/geo/world.json");
-    console.log(filePath);
-    const file = await fs.promises.readFile(filePath, "utf-8");
-
-    res.setHeader("Content-Type", "application/json");
-
-    // aggressive caching (VERY important for dashboards)
-    res.setHeader("Cache-Control", "public, max-age=604800, immutable"); // 7 days
-
-    res.send(file);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
- */

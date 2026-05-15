@@ -90,7 +90,7 @@ app.use("/posts", postRoute);
 app.use("/posts-category", postCategoryRoute);
 app.use(
   "/geo",
-  express.static(path.join(process.cwd(), "public/geo"), {
+  express.static(path.resolve(process.cwd(), "public/geo"), {
     maxAge: "7d",
     immutable: true,
   }),

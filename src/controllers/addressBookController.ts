@@ -65,11 +65,11 @@ export const createAddressBook = async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  const body: CreateAddressBookInput = AddressBookSchema.parse(req.body);
+  const validateData: CreateAddressBookInput = AddressBookSchema.parse(req.body);
   try {
     const addressBookData = {
-      ...body,
-      userId,
+      ...validateData,
+      userId: userId,
     };
     const createAddressBookData = await prisma.addressBook.create({ data: addressBookData });
     res.status(201).json(createAddressBookData);
