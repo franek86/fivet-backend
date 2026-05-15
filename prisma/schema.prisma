@@ -252,6 +252,8 @@ model Payment {
   currency String @default("EUR")
   stripePaymentId String
   createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
 }
 
 model Post {
