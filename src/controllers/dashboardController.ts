@@ -472,23 +472,27 @@ export const getEarnings = async (_req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("getEarnings error:", err);
-
     return res.status(500).json({
       error: "Internal server error",
     });
   }
 };
 
-export const getGeoWorld = async (req: Request, res: Response) => {
-  const filePath = path.join(process.cwd(), "public/geo/world.json");
-  console.log(filePath);
-  const file = await fs.promises.readFile(filePath, "utf-8");
+/* export const getGeoWorld = async (req: Request, res: Response) => {
+  try {
+    const filePath = path.join(process.cwd(), "public/geo/world.json");
+    console.log(filePath);
+    const file = await fs.promises.readFile(filePath, "utf-8");
 
-  res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Type", "application/json");
 
-  // aggressive caching (VERY important for dashboards)
-  res.setHeader("Cache-Control", "public, max-age=604800, immutable"); // 7 days
+    // aggressive caching (VERY important for dashboards)
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable"); // 7 days
 
-  res.send(file);
+    res.send(file);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+ */

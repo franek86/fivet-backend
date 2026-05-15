@@ -5,6 +5,7 @@ import cors from "cors";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import http from "http";
+import path from "path";
 
 /* ROUTES IMPORT*/
 import authRoute from "./routes/authRoute";
@@ -87,6 +88,13 @@ app.use("/stripe", stripeRoute);
 app.use("/payments", paymentsRoute);
 app.use("/posts", postRoute);
 app.use("/posts-category", postCategoryRoute);
+app.use(
+  "/geo",
+  express.static(path.join(process.cwd(), "public/geo"), {
+    maxAge: "7d",
+    immutable: true,
+  }),
+);
 
 app.use(errorMiddleware);
 
