@@ -1,7 +1,10 @@
 import { Response, Request } from "express";
 import { Prisma } from "@prisma/client";
-import { AddressBookSchema, CreateAddressBookInput, UpdateAddressBookInput, UpdateAddressBookSchema } from "../schemas/addressBook.schema";
 import prisma from "../prismaClient";
+import geoip from "geoip-lite";
+
+import { countries } from "../utils/countries";
+import { AddressBookSchema, CreateAddressBookInput, UpdateAddressBookInput, UpdateAddressBookSchema } from "../schemas/addressBook.schema";
 
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
 export const getAddressBook = async (req: Request, res: Response): Promise<void> => {
@@ -47,10 +50,6 @@ export const getSingleAddressBook = async (req: Request<{ id: string }>, res: Re
   }
   try {
     const singleData = await prisma.addressBook.findUnique({ where: { id } });
-    if (!singleData) {
-      res.status(404).json({ message: "Address book ID not found" });
-      return;
-    }
 
     res.status(200).json(singleData);
   } catch (error) {
@@ -138,6 +137,22 @@ export const deleteAddressBook = async (req: Request<{ id: string }>, res: Respo
     res.status(200).json({
       message: `Address book by ${id} deleted successfully`,
     });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* GET COUNTRY PHONE CODE BY IP */
+export const getCountryPhoneCode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.ip || req.socket.remoteAddress || "";
+    console.log("IP: ", ip);
+    const geo = geoip.lookup(ip);
+    const countryCode = geo?.country || "US";
+
+    const country = countries.find((c) => c.code === countryCode);
+
+    res.status(200).json(country);
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get("/", authenticateUser, authAdmin, getAllProfiles);
 router.get("/last-users", authenticateUser, authAdmin, getLastFiveProfile);
-router.get("/:id", authenticateUser, getUserProfile);
+router.get("/single", authenticateUser, getUserProfile);
 //router.post("/create", authenticateUser, upload.single("avatar"), createProfile);
 router.patch("/update", authenticateUser, upload.single("avatar"), profileImageUpload("put"), updateProfile);
 router.delete("/:id", authenticateUser, authAdmin, deleteUserProfile);

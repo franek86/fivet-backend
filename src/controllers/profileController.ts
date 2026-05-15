@@ -77,23 +77,23 @@ export const getLastFiveProfile = async (req: Request, res: Response) => {
 };
 
 /* GET SINGLE USER PROFILE BY ID */
-export const getUserProfile = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-  const { id } = req.params;
+export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   const { userId } = req.user as CustomJwtPayload;
 
-  if (!id) res.status(400).json({ message: "User ID is required" });
-  if (!userId) res.status(401).json({ message: "User ID can not found" });
-
-  const parsedId = parseInt(id);
+  /* if (!id) res.status(400).json({ message: "User ID is required" }); */
+  if (!userId) res.status(401).json({ message: "User id can not found" });
 
   try {
-    const data = await prisma.profile.findUnique({ where: { id: parsedId } });
+    const data = await prisma.profile.findUnique({
+      where: { userId },
+      include: { user: { select: { email: true, address: true, zipCode: true, city: true, country: true } } },
+    });
 
     if (!data) {
       res.status(404).json({ message: "Profile not found" });
     }
 
-    res.status(200).json({ data });
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -121,7 +121,7 @@ export const getUserProfile = async (req: Request<{ id: string }>, res: Response
 
 /* UPDATE PROFILE */
 export const updateProfile = async (req: Request, res: Response): Promise<any> => {
-  const { fullName, email, avatar } = req.body;
+  const { fullName, email, avatar, country, city, zipCode, address } = req.body;
   const userId = req.body.userId || req.user?.userId;
 
   try {
@@ -144,11 +144,15 @@ export const updateProfile = async (req: Request, res: Response): Promise<any> =
         where: { id: userId },
         data: {
           email: email ?? existingProfile.user.email,
+          country: country ?? existingProfile.user.country,
+          city: city ?? existingProfile.user.city,
+          zipCode: zipCode ?? existingProfile.user.zipCode,
+          address: address ?? existingProfile.user.address,
         },
       }),
     ]);
 
-    return res.status(200).json({ message: "Profile updated", profile: { ...updateProfile, email: updateUser.email } });
+    return res.status(200).json({ message: "Profile updated", status: "ok" });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
