@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../prismaClient";
 
 import { CreatePostSchema } from "../schemas/post.schema";
-import { uploadSingleFileToCloudinary } from "../cloudinaryConfig";
+import cloudinary, { uploadMultipleFiles, uploadSingleFileToCloudinary } from "../cloudinaryConfig";
 import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
 import { blogFilters } from "../utils/blogFilters";
@@ -20,6 +20,7 @@ export const createPost = async (req: Request, res: Response) => {
     const files = (req.files || {}) as {
       bannerImage?: Express.Multer.File[];
       blockImages?: Express.Multer.File[];
+      gallery?: Express.Multer.File[];
     };
 
     /* Upload banner image */
@@ -30,10 +31,29 @@ export const createPost = async (req: Request, res: Response) => {
     const blocks = req.body.blocks;
     const blockImages = files.blockImages || [];
 
+    // Upload multiple images in parallel
+    const imagesFiles = files.gallery || [];
+    const multipleImagesPromise = imagesFiles.length ? await uploadMultipleFiles(imagesFiles, "posts/blogGallery") : Promise.resolve([]);
+
+    const [bannerImageData, blockImageData, galleryData] = await Promise.all([bannerImage, blockImages, multipleImagesPromise]);
+
+    let imagesMeta: { alt?: string }[] = [];
+    try {
+      imagesMeta = JSON.parse(req.body.galleryMeta || "[]");
+    } catch {
+      imagesMeta = [];
+    }
+
+    const formattedGallery = galleryData.map((img, index) => ({
+      url: img.url,
+      publicId: img.publicId,
+      alt: imagesMeta[index]?.alt || "",
+    }));
+
     const createdBlocks = blocks
       ? await Promise.all(
           blocks.map(async (block: any, index: number) => {
-            const imageFile = blockImages[index];
+            const imageFile = blockImageData[index];
 
             const image = imageFile ? await uploadSingleFileToCloudinary(imageFile.buffer, "posts/blockImage") : null;
 
@@ -41,6 +61,7 @@ export const createPost = async (req: Request, res: Response) => {
               text: block.text,
               imageAlt: block.imageAlt,
               imageUrl: image?.secure_url,
+              blockImagePublicId: image?.public_id,
             };
           }),
         )
@@ -49,8 +70,11 @@ export const createPost = async (req: Request, res: Response) => {
     const validateData = CreatePostSchema.parse({
       ...req.body,
       authorId: String(userId),
-      bannerImage: bannerImage?.secure_url,
+      bannerImage: bannerImageData?.secure_url,
+      bannerImageAlt: bannerImageData?.alt,
+      bannerPublicId: bannerImageData?.public_id,
       blocks: createdBlocks,
+      gallery: formattedGallery,
     });
     if (!validateData) {
       return res.status(400).json({ message: "Validation failed" });
@@ -131,6 +155,61 @@ export const getPublishedPosts = async (req: Request, res: Response) => {
   }
 };
 
+/*
+  GET SINGLE BLOG BY SLUG 
+  PUBLIC
+*/
+export const getSinglePostBySlug = async (req: Request<{ slug: string }>, res: Response): Promise<any> => {
+  const { slug } = req.params;
+  if (!slug) return res.status(404).json({ message: "Post slug not exists" });
+  try {
+    const currentBlog = await prisma.post.findUnique({
+      where: { slug, status: "PUBLISHED" },
+    });
+    if (!currentBlog) {
+      res.status(404).json({
+        success: false,
+        message: "Blog not found",
+      });
+
+      return;
+    }
+
+    res.status(200).json(currentBlog);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/*
+  GET SINGLE BLOG BY SLUG 
+  PROTECTED
+*/
+export const getSinglePostBySlugProtected = async (req: Request<{ slug: string }>, res: Response): Promise<any> => {
+  const { slug } = req.params;
+  if (!slug) return res.status(404).json({ message: "Post slug not exists" });
+  try {
+    const currentBlog = await prisma.post.findUnique({
+      where: { slug },
+      include: {
+        blocks: true,
+      },
+    });
+    if (!currentBlog) {
+      res.status(404).json({
+        success: false,
+        message: "Blog not found",
+      });
+
+      return;
+    }
+
+    res.status(200).json(currentBlog);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 /* 
 DELETE POST BY ID 
 */
@@ -138,11 +217,39 @@ export const deletePost = async (req: Request<{ id: string }>, res: Response): P
   const { id } = req.params;
 
   try {
-    const currentPost = await prisma.post.findUnique({ where: { id } });
+    const currentPost = await prisma.post.findUnique({
+      where: { id },
+      include: {
+        gallery: true,
+        blocks: true,
+      },
+    });
 
     if (!currentPost) {
       res.status(404).json({ message: "Post not found" });
     }
+
+    const galleryPublicIds = currentPost?.gallery?.map((img: any) => img.publicId).filter(Boolean) || [];
+    const bannerPublicId = currentPost?.bannerPublicId;
+    const blockPublicId = currentPost?.blocks?.map((img: any) => img.blockImagePublicId).filter(Boolean) || [];
+
+    const allPublicIds = [...galleryPublicIds, bannerPublicId, blockPublicId];
+
+    // Delete only existing assets
+    await Promise.all(
+      allPublicIds.map(async (publicId) => {
+        try {
+          const result = await cloudinary.uploader.destroy(publicId);
+
+          // Cloudinary returns "not found" if asset doesn't exist
+          if (result.result !== "ok" && result.result !== "not found") {
+            console.error(`Failed to delete ${publicId}`, result);
+          }
+        } catch (error) {
+          console.error(`Error deleting ${publicId}`, error);
+        }
+      }),
+    );
 
     await prisma.post.delete({
       where: { id },

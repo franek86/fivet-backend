@@ -12,6 +12,58 @@ import { sendNotification } from "./notificationController";
 import { getIO } from "../services/socket.service";
 
 /* 
+LIMIT CREATE SHIP FOR USERS DEPEND OF SUBSCRIPTION
+Authenticate and subcribed user can create ship
+Limitations:  STANDARD 1 pre Year
+              PREMIUM 10 per Year
+*/
+export const SUBSCRIPTION_LIMITS = {
+  STARTER: { shipsPerYear: 0 },
+  STANDARD: { shipsPerYear: 1 },
+  PREMIUM: { shipsPerYear: 10 },
+} as const;
+
+export const canUserCreateShip = async (
+  userId: string,
+): Promise<{ allowed: boolean; reason?: string; shipsUsed: number; shipLimit: number }> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, subscription: true },
+  });
+
+  if (!user) throw new Error("User not found");
+  // Admins bypass all limits
+  if (user.role === "ADMIN") {
+    return { allowed: true, shipsUsed: 0, shipLimit: Infinity };
+  }
+  const limit = SUBSCRIPTION_LIMITS[user.subscription].shipsPerYear;
+
+  if (limit === 0) {
+    return { allowed: false, reason: "Upgrade your plan to create ships.", shipsUsed: 0, shipLimit: 0 };
+  }
+  // Count posts created in the current calendar year
+  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+
+  const shipsThisYear = await prisma.ship.count({
+    where: {
+      userId,
+      createdAt: { gte: startOfYear },
+    },
+  });
+
+  if (shipsThisYear >= limit) {
+    return {
+      allowed: false,
+      reason: `You've reached your ${limit} ship/year limit for your plan.`,
+      shipsUsed: shipsThisYear,
+      shipLimit: limit,
+    };
+  }
+
+  return { allowed: true, shipsUsed: shipsThisYear, shipLimit: limit };
+};
+
+/* 
 CREATE SHIP 
 Authenticate user can create ship
 */
@@ -20,6 +72,10 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
   if (!userId) {
     res.status(401).json({ message: "Unauthorized" });
     return;
+  }
+  const check = await canUserCreateShip(userId);
+  if (!check.allowed) {
+    throw new Error(check.reason);
   }
 
   try {
@@ -506,8 +562,6 @@ export const updateShip = async (req: Request<{ id: string }>, res: Response): P
       existingImagesMeta = [];
     }
 
-    console.log(existingImagesMeta);
-
     await Promise.all(
       existingImagesMeta.map((img) =>
         prisma.shipImages.updateMany({
@@ -552,11 +606,24 @@ export const deleteShip = async (req: Request<{ id: string }>, res: Response): P
   const { id } = req.params;
 
   try {
-    const ship = await prisma.ship.findUnique({ where: { id } });
+    const ship = await prisma.ship.findUnique({
+      where: { id },
+      include: {
+        images: true,
+      },
+    });
 
     if (!ship) {
       res.status(404).json({ message: "Ship not found" });
     }
+
+    const galleryPublicIds = ship?.images?.map((img: any) => img.publicId) || [];
+    const bannerPublicId = ship?.mainImagePublicId;
+
+    const allPublicIds = [...galleryPublicIds, bannerPublicId].filter(Boolean);
+
+    // 2. Delete from Cloudinary (parallel)
+    await Promise.all(allPublicIds.map((publicId) => cloudinary.uploader.destroy(publicId)));
 
     await prisma.ship.delete({
       where: { id },

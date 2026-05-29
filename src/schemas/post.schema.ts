@@ -2,10 +2,21 @@ import z from "zod";
 
 export const PostStatusEnum = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
+// single item inside a column cell
+const columnItemSchema = z.object({
+  id: z.string(),
+  type: z.enum(["text", "image"]),
+});
+
+// one column = array of items
+const columnSchema = z.array(columnItemSchema);
+
 export const PostBlockSchema = z.object({
   text: z.string().optional(),
   imageUrl: z.string().url().optional(),
   imageAlt: z.string().optional(),
+
+  blockImagePublicId: z.string().optional(),
   order: z.number().int().min(0).default(0),
 });
 
@@ -28,6 +39,7 @@ export const CreatePostSchema = z.object({
   tags: z.array(z.string()).default([]),
   bannerImage: z.string().url().optional(),
   bannerImageAlt: z.string().optional(),
+  bannerPublicId: z.string().optional(),
   categoryId: z.coerce.number().int().positive().optional(),
   blocks: z.array(PostBlockSchema).optional(),
   gallery: z.array(PostGallerySchema).default([]),

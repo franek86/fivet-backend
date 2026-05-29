@@ -58,14 +58,6 @@ enum PostStatus {
   ARCHIVED
 }
 
-enum BlockType {
-  PARAGRAPH
-  HEADING
-  IMAGE
-  QUOTE
-  CODE
-  LIST
-}
 
 model User {
   id          String       @id @default(uuid())
@@ -308,6 +300,7 @@ model PostBlock {
   text      String?   @db.Text
   imageUrl  String?
   imageAlt  String?
+  blockImagePublicId String?
 
   order     Int
   createdAt DateTime @default(now())
