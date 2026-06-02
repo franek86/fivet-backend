@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
 
-import { CreatePostSchema } from "../schemas/post.schema";
+import { CreatePostSchema, UpdatePostSchema } from "../schemas/post.schema";
 import cloudinary, { uploadMultipleFiles, uploadSingleFileToCloudinary } from "../cloudinaryConfig";
 import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
@@ -260,5 +260,185 @@ export const deletePost = async (req: Request<{ id: string }>, res: Response): P
     });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* UPDATED POST BY ID
+  PROTECTED - ADMIN ONLY
+*/
+export const updatePost = async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  const id = req.params.id as string;
+
+  /* if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  } */
+
+  try {
+    const existingPost = await prisma.post.findUnique({
+      where: { id },
+      include: {
+        blocks: true,
+        gallery: true,
+      },
+    });
+
+    if (!existingPost) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const files = (req.files || {}) as {
+      bannerImage?: Express.Multer.File[];
+      blockImages?: Express.Multer.File[];
+      gallery?: Express.Multer.File[];
+    };
+
+    /* ---------------- Banner ---------------- */
+
+    let bannerImageUrl = existingPost?.bannerImage || undefined;
+    let bannerPublicId = existingPost?.bannerPublicId || undefined;
+
+    const bannerFile = files.bannerImage?.[0];
+
+    if (bannerFile) {
+      // delete old banner if exists
+      if (existingPost.bannerPublicId) {
+        //await deleteFileFromCloudinary(existingPost.bannerPublicId);
+      }
+
+      const uploadedBanner = await uploadSingleFileToCloudinary(bannerFile.buffer, "posts/bannerImage");
+
+      bannerImageUrl = uploadedBanner?.secure_url;
+      bannerPublicId = uploadedBanner?.public_id;
+    }
+
+    /* ---------------- Gallery ---------------- */
+
+    let formattedGallery: any[] = [];
+
+    const galleryFiles = files.gallery || [];
+
+    if (galleryFiles.length > 0) {
+      // remove old gallery images
+      await Promise.all(
+        existingPost.gallery.map(async (img) => {
+          if (img.publicId) {
+            //await deleteFileFromCloudinary(img.publicId);
+          }
+        }),
+      );
+
+      const uploadedGallery = await uploadMultipleFiles(galleryFiles, "posts/blogGallery");
+
+      let imagesMeta: { alt?: string }[] = [];
+
+      try {
+        imagesMeta = JSON.parse(req.body.galleryMeta || "[]");
+      } catch {
+        imagesMeta = [];
+      }
+
+      formattedGallery = uploadedGallery.map((img, index) => ({
+        url: img.url,
+        publicId: img.publicId,
+        alt: imagesMeta[index]?.alt || "",
+      }));
+    }
+
+    /* ---------------- Blocks ---------------- */
+
+    let blocks = [];
+
+    try {
+      blocks = JSON.parse(req.body.blocks || "[]");
+    } catch {
+      blocks = [];
+    }
+    const blockImages = files.blockImages || [];
+
+    const createdBlocks = blocks
+      ? await Promise.all(
+          blocks.map(async (block: any, index: number) => {
+            const imageFile = blockImages[index];
+
+            let imageUrl = block.imageUrl || null;
+            let publicId = block.blockImagePublicId || null;
+
+            if (imageFile) {
+              if (publicId) {
+                //await deleteFileFromCloudinary(publicId);
+              }
+
+              const uploadedImage = await uploadSingleFileToCloudinary(imageFile.buffer, "posts/blockImage");
+
+              imageUrl = uploadedImage?.secure_url;
+              publicId = uploadedImage?.public_id;
+            }
+
+            return {
+              text: block.text,
+              imageAlt: block.imageAlt,
+              imageUrl,
+              order: block.order,
+              blockImagePublicId: publicId,
+            };
+          }),
+        )
+      : undefined;
+
+    /*------------------ Tags --------------------- */
+    const tagsParse = typeof req.body.tags === "string" ? JSON.parse(req.body.tags) : req.body.tags;
+
+    /* ---------------- Validation ---------------- */
+
+    const validatedData = UpdatePostSchema.parse({
+      ...req.body,
+      tags: tagsParse,
+      bannerImage: bannerImageUrl,
+      bannerPublicId,
+      blocks: createdBlocks,
+      gallery: formattedGallery.length > 0 ? formattedGallery : undefined,
+    });
+
+    /* ---------------- Update ---------------- */
+
+    const updatedPost = await prisma.post.update({
+      where: { id },
+      data: {
+        title: validatedData.title,
+        slug: validatedData.slug,
+        shortDescription: validatedData.shortDescription,
+        tags: validatedData.tags,
+        bannerImageAlt: validatedData.bannerImageAlt,
+        bannerImage: bannerImageUrl,
+        bannerPublicId,
+
+        blocks: {
+          deleteMany: {},
+          create: createdBlocks,
+        },
+
+        ...(formattedGallery.length > 0 && {
+          gallery: {
+            deleteMany: {},
+            create: formattedGallery,
+          },
+        }),
+      },
+      include: {
+        blocks: true,
+        gallery: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Post updated successfully",
+      updatedPost,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
   }
 };
