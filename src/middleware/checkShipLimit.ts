@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { canUserCreateShip } from "../controllers/shipController";
 
 const checkShipsLimit = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
   try {
-    const userId = req.user!.id;
     const check = await canUserCreateShip(userId);
 
     if (!check.allowed) {

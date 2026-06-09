@@ -19,7 +19,7 @@ Limitations:  STANDARD 1 pre Year
 */
 export const SUBSCRIPTION_LIMITS = {
   STARTER: { shipsPerYear: 0 },
-  STANDARD: { shipsPerYear: 1 },
+  STANDARD: { shipsPerYear: 20 },
   PREMIUM: { shipsPerYear: 10 },
 } as const;
 
@@ -73,12 +73,23 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
+
   const check = await canUserCreateShip(userId);
+
+  console.log(check);
   if (!check.allowed) {
     throw new Error(check.reason);
   }
 
   try {
+    const existingSlug = await prisma.ship.findUnique({ where: { slug: req.body.slug } });
+    if (existingSlug) {
+      res.status(409).json({
+        message: "A ship with this slug already exists",
+      });
+      return;
+    }
+
     const files = req.files as {
       mainImage?: Express.Multer.File[];
       images?: Express.Multer.File[];
@@ -119,16 +130,12 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       alt: imagesMeta[index]?.alt || "",
     }));
 
-    /*  const imagesUrls = imagesData?.map((i) => i.url);
-    const imageIds = imagesData?.map((id) => id.publicId); */
-
     const validateData = CreateShipSchema.parse({
       ...req.body,
       mainImage: mainImageData?.url,
       mainImagePublicId: mainImageData?.publicId,
       mainImageAlt,
       images: formattedImages,
-      //imageIds: formattedImages.map((i) => i.publicId),
     });
 
     const newShip = await prisma.ship.create({
@@ -185,6 +192,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
     const io = getIO();
     io.to("admins").emit("new-ship", {
+      role: req.user?.role,
       ownerName: fullName,
       shipTitle: newShip.shipName,
       shipIMO: newShip.imo,
