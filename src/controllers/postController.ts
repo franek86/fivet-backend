@@ -71,7 +71,6 @@ export const createPost = async (req: Request, res: Response) => {
       ...req.body,
       authorId: String(userId),
       bannerImage: bannerImageData?.secure_url,
-      bannerImageAlt: bannerImageData?.alt,
       bannerPublicId: bannerImageData?.public_id,
       blocks: createdBlocks,
       gallery: formattedGallery,
@@ -165,6 +164,9 @@ export const getSinglePostBySlug = async (req: Request<{ slug: string }>, res: R
   try {
     const currentBlog = await prisma.post.findUnique({
       where: { slug, status: "PUBLISHED" },
+      include: {
+        category: true,
+      },
     });
     if (!currentBlog) {
       res.status(404).json({
@@ -193,6 +195,8 @@ export const getSinglePostBySlugProtected = async (req: Request<{ slug: string }
       where: { slug },
       include: {
         blocks: true,
+        gallery: true,
+        category: true,
       },
     });
     if (!currentBlog) {
@@ -267,6 +271,7 @@ export const deletePost = async (req: Request<{ id: string }>, res: Response): P
   PROTECTED - ADMIN ONLY
 */
 export const updatePost = async (req: Request, res: Response) => {
+  console.log(req.body);
   const userId = req.user?.userId;
   const id = req.params.id as string;
 
@@ -294,16 +299,15 @@ export const updatePost = async (req: Request, res: Response) => {
     };
 
     /* ---------------- Banner ---------------- */
+    const bannerFile = files.bannerImage?.[0];
 
     let bannerImageUrl = existingPost?.bannerImage || undefined;
     let bannerPublicId = existingPost?.bannerPublicId || undefined;
 
-    const bannerFile = files.bannerImage?.[0];
-
+    // delete old banner if exists
     if (bannerFile) {
-      // delete old banner if exists
       if (existingPost.bannerPublicId) {
-        //await deleteFileFromCloudinary(existingPost.bannerPublicId);
+        await cloudinary.uploader.destroy(existingPost.bannerPublicId);
       }
 
       const uploadedBanner = await uploadSingleFileToCloudinary(bannerFile.buffer, "posts/bannerImage");
@@ -314,36 +318,79 @@ export const updatePost = async (req: Request, res: Response) => {
 
     /* ---------------- Gallery ---------------- */
 
+    const galleryFiles = files?.gallery || [];
+    const galleryMeta = req.body.galleryMeta || [];
+
     let formattedGallery: any[] = [];
 
-    const galleryFiles = files.gallery || [];
-
     if (galleryFiles.length > 0) {
-      // remove old gallery images
+      // delete old gallery images from Cloudinary + DB
       await Promise.all(
         existingPost.gallery.map(async (img) => {
           if (img.publicId) {
-            //await deleteFileFromCloudinary(img.publicId);
+            await cloudinary.uploader.destroy(img.publicId);
           }
         }),
       );
 
       const uploadedGallery = await uploadMultipleFiles(galleryFiles, "posts/blogGallery");
 
-      let imagesMeta: { alt?: string }[] = [];
+      /*  let imagesMeta: { alt?: string }[] = [];
 
       try {
         imagesMeta = JSON.parse(req.body.galleryMeta || "[]");
       } catch {
         imagesMeta = [];
-      }
+      } */
 
       formattedGallery = uploadedGallery.map((img, index) => ({
         url: img.url,
         publicId: img.publicId,
-        alt: imagesMeta[index]?.alt || "",
+        alt: galleryMeta[index]?.alt || "",
       }));
     }
+
+    /* ---------------- Delete selected gallery images ---------------- */
+
+    const deleteImageIds: string[] = JSON.parse(req.body.deleteImageIds || "[]");
+
+    if (deleteImageIds.length > 0) {
+      const imagesToDelete = existingPost.gallery.filter((img) => deleteImageIds.includes(img.id));
+
+      /* for (const img of imagesToDelete) {
+        if (img.publicId) {
+          await cloudinary.uploader.destroy(img.publicId);
+        }
+      } */
+
+      await Promise.all(
+        imagesToDelete.map(async (img) => {
+          if (img.publicId) {
+            await cloudinary.uploader.destroy(img.publicId);
+          }
+        }),
+      );
+
+      await prisma.postGallery.deleteMany({
+        where: {
+          id: { in: deleteImageIds },
+          postId: id,
+        },
+      });
+    }
+
+    /* ---------------- Update existing gallery meta data ---------------- */
+
+    const existingImagesMeta: { id: string; alt?: string }[] = JSON.parse(req.body.existingImagesMeta || []);
+
+    await Promise.all(
+      existingImagesMeta.map((img) => {
+        return prisma.postGallery.updateMany({
+          where: { id: img.id, postId: id },
+          data: { alt: img.alt },
+        });
+      }),
+    );
 
     /* ---------------- Blocks ---------------- */
 
@@ -366,7 +413,7 @@ export const updatePost = async (req: Request, res: Response) => {
 
             if (imageFile) {
               if (publicId) {
-                //await deleteFileFromCloudinary(publicId);
+                await cloudinary.uploader.destroy(publicId);
               }
 
               const uploadedImage = await uploadSingleFileToCloudinary(imageFile.buffer, "posts/blockImage");
@@ -397,7 +444,7 @@ export const updatePost = async (req: Request, res: Response) => {
       bannerImage: bannerImageUrl,
       bannerPublicId,
       blocks: createdBlocks,
-      gallery: formattedGallery.length > 0 ? formattedGallery : undefined,
+      gallery: formattedGallery ? formattedGallery : undefined,
     });
 
     /* ---------------- Update ---------------- */
@@ -409,18 +456,23 @@ export const updatePost = async (req: Request, res: Response) => {
         slug: validatedData.slug,
         shortDescription: validatedData.shortDescription,
         tags: validatedData.tags,
+        categoryId: validatedData.categoryId,
         bannerImageAlt: validatedData.bannerImageAlt,
         bannerImage: bannerImageUrl,
         bannerPublicId,
+
+        metaTitle: validatedData.metaTitle,
+        metaKeywords: validatedData.metaKeywords,
+        metaDescription: validatedData.metaDescription,
 
         blocks: {
           deleteMany: {},
           create: createdBlocks,
         },
 
-        ...(formattedGallery.length > 0 && {
+        ...(formattedGallery?.length > 0 && {
           gallery: {
-            deleteMany: {},
+            /* deleteMany: {}, */
             create: formattedGallery,
           },
         }),

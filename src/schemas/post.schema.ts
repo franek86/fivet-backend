@@ -12,7 +12,7 @@ const columnItemSchema = z.object({
 const columnSchema = z.array(columnItemSchema);
 
 export const PostBlockSchema = z.object({
-  text: z.string().optional(),
+  text: z.string().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
   imageAlt: z.string().nullable().optional(),
 
