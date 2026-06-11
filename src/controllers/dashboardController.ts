@@ -95,6 +95,7 @@ export const getAdminDashboardStatistic = async (req: Request, res: Response): P
       prisma.post.findMany({
         select: {
           title: true,
+          slug: true,
           createdAt: true,
           bannerImage: true,
           bannerImageAlt: true,
