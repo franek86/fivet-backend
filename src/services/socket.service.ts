@@ -28,12 +28,6 @@ export const initializeSocket = (server: http.Server) => {
     if (!cookieHeader) return next(new Error("No cookies"));
 
     try {
-      /*  const token = cookieHeader
-        .split("; ")
-        .find((c) => c.startsWith("access_token="))
-        ?.split("=")[1];
-
-      if (!token) return next(new Error("No auth token")); */
       const payload = jwt.verify(cookieHeader, process.env.JWT_SECRET as string) as CustomJwtPayload;
       socket.user = payload;
       console.log(`[SOCKET AUTH] User connected: ${payload.userId} | role: ${payload.role}`);
@@ -44,69 +38,60 @@ export const initializeSocket = (server: http.Server) => {
     }
   });
 
-  io.on("connection", async (socket: Socket) => {
-    const { userId, role } = socket.user;
+  io.on("connection", (socket: Socket) => {
+    const userId = socket.user.userId;
+    const role = socket.user.role;
 
-    if (role === "ADMIN") {
-      socket.join("admins");
-    }
-
+    //Each user joins their own room
     if (userId) {
       socket.join(`user:${userId}`);
+    }
+
+    if (role === "ADMIN") {
+      socket.join("admin-room");
     }
 
     // Add socket to user's set
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
     }
+
     onlineUsers.get(userId)!.add(socket.id);
 
-    if (onlineUsers.get(userId)!.size === 1) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isActive: true },
+    // Broadcast online users
+    if (role === "USER") {
+      socket.to("admin-room").emit("user:online", {
+        userId,
       });
     }
 
-    // Broadcast online users
-    emitOnlineUsersToAdmins();
+    // Broadcast updated count
+    if (role === "USER") {
+      socket.to("admin-room").emit("user:count", {
+        count: onlineUsers.size,
+      });
+    }
 
-    socket.on("disconnect", async () => {
-      // Remove socket
-      const userSockets = onlineUsers.get(userId);
+    socket.on("disconnect", () => {
+      const sockets = onlineUsers.get(userId);
+      if (!sockets) return;
 
-      if (!userSockets) return;
+      sockets.delete(socket.id);
 
-      userSockets.delete(socket.id);
+      const isOffline = sockets.size === 0;
 
-      if (userSockets.size === 0) {
+      if (isOffline) {
         onlineUsers.delete(userId);
-
-        await prisma.user.update({
-          where: { id: userId },
-          data: { isActive: false },
-        });
-
-        emitOnlineUsersToAdmins();
+        if (role === "USER") {
+          socket.to("admin-room").emit("user:offline", {
+            userId,
+          });
+        }
       }
-    });
 
-    socket.on("logout", async () => {
-      const userSockets = onlineUsers.get(socket.user.userId);
-      if (!userSockets) return;
-
-      userSockets.delete(socket.id);
-
-      if (userSockets.size === 0) {
-        onlineUsers.delete(socket.user.userId);
-
-        await prisma.user.update({
-          where: { id: socket.user.userId },
-          data: { isActive: false },
-        });
-
-        emitOnlineUsersToAdmins();
-      }
+      socket.to("admin-room").emit("user:count", {
+        count: onlineUsers.size,
+      });
     });
   });
 };
@@ -115,13 +100,3 @@ export const getIO = () => {
   if (!io) throw new Error("Socket.io not initialized");
   return io;
 };
-
-async function emitOnlineUsersToAdmins() {
-  const onlineUserIds = Array.from(onlineUsers.keys());
-
-  const users = await prisma.user.findMany({
-    where: { id: { in: onlineUserIds } },
-  });
-
-  io.to("admins").emit("online-users", { users, count: onlineUsers.size });
-}

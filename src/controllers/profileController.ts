@@ -3,6 +3,7 @@ import { CustomJwtPayload } from "../middleware/verifyToken";
 
 import prisma from "../prismaClient";
 import { ValidationError } from "../helpers/error.helpers";
+import { onlineUsers } from "../services/socket.service";
 
 /* GET ALL USER PROFILE
 ONLY ADMIN CAN SEE ALL USER
@@ -41,7 +42,12 @@ export const getAllProfiles = async (req: Request, res: Response): Promise<void>
       orderBy: { createdAt: "desc" },
     });
 
-    res.status(200).json(usersData);
+    const usersWithStatus = usersData.map((u) => ({
+      ...u,
+      online: onlineUsers.has(u.id),
+    }));
+
+    res.status(200).json(usersWithStatus);
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

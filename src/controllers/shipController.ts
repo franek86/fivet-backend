@@ -189,15 +189,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
-
-    const io = getIO();
-    io.to("admins").emit("new-ship", {
-      role: req.user?.role,
-      ownerName: fullName,
-      shipTitle: newShip.shipName,
-      shipIMO: newShip.imo,
-      createdAt: formatDate(newShip.createdAt.toISOString()),
-    });
+    //TO DO: Realtime message
 
     res.status(201).json({
       message: "Ship added successfully! Awaiting admin approval.",
@@ -316,12 +308,8 @@ export const updatePublishedShip = async (req: Request<{ id: string }>, res: Res
     const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
     if (isPublished && updatedShip.userId) {
       await sendNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
+
       // Send real-time notification to the ship owner
-      const io = getIO();
-      io.to(`user:${updatedShip.userId}`).emit("ship-published", {
-        shipTitle: updatedShip.shipName,
-        createdAt: formatDate(updatedShip.createdAt.toISOString()),
-      });
     }
 
     res.status(200).json(updatedShip);
