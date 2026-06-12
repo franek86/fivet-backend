@@ -155,8 +155,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       },
     });
 
-    /* call notification for admin when ship created */
-    /* Find admin first */
+    /* Send email to admin */
     const admin = await prisma.user.findFirst({
       where: { role: "ADMIN" },
       select: {
@@ -176,10 +175,8 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     };
     const emailToSend = admin?.email ?? "";
 
-    /* add notification */
+    /* Add notification */
     if (req.user!.role !== "ADMIN" && admin) {
-      //emit event to all admins new ship
-
       await prisma.notification.create({
         data: {
           message: `${fullName} created a new ship: ${newShip.shipName}`,
@@ -189,7 +186,14 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
-    //TO DO: Realtime message
+
+    // Notify admin(s) in realtime
+    const io = getIO();
+    const payload = {
+      shipId: newShip.id,
+      shipName: newShip.shipName,
+    };
+    io.to("admin-room").emit("ship:created", payload);
 
     res.status(201).json({
       message: "Ship added successfully! Awaiting admin approval.",
@@ -309,7 +313,13 @@ export const updatePublishedShip = async (req: Request<{ id: string }>, res: Res
     if (isPublished && updatedShip.userId) {
       await sendNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
 
-      // Send real-time notification to the ship owner
+      // Notify the blog author in realtime
+      const io = getIO();
+      const payload = {
+        shipId: updatedShip.id,
+        shipName: updatedShip.shipName,
+      };
+      io.to(`user:${updatedShip.userId}`).emit("ship:published", payload);
     }
 
     res.status(200).json(updatedShip);
