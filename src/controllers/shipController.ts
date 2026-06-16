@@ -8,8 +8,9 @@ import { shipFilters } from "../utils/shipFilters";
 import { parseSortBy } from "../helpers/sort.helpers";
 import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
-import { sendNotification } from "./notificationController";
+import { sendAdminNotification, sendUserNotification } from "./notificationController";
 import { getIO } from "../services/socket.service";
+import { NotificationType } from "@prisma/client";
 
 /* 
 LIMIT CREATE SHIP FOR USERS DEPEND OF SUBSCRIPTION
@@ -76,7 +77,6 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
   const check = await canUserCreateShip(userId);
 
-  console.log(check);
   if (!check.allowed) {
     throw new Error(check.reason);
   }
@@ -177,23 +177,12 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
 
     /* Add notification */
     if (req.user!.role !== "ADMIN" && admin) {
-      await prisma.notification.create({
-        data: {
-          message: `${fullName} created a new ship: ${newShip.shipName}`,
-          userId: admin.id,
-        },
-      });
+      //send notification to admin
+      await sendAdminNotification(admin.id, `New ship created: ${newShip.shipName}`, NotificationType.INFO);
 
+      //Send email to admin
       await sendEmail(emailToSend, "New Ship Pending Approval", "ship-notification-email", emailData);
     }
-
-    // Notify admin(s) in realtime
-    const io = getIO();
-    const payload = {
-      shipId: newShip.id,
-      shipName: newShip.shipName,
-    };
-    io.to("admin-room").emit("ship:created", payload);
 
     res.status(201).json({
       message: "Ship added successfully! Awaiting admin approval.",
@@ -311,9 +300,9 @@ export const updatePublishedShip = async (req: Request<{ id: string }>, res: Res
   try {
     const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
     if (isPublished && updatedShip.userId) {
-      await sendNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
+      await sendUserNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
 
-      // Notify the blog author in realtime
+      // Notify the ship author in realtime
       const io = getIO();
       const payload = {
         shipId: updatedShip.id,

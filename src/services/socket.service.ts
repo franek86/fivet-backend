@@ -38,12 +38,12 @@ export const initializeSocket = (server: http.Server) => {
     }
   });
 
-  io.on("connection", (socket: Socket) => {
+  io.on("connection", async (socket: Socket) => {
     const userId = socket.user.userId;
     const role = socket.user.role;
 
     //Each user joins their own room
-    if (userId) {
+    if (role === "USER" && userId) {
       socket.join(`user:${userId}`);
     }
 
@@ -63,10 +63,6 @@ export const initializeSocket = (server: http.Server) => {
       socket.to("admin-room").emit("user:online", {
         userId,
       });
-    }
-
-    // Broadcast updated count
-    if (role === "USER") {
       socket.to("admin-room").emit("user:count", {
         count: onlineUsers.size,
       });
