@@ -1,6 +1,7 @@
-import { Subscription } from "@prisma/client";
+import { NotificationType, Subscription } from "@prisma/client";
 import prisma from "../prismaClient";
 import { stripe } from "../utils/stripe";
+import { sendAdminNotification } from "../controllers/notificationController";
 
 export const handleStripeEvent = async (event: any) => {
   switch (event.type) {
@@ -13,7 +14,7 @@ export const handleStripeEvent = async (event: any) => {
       });
 
       if (user) {
-        const subscriptionId = invoice.subscription as string | null;
+        const subscriptionId = invoice.parent?.subscription_details?.subscription || null;
         let subscriptionType: Subscription = "STANDARD";
 
         if (subscriptionId) {
@@ -33,7 +34,7 @@ export const handleStripeEvent = async (event: any) => {
           data: {
             subscription: subscriptionType,
             verifyPayment: true,
-            stripeSubscriptionId: invoice.subscription as string,
+            stripeSubscriptionId: subscriptionId,
             isActiveSubscription: true,
           },
         });
@@ -46,7 +47,17 @@ export const handleStripeEvent = async (event: any) => {
             status: "PAID",
           },
         });
+
+        /* Add notification for admin */
+        const admin = await prisma.user.findFirst({
+          where: { role: "ADMIN" },
+        });
+
+        if (admin) {
+          await sendAdminNotification(admin.id, "New Payment Received", NotificationType.INFO);
+        }
       }
+
       break;
     }
 

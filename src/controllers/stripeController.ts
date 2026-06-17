@@ -62,8 +62,6 @@ export const postCheckoutSession = async (req: Request, res: Response): Promise<
     else if (user.subscription === "PREMIUM") priceId = process.env.STRIPE_PRICE_PREMIUM!;
     else return res.status(400).json({ error: "Invalid plan" }); */
 
-    console.log(priceId);
-
     // Create checkout session
 
     // 🟢 CASE 1 — No subscription → Create Checkout
