@@ -14,6 +14,22 @@ export const postCancelSubscription = async (req: Request, res: Response) => {
   }
 };
 
+/* Get Stripe session */
+export const getPaymentSession = async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.session_id;
+
+    if (!sessionId || typeof sessionId !== "string") {
+      return res.status(400).json({ error: "Missing session_id" });
+    }
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    res.json(session);
+  } catch (error) {
+    console.error("Cancel subscription error:", error);
+    res.status(500).json(error);
+  }
+};
+
 export const postCheckoutSession = async (req: Request, res: Response): Promise<any> => {
   try {
     const { userId, plan } = req.body;
@@ -57,10 +73,6 @@ export const postCheckoutSession = async (req: Request, res: Response): Promise<
     if (!priceId) {
       return res.status(500).json({ error: "Missing price configuration" });
     }
-    /*   let priceId = "";
-    if (user.subscription === "STANDARD") priceId = process.env.STRIPE_PRICE_STANDARD!;
-    else if (user.subscription === "PREMIUM") priceId = process.env.STRIPE_PRICE_PREMIUM!;
-    else return res.status(400).json({ error: "Invalid plan" }); */
 
     // Create checkout session
 
