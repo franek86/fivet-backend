@@ -28,6 +28,7 @@ import { errorMiddleware } from "./middleware";
 /* SOCKET SERVICE */
 import { initializeSocket } from "./services/socket.service";
 import helmet from "helmet";
+import { httpLogger } from "./middleware/logger";
 
 /* CONFIGURATION */
 dotenv.config();
@@ -41,7 +42,6 @@ app.set("trust proxy", 1);
 app.use(helmet());
 
 const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter(Boolean);
-console.log("Allowed origins:", allowedOrigins);
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: any) => {
@@ -67,6 +67,9 @@ app.use(express.json());
 //app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+/* HTTP Request logger */
+app.use(httpLogger);
 
 // Socket.IO
 initializeSocket(httpServer);

@@ -3,12 +3,15 @@ export class AppError extends Error {
   public readonly isOperational: boolean;
   public readonly details?: any;
 
-  constructor(message: string, statusCode: number, isOperational = true, details?: any) {
+  constructor(message: string, statusCode: number, isOperational = true, details?: unknown) {
     super(message);
 
+    this.name = new.target.name;
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.details = details;
+
+    Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace(this);
   }
 }
@@ -23,13 +26,13 @@ export class NotFoundError extends AppError {
 //Validation error
 export class ValidationError extends AppError {
   constructor(message = "Invalid request data", details?: any) {
-    super(message, 400, details);
+    super(message, 400, true, details);
   }
 }
 
 //Auth error
 export class AuthError extends AppError {
-  constructor(message = "Unauthorizes") {
+  constructor(message = "Unauthorized") {
     super(message, 401);
   }
 }
