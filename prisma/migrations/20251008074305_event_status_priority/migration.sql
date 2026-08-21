@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "Event" ALTER COLUMN "status" DROP NOT NULL,
-ALTER COLUMN "priority" SET DEFAULT 'MEDIUM';

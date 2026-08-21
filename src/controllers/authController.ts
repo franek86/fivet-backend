@@ -24,6 +24,7 @@ const generateRefreshToken = (userId: string, role: string, fullName: string, su
 export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const parsed = RegisterUserSchema.safeParse(req.body);
+
     if (!parsed.success) {
       logger.warn("Register validation failed");
       return next(parsed.error.flatten().fieldErrors);
@@ -39,7 +40,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     // generate otp
     const otp = generateOtp(6);
-
+    console.log("Email otp ", email);
     //Save OTP to database
     await prisma.otp.create({
       data: {
@@ -66,7 +67,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       logger.warn("Verfiy user validation failed");
       return next(parsed.error.flatten().fieldErrors);
     }
-    const { email, fullName, password, otp } = parsed.data;
+    const { email, fullName, role, password, otp } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -104,11 +105,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         email,
         password: hashedPassword,
         fullName,
-        profile: {
-          create: {
-            fullName,
-          },
-        },
+        role,
       },
     });
 
@@ -235,20 +232,14 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
       where: { id: userId },
       select: {
         id: true,
+        fullName: true,
         email: true,
         role: true,
         subscription: true,
         verifyPayment: true,
         isActiveSubscription: true,
         isActive: true,
-        profile: {
-          select: {
-            id: true,
-            avatar: true,
-            fullName: true,
-            userId: true,
-          },
-        },
+        avatar: true,
       },
     });
 
@@ -259,16 +250,12 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
     const response = {
       id: user.id,
       role: user.role,
+      fullName: user.fullName,
       subscription: user.subscription,
       isActive: user.isActive,
       verifyPayment: user.verifyPayment,
       isActiveSubscription: user.isActiveSubscription,
-      profile: user.profile
-        ? {
-            ...user.profile,
-            email: user.email,
-          }
-        : null,
+      avatar: user.avatar || "",
     };
 
     const validatedResponse = UserMeResponseSchema.parse(response);

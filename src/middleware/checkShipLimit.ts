@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import { canUserCreateShip } from "../controllers/shipController";
+/* import { canUserCreateShip } from "../controllers/shipController"; */
 
 const checkShipsLimit = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
   try {
-    const check = await canUserCreateShip(userId);
+    /*   const check = await canUserCreateShip(userId);
 
     if (!check.allowed) {
       return res.status(403).json({
@@ -13,7 +13,7 @@ const checkShipsLimit = async (req: Request, res: Response, next: NextFunction) 
         shipsUsed: check.shipsUsed,
         shipLimit: check.shipLimit,
       });
-    }
+    } */
 
     next();
   } catch (error) {

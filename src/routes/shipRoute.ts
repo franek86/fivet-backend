@@ -11,7 +11,7 @@ import {
   updatePublishedShip,
   updateShip,
 } from "../controllers/shipController";
-import { authAdmin, authenticateUser, checkShipsLimit } from "../middleware";
+import { authAdmin, authenticateUser } from "../middleware";
 import upload from "../middleware/uploads";
 
 const router = express.Router();
@@ -19,7 +19,6 @@ const router = express.Router();
 router.post(
   "/create",
   authenticateUser,
-  checkShipsLimit,
   upload.fields([
     { name: "mainImage", maxCount: 1 },
     { name: "images", maxCount: 10 },

@@ -1,5 +1,5 @@
 import express from "express";
-import { deleteUserProfile, getAllProfiles, getLastFiveProfile, getUserProfile, updateProfile } from "../controllers/profileController";
+import { deleteUserProfile, getAllProfiles, getLastFiveProfile, getUserProfile, updateProfile } from "../controllers/#profileController";
 import { authAdmin, authenticateUser } from "../middleware";
 import upload from "../middleware/uploads";
 import { profileImageUpload } from "../middleware/profileImageUpload";

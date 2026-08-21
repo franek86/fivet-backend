@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Enums (match Prisma enums exactly)
  */
-export const RoleEnum = z.enum(["USER", "ADMIN"]);
+export const RoleEnum = z.enum(["ADMIN", "BROKER", "OWNER", "BUYER"]);
 export const SubscriptionEnum = z.enum(["STARTER", "PREMIUM", "STANDARD"]);
 
 /**
@@ -27,7 +27,7 @@ export const UserSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   fullName: nameSchema,
-  role: RoleEnum.default("USER"),
+  role: RoleEnum.default("BUYER"),
 
   subscription: SubscriptionEnum.default("STARTER"),
   isActiveSubscription: z.boolean().default(false),
@@ -39,10 +39,17 @@ export const UserSchema = z.object({
   isActive: z.boolean().default(false),
   lastLogin: z.date().optional().nullable(),
 
-  address: optionalString,
-  zipCode: optionalString,
+  address: z.string().optional(),
+  zipCode: z.string().optional(),
   city: optionalString,
   country: optionalString,
+  avatar: z.string().optional(),
+
+  businessEmail: z.string().optional(),
+  businessPhone: z.string().optional(),
+  businessWeb: z.string().optional(),
+  companyName: optionalString,
+  companyRegistrationNumber: z.string().optional(),
 
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -54,22 +61,15 @@ export const PublicUserSchema = UserSchema.omit({
   stripeSubscriptionId: true,
 });
 
-export const UserMeResponseSchema = z.object({
-  id: z.string(),
-  role: z.string(),
-  subscription: z.string(),
-  isActive: z.boolean(),
-  verifyPayment: z.boolean(),
-  isActiveSubscription: z.boolean(),
-  profile: z
-    .object({
-      id: z.coerce.number().int(),
-      avatar: z.string().nullable().optional(),
-      fullName: z.string(),
-      userId: z.string(),
-      email: z.string().email(),
-    })
-    .nullable(),
+export const UserMeResponseSchema = UserSchema.pick({
+  id: true,
+  role: true,
+  fullName: true,
+  subscription: true,
+  isActive: true,
+  verifyPayment: true,
+  isActiveSubscription: true,
+  avatar: true,
 });
 
 export type UserSchema = z.infer<typeof UserSchema>;

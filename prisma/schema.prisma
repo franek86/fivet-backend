@@ -13,7 +13,9 @@ datasource db {
 
 enum Role {
   ADMIN
-  USER
+  BROKER
+  OWNER
+  BUYER
 }
 
 enum Subscription {
@@ -58,19 +60,50 @@ enum PostStatus {
   ARCHIVED
 }
 
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+// Ship-listing review status, separate from isPublished.
+// Admin controls this; owner/broker controls isPublished (only once VERIFIED).
+enum ListingStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// Owner -> Broker assignment invite/accept flow
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+}
+
+enum InquiryStatus {
+  OPEN
+  RESPONDED
+  CLOSED
+}
+
 
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
   password    String
   fullName    String
-  role        Role         @default(USER)
+  role        Role         @default(BUYER)
 
   subscription Subscription @default(STARTER)
   isActiveSubscription Boolean @default(false)
-  verifyPayment Boolean @default(false)
+
   stripeCustomerId String?
   stripeSubscriptionId String?
+
+  verifyPayment Boolean @default(false)
   payments Payment[]
 
   isActive    Boolean @default(false)
@@ -80,33 +113,107 @@ model User {
   zipCode     String?
   city        String?
   country     String?
+  avatar String?
 
-  profile     Profile?
-  ships       Ship[]
   addressBook AddressBook[]
   events Event[]
   notifications Notification[]
+
+  // one company (e.g. brokerage employer), not many
+  company   Company? @relation(fields: [companyId], references: [id])
+  companyId String?
+
+  brokerProfile BrokerProfile?
+  ownerProfile  OwnerProfile?
+
+  // ships this user created/listed (owner listing their own, or broker listing on behalf of someone)
+  listedShips Ship[] @relation("ListedShips")
+  // ships where this user is the registered owner (may differ from listedById if a broker listed it)
+  ownedShips  Ship[] @relation("OwnedShips")
+
+  brokerAssignmentsAsOwner  BrokerAssignment[] @relation("AssignmentOwner")
+  brokerAssignmentsAsBroker BrokerAssignment[] @relation("AssignmentBroker")
+
+  favorites    Favorite[]
+  savedSearches SavedSearch[]
+
+  inquiriesSent     Inquiry[] @relation("InquiriesSent")
+  inquiriesReceived Inquiry[] @relation("InquiriesReceived")
+
   posts Post[]
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@map("user")
 }
+
+model Company {
+  id String @id @default(uuid())
+  name String
+  legaleName String?
+  website String?
+  email String?
+  phone String?
+  address String?
+  city String?
+  country String?
+  description String?
+  logo String?
+
+  isVerified Boolean @default(false)
+
+  user User[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("company")
+}
+
 
 model Otp {
   id String   @id @default(uuid())
   email String @unique
   otp String
   expiresAt DateTime
+  @@map("otp")
 }
 
-model Profile {
-  id       Int  @id @default(autoincrement())
-  fullName String?
-  avatar   String?
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId   String  @unique
-  createdAt   DateTime     @default(now())
+model BrokerProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  verifiedBy         String?
+
+  description        String?
+  yearsExperience    Int?
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("brokerProfile")
+}
+
+// Mirrors BrokerProfile - owners need identity/ownership verification too
+model OwnerProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  verifiedBy         String?
+
+  // proof of ownership / company registration docs, KYC, etc.
+  documentUrl String?
+
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@map("ownerProfile")
 }
 
 
@@ -134,8 +241,14 @@ model Ship {
   tonnage         Float?
   cargoCapacity   String?
   buildCountry    String?
+  hullMaterial String?
   remarks         String?
   description     String?
+  flagState String?
+  isFeatured Boolean? @default(false)
+  currency String? @default("USD")
+  vatPaid Boolean?
+  fuelType String?
 
   mainImage       String?
   mainImageAlt    String?
@@ -145,13 +258,34 @@ model Ship {
 
   clicks          Int      @default(0)
 
-  user            User     @relation(fields: [userId], references: [id],onDelete: Cascade)
-  userId          String
+  // who created the listing (owner posting themselves, or a broker posting on their behalf)
+  listedBy   User   @relation("ListedShips", fields: [listedById], references: [id], onDelete: Restrict)
+  listedById String
+
+  // the actual registered owner, if known/onboarded - optional because a broker
+  // may list a vessel for an owner who isn't a platform user yet
+  owner   User?   @relation("OwnedShips", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId String?
+
+  listingStatus ListingStatus @default(PENDING)
+  verifiedAt    DateTime?
+  verifiedBy    String?
+  rejectionReason String?
+
+  inquiries Inquiry[]
+  favorites Favorite[]
 
   isPublished     Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([isPublished, listingStatus])
+  @@index([typeId])
+  @@index([price])
+  @@index([listedById])
+  @@index([ownerId])
   
+  @@map("ship")
 }
 
 model ShipImages {
@@ -164,8 +298,8 @@ model ShipImages {
   ship    Ship   @relation(fields: [shipId], references: [id],onDelete: Cascade)
 
   createdAt DateTime @default(now())
+  @@map("shipImages")
 }
-
 
 
 model ShipType {
@@ -174,6 +308,7 @@ model ShipType {
   description String?
   ships       Ship[]
   createdAt   DateTime @default(now())
+  @@map("shipType")
 }
 
 model AddressBook {
@@ -199,6 +334,7 @@ model AddressBook {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  @@map("addressBook")
 }
 
 model Event {
@@ -218,6 +354,7 @@ model Event {
   
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  @@map("events")
 }
 
 model Notification {
@@ -231,6 +368,8 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id])
   userId String
+
+  @@map("notifications")
 }
 
 model Payment {
@@ -246,6 +385,7 @@ model Payment {
   createdAt DateTime @default(now())
 
   @@index([status, createdAt])
+  @@map("payments")
 }
 
 model Post {
@@ -289,6 +429,7 @@ model Post {
 
   @@index([slug])
   @@index([status])
+  @@map("blogs")
 }
 
 model PostBlock {
@@ -306,6 +447,7 @@ model PostBlock {
   createdAt DateTime @default(now())
 
   @@index([postId])
+  @@map("blogBlock")
 }
 
 model PostGallery {
@@ -318,6 +460,7 @@ model PostGallery {
   post    Post   @relation(fields: [postId], references: [id],onDelete: Cascade)
 
   createdAt DateTime @default(now())
+  @@map("blogGallery")
 }
 
 model PostCategory {
@@ -328,4 +471,79 @@ model PostCategory {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@map("blogCategories")
+}
+
+// Owner invites a Broker to represent one of their listings (or themselves generally)
+model BrokerAssignment {
+  id String @id @default(uuid())
+
+  owner   User @relation("AssignmentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+
+  broker   User @relation("AssignmentBroker", fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId String
+
+  status AssignmentStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, brokerId])
+  @@map("brokerAssignment")
+}
+
+model Favorite {
+  id String @id @default(uuid())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  ship   Ship   @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  shipId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, shipId])
+  @@map("favorites")
+}
+
+// Stored filter criteria, e.g. { minPrice, maxPrice, typeId, location, ... }
+model SavedSearch {
+  id String @id @default(uuid())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  name    String
+  filters Json
+  notifyOnMatch Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("savedSearch")
+}
+
+// Buyer -> Broker/Owner contact request about a specific ship
+model Inquiry {
+  id String @id @default(uuid())
+
+  ship   Ship   @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  shipId String
+
+  sender     User   @relation("InquiriesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId   String
+
+  recipient   User   @relation("InquiriesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId String
+
+  message String  @db.Text
+  status  InquiryStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shipId])
+  @@index([recipientId, status])
+  @@map("inquiry")
 }

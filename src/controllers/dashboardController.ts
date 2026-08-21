@@ -86,7 +86,6 @@ export const getAdminDashboardStatistic = async (req: Request, res: Response): P
           subscription: true,
           lastLogin: true,
           createdAt: true,
-          profile: { select: { avatar: true } },
         },
         orderBy: { createdAt: "desc" },
         take: 5,
@@ -165,19 +164,19 @@ export const getCurrentUserStats = async (req: Request, res: Response): Promise<
 
     //Ship trend
     const userShipsLast30 = await prisma.ship.count({
-      where: { createdAt: { gte: last30Days, lt: today }, userId },
+      where: { createdAt: { gte: last30Days, lt: today }, listedById: userId },
     });
     const userShipsPrev30 = await prisma.ship.count({
-      where: { createdAt: { gte: prev30Days, lt: last30Days }, userId },
+      where: { createdAt: { gte: prev30Days, lt: last30Days }, listedById: userId },
     });
     const userShipsTrend = getTrend(userShipsLast30, userShipsPrev30);
 
     /* Published ship trend */
     const userPublishedLast30 = await prisma.ship.count({
-      where: { createdAt: { gte: last30Days, lt: today }, isPublished: true, userId },
+      where: { createdAt: { gte: last30Days, lt: today }, isPublished: true, listedById: userId },
     });
     const userPublishedPrev30 = await prisma.ship.count({
-      where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true, userId },
+      where: { createdAt: { gte: prev30Days, lt: last30Days }, isPublished: true, listedById: userId },
     });
     const userPublishedTrend = getTrend(userPublishedLast30, userPublishedPrev30);
 
@@ -188,11 +187,11 @@ export const getCurrentUserStats = async (req: Request, res: Response): Promise<
 
     // Fetch counts in parallel
     const [totalShips, totalPublishedShips, totalEvents, topShips] = await Promise.all([
-      prisma.ship.count({ where: { userId } }),
-      prisma.ship.count({ where: { userId, isPublished: true } }),
+      prisma.ship.count({ where: { listedById: userId } }),
+      prisma.ship.count({ where: { listedById: userId, isPublished: true } }),
       prisma.event.count({ where: { userId } }),
       prisma.ship.findMany({
-        where: { userId },
+        where: { listedById: userId },
         orderBy: { clicks: "desc" },
         take: 5,
         select: {

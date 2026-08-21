@@ -24,7 +24,7 @@ export const SUBSCRIPTION_LIMITS = {
   PREMIUM: { shipsPerYear: 10 },
 } as const;
 
-export const canUserCreateShip = async (
+/* export const canUserCreateShip = async (
   userId: string,
 ): Promise<{ allowed: boolean; reason?: string; shipsUsed: number; shipLimit: number }> => {
   const user = await prisma.user.findUnique({
@@ -62,7 +62,7 @@ export const canUserCreateShip = async (
   }
 
   return { allowed: true, shipsUsed: shipsThisYear, shipLimit: limit };
-};
+}; */
 
 /* 
 CREATE SHIP 
@@ -75,11 +75,11 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  const check = await canUserCreateShip(userId);
+  /* const check = await canUserCreateShip(userId);
 
   if (!check.allowed) {
     throw new Error(check.reason);
-  }
+  } */
 
   try {
     const existingSlug = await prisma.ship.findUnique({ where: { slug: req.body.slug } });
@@ -141,7 +141,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
     const newShip = await prisma.ship.create({
       data: {
         ...validateData,
-        userId: userId,
+        listedById: userId,
         mainImage: mainImageData?.url,
         mainImagePublicId: mainImageData?.publicId,
         images: {
@@ -299,8 +299,8 @@ export const updatePublishedShip = async (req: Request<{ id: string }>, res: Res
 
   try {
     const updatedShip = await prisma.ship.update({ where: { id }, data: { isPublished } });
-    if (isPublished && updatedShip.userId) {
-      await sendUserNotification(updatedShip.userId, `Your "${updatedShip.shipName}" are published live!`, "INFO");
+    if (isPublished && updatedShip.listedById) {
+      await sendUserNotification(updatedShip.listedById, `Your "${updatedShip.shipName}" are published live!`, "INFO");
 
       // Notify the ship author in realtime
       const io = getIO();
@@ -308,7 +308,7 @@ export const updatePublishedShip = async (req: Request<{ id: string }>, res: Res
         shipId: updatedShip.id,
         shipName: updatedShip.shipName,
       };
-      io.to(`user:${updatedShip.userId}`).emit("ship:published", payload);
+      io.to(`user:${updatedShip.listedById}`).emit("ship:published", payload);
     }
 
     res.status(200).json(updatedShip);
@@ -351,15 +351,6 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       where: whereCondition,
       orderBy,
       include: {
-        user: {
-          select: {
-            profile: {
-              select: {
-                fullName: true,
-              },
-            },
-          },
-        },
         shipType: {
           select: {
             name: true,
