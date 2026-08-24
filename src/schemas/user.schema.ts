@@ -70,6 +70,14 @@ export const UserMeResponseSchema = UserSchema.pick({
   verifyPayment: true,
   isActiveSubscription: true,
   avatar: true,
+  companyName: true,
+}).extend({
+  brokerProfile: z.object({
+    verificationStatus: z.enum(["PENDING", "VERIFIED", "REJECTED", "SUSPENDED"]),
+  }),
+  ownerProfile: z.object({
+    verificationStatus: z.enum(["PENDING", "VERIFIED", "REJECTED", "SUSPENDED"]),
+  }),
 });
 
 export type UserSchema = z.infer<typeof UserSchema>;

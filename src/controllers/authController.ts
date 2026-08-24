@@ -40,7 +40,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     // generate otp
     const otp = generateOtp(6);
-    console.log("Email otp ", email);
+
     //Save OTP to database
     await prisma.otp.create({
       data: {
@@ -100,13 +100,27 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        fullName,
-        role,
-      },
+    const newUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          fullName,
+          role,
+        },
+      });
+
+      if (role === "BROKER") {
+        await tx.brokerProfile.create({
+          data: { userId: user.id, verificationStatus: "PENDING" },
+        });
+      } else if (role === "OWNER") {
+        await tx.ownerProfile.create({
+          data: { userId: user.id, verificationStatus: "PENDING" },
+        });
+      }
+
+      return user;
     });
 
     await prisma.otp.delete({
@@ -240,6 +254,9 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
         isActiveSubscription: true,
         isActive: true,
         avatar: true,
+        company: true,
+        brokerProfile: true,
+        ownerProfile: true,
       },
     });
 
@@ -256,6 +273,13 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
       verifyPayment: user.verifyPayment,
       isActiveSubscription: user.isActiveSubscription,
       avatar: user.avatar || "",
+      company: user.company || "",
+      brokerProfile: {
+        verificationStatus: user.brokerProfile?.verificationStatus || "PENDING",
+      },
+      ownerProfile: {
+        verificationStatus: user.ownerProfile?.verificationStatus || "PENDING",
+      },
     };
 
     const validatedResponse = UserMeResponseSchema.parse(response);

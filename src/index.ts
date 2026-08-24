@@ -19,6 +19,7 @@ import webhookStripeRoute from "./routes/stripeWebhookRoute";
 import stripeRoute from "./routes/stripeRoute";
 import paymentsRoute from "./routes/paymentsRoute";
 import postRoute from "./routes/postRoute";
+import userRoute from "./routes/usersRoute";
 import postCategoryRoute from "./routes/postCategoryRoute";
 
 /* MIDDLEWARES */
@@ -79,6 +80,7 @@ app.get("/health", (req: Request, res: Response) => {
 });
 
 app.use("/auth", authRoute);
+app.use("/users", userRoute);
 app.use("/ships", shipRoute);
 app.use("/shipType", shipTypeRoute);
 app.use("/address-book", addressBookRoute);
