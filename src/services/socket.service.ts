@@ -2,7 +2,6 @@ import http from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import prisma from "../prismaClient";
 
 declare module "socket.io" {
   interface Socket {
@@ -43,7 +42,7 @@ export const initializeSocket = (server: http.Server) => {
     const role = socket.user.role;
 
     //Each user joins their own room
-    if (role === "USER" && userId) {
+    if (role === "BUYER" && userId) {
       socket.join(`user:${userId}`);
     }
 
@@ -59,7 +58,7 @@ export const initializeSocket = (server: http.Server) => {
     onlineUsers.get(userId)!.add(socket.id);
 
     // Broadcast online users
-    if (role === "USER") {
+    if (role === "BUYER") {
       socket.to("admin-room").emit("user:online", {
         userId,
       });
@@ -78,7 +77,7 @@ export const initializeSocket = (server: http.Server) => {
 
       if (isOffline) {
         onlineUsers.delete(userId);
-        if (role === "USER") {
+        if (role === "BUYER") {
           socket.to("admin-room").emit("user:offline", {
             userId,
           });

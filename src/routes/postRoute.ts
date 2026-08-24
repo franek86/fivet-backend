@@ -9,15 +9,16 @@ import {
   updatePost,
 } from "../controllers/postController";
 
-import { authAdmin, authenticateUser, checkShipsLimit } from "../middleware";
+import { checkShipsLimit } from "../middleware";
 import upload from "../middleware/uploads";
+import { authenticateUser, requireRole } from "../middleware/verifyToken";
 
 const router = express.Router();
 
 router.post(
   "/",
   authenticateUser,
-  authAdmin,
+  requireRole("ADMIN"),
   upload.fields([
     { name: "bannerImage", maxCount: 1 },
     { name: "blockImages", maxCount: 30 },
@@ -25,7 +26,7 @@ router.post(
   ]),
   createPost,
 );
-router.get("/", authenticateUser, authAdmin, getAllPosts);
+router.get("/", authenticateUser, requireRole("ADMIN"), getAllPosts);
 router.patch(
   "/:id",
   /*  authenticateUser,
@@ -38,7 +39,7 @@ router.patch(
   updatePost,
 );
 router.get("/published", getPublishedPosts);
-router.delete("/:id", authenticateUser, authAdmin, deletePost);
+router.delete("/:id", authenticateUser, requireRole("ADMIN"), deletePost);
 router.get("/:slug", getSinglePostBySlug);
 router.get("/admin/:slug", getSinglePostBySlugProtected);
 

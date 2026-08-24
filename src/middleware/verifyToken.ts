@@ -9,7 +9,7 @@ declare module "express-serve-static-core" {
 
 export interface CustomJwtPayload {
   userId: string;
-  role: string;
+  role: "ADMIN" | "BROKER" | "OWNER" | "BUYER";
   fullName: string;
   subscription: string;
   isActiveSubscription: boolean;
@@ -48,4 +48,16 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
   }
 };
 
-export default authenticateUser;
+export const requireRole = (...allowedRoles: CustomJwtPayload["role"][]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({ message: "Access denied." });
+      return;
+    }
+    next();
+  };
+};

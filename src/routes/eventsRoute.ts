@@ -1,6 +1,6 @@
 import express from "express";
-import { authenticateUser } from "../middleware";
 import { createEvent, deleteEvent, getAllEvents, getSingleEvent, recentEvents, updateEventById } from "../controllers/eventController";
+import { authenticateUser } from "../middleware/verifyToken";
 const router = express.Router();
 
 router.post("/create", authenticateUser, createEvent);

@@ -1,10 +1,10 @@
 import express from "express";
 import { deletePayment, getPayments } from "../controllers/paymentsController";
-import { authAdmin, authenticateUser } from "../middleware";
+import { authenticateUser, requireRole } from "../middleware/verifyToken";
 
 const router = express.Router();
 
-router.get("/", authenticateUser, authAdmin, getPayments);
-router.delete("/:id", authenticateUser, authAdmin, deletePayment);
+router.get("/", authenticateUser, requireRole("ADMIN"), getPayments);
+router.delete("/:id", authenticateUser, requireRole("ADMIN"), deletePayment);
 
 export default router;

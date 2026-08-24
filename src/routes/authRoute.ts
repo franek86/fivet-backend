@@ -11,7 +11,7 @@ import {
   forgotPassword,
   verifyForgotPassword,
 } from "../controllers/authController";
-import { authenticateUser } from "../middleware";
+import { authenticateUser } from "../middleware/verifyToken";
 
 const router = express.Router();
 

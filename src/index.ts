@@ -11,7 +11,6 @@ import path from "path";
 import authRoute from "./routes/authRoute";
 import shipRoute from "./routes/shipRoute";
 import shipTypeRoute from "./routes/shipTypeRoute";
-import profileRouter from "./routes/#profileRoute";
 import addressBookRoute from "./routes/addressBookRoute";
 import eventsRoute from "./routes/eventsRoute";
 import notificationRoute from "./routes/notificationRoute";
@@ -82,7 +81,6 @@ app.get("/health", (req: Request, res: Response) => {
 app.use("/auth", authRoute);
 app.use("/ships", shipRoute);
 app.use("/shipType", shipTypeRoute);
-/* app.use("/profile", profileRouter); */
 app.use("/address-book", addressBookRoute);
 app.use("/events", eventsRoute);
 app.use("/notification", notificationRoute);

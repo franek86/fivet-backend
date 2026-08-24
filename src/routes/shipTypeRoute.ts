@@ -1,14 +1,14 @@
 import express from "express";
 
 import { createShipType, deleteShipType, getAllShipType, getShipType, updateShipType } from "../controllers/shipTypeController";
-import { authAdmin, authenticateUser } from "../middleware";
+import { authenticateUser, requireRole } from "../middleware/verifyToken";
 
 const router = express.Router();
 
 router.get("/", getShipType);
 router.get("/all", getAllShipType);
-router.post("/create", authenticateUser, authAdmin, createShipType);
-router.patch("/edit/:id", authenticateUser, authAdmin, updateShipType);
-router.delete("/:id", authenticateUser, authAdmin, deleteShipType);
+router.post("/create", authenticateUser, requireRole("ADMIN"), createShipType);
+router.patch("/edit/:id", authenticateUser, requireRole("ADMIN"), updateShipType);
+router.delete("/:id", authenticateUser, requireRole("ADMIN"), deleteShipType);
 
 export default router;

@@ -11,8 +11,9 @@ import {
   updatePublishedShip,
   updateShip,
 } from "../controllers/shipController";
-import { authAdmin, authenticateUser } from "../middleware";
+
 import upload from "../middleware/uploads";
+import { authenticateUser, requireRole } from "../middleware/verifyToken";
 
 const router = express.Router();
 
@@ -31,6 +32,6 @@ router.get("/numeric-fields", getShipsNumericFields);
 router.get("/", authenticateUser, getDashboardShips);
 router.get("/:id", getShip);
 router.patch("/:id", authenticateUser, upload.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), updateShip);
-router.patch("/:id/publish", authenticateUser, authAdmin, updatePublishedShip);
+router.patch("/:id/publish", authenticateUser, requireRole("ADMIN"), updatePublishedShip);
 router.delete("/:id", authenticateUser, deleteShip);
 export default router;

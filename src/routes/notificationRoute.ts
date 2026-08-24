@@ -1,11 +1,12 @@
 import express from "express";
-import { authAdmin, authenticateUser } from "../middleware";
+
 import {
   deleteNotification,
   getNotifications,
   getUnreadNotification,
   updateUnreadNotification,
 } from "../controllers/notificationController";
+import { authenticateUser } from "../middleware/verifyToken";
 
 const router = express.Router();
 
