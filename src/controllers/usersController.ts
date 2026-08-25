@@ -3,6 +3,10 @@ import { parseSortBy } from "../helpers/sort.helpers";
 import prisma from "../prismaClient";
 
 import { buildPageMeta, parsePagination } from "../utils/pagination";
+import { NotFoundError, ValidationError } from "../helpers/error.helpers";
+import { logger } from "../config/logger";
+import { UpdateVerifyUserSchema } from "../schemas/updateVerifyUser.schema";
+import { Role } from "@prisma/client";
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
@@ -16,6 +20,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
         take: limit,
         orderBy,
         select: {
+          id: true,
           fullName: true,
           email: true,
           isActive: true,
@@ -42,3 +47,96 @@ export const getAllUsers = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const updateVerifyUserByAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    /*  const adminId = req.user?.id;
+    if (!adminId) {
+      logger.warn("User id missing");
+      throw new ValidationError("Unauthorize");
+    } */
+
+    const parseData = UpdateVerifyUserSchema.safeParse(req.body);
+    if (!parseData.success) {
+      logger.warn("Verify user by admin validation failed");
+      return next(parseData.error.flatten().fieldErrors);
+    }
+
+    const { userId, verificationStatus } = parseData.data;
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        fullName: true,
+        email: true,
+      },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (targetUser.role !== Role.BROKER && targetUser.role !== Role.OWNER) {
+      throw new ValidationError("Only Broker or Owner accounts can be verified.");
+    }
+
+    const verifyAt = verificationStatus === "VERIFIED" ? new Date() : null;
+
+    let updatedProfile;
+
+    if (targetUser.role === Role.BROKER) {
+      updatedProfile = await prisma.brokerProfile.update({
+        where: { userId: targetUser.id },
+        data: {
+          verificationStatus,
+          verifiedAt: verifyAt,
+
+          // rejectionReason, // uncomment once the field exists on BrokerProfile
+        },
+      });
+    } else {
+      updatedProfile = await prisma.ownerProfile.update({
+        where: { userId: targetUser.id },
+        data: {
+          verificationStatus,
+          verifiedAt: verifyAt,
+        },
+      });
+    }
+
+    // Notify the user of the outcome — adjust to however Notification is modeled
+    await prisma.notification.create({
+      data: {
+        userId: targetUser.id,
+        type: "INFO",
+        message: verificationStatusDefaultBody(verificationStatus),
+      },
+    });
+
+    logger.info(`Admin set ${targetUser.role} ${targetUser.id} verification to ${verificationStatus}`);
+
+    res.status(200).json({
+      success: true,
+      message: "Verification status updated.",
+      profile: updatedProfile,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+function verificationStatusDefaultBody(status: string): string {
+  switch (status) {
+    case "VERIFIED":
+      return "Your account has been verified. You now have full access.";
+    case "REJECTED":
+      return "Your verification was rejected. Please review and resubmit.";
+    case "SUSPENDED":
+      return "Please provide additional documents to continue verification.";
+    default:
+      return "Your verification status has changed.";
+  }
+}
