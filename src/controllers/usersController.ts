@@ -128,6 +128,31 @@ export const updateVerifyUserByAdmin = async (req: Request, res: Response, next:
   }
 };
 
+export const getSingleUserProfile = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      logger.warn("User id missing");
+      throw new ValidationError("Unauthorize");
+    }
+
+    const data = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        brokerProfile: true,
+        ownerProfile: true,
+        company: true,
+      },
+    });
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 function verificationStatusDefaultBody(status: string): string {
   switch (status) {
     case "VERIFIED":
