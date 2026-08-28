@@ -144,6 +144,9 @@ export const getSingleUserProfile = async (req: Request<{ id: string }>, res: Re
         ownerProfile: true,
         company: true,
       },
+      omit: {
+        password: true,
+      },
     });
 
     res.status(200).json(data);

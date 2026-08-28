@@ -174,6 +174,13 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       throw new AuthError("Invalid credentails.");
     }
 
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLogin: new Date(),
+      },
+    });
+
     const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
     const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
 
