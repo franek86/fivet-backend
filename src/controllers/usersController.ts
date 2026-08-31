@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { Role } from "@prisma/client";
 import { parseSortBy } from "../helpers/sort.helpers";
 import prisma from "../prismaClient";
 
@@ -6,16 +7,30 @@ import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { logger } from "../config/logger";
 import { UpdateVerifyUserSchema } from "../schemas/updateVerifyUser.schema";
-import { Role } from "@prisma/client";
+import { onlineUsers } from "../services/socket.service";
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const { page, skip, limit } = parsePagination(req.query);
-    const { sortBy } = req.query;
+    const { sortBy, search } = req.query;
     const orderBy = parseSortBy(sortBy as string, ["status", "views", "createdAt"], { createdAt: "desc" });
+
+    const whereCondition: any = {};
+
+    if (search && typeof search === "string" && search.trim().length > 0) {
+      whereCondition.OR = [
+        {
+          fullName: {
+            contains: search.trim(),
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
 
     const [users, totalUsers] = await Promise.all([
       prisma.user.findMany({
+        where: whereCondition,
         skip,
         take: limit,
         orderBy,
@@ -38,12 +53,42 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
     const meta = buildPageMeta(totalUsers, page, limit);
 
+    const usersWithStatus = users.map((u: any) => ({
+      ...u,
+      online: onlineUsers.has(u.id),
+    }));
+
     res.status(200).json({
       meta,
-      users,
+      users: usersWithStatus,
     });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* GET LAST FIVE CREATED PROFILE */
+export const getLastFiveProfile = async (req: Request, res: Response) => {
+  try {
+    const data = await prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        subscription: true,
+        avatar: true,
+        lastLogin: true,
+        createdAt: true,
+      },
+
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    res.status(200).json(data);
+  } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
 };

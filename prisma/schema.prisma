@@ -151,7 +151,8 @@ model User {
 model Company {
   id String @id @default(uuid())
   name String
-  legaleName String?
+  vat String?
+  legalName String?
   website String?
   email String?
   phone String?
@@ -164,6 +165,7 @@ model Company {
   isVerified Boolean @default(false)
 
   user User[]
+  
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

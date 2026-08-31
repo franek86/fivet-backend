@@ -20,6 +20,7 @@ import stripeRoute from "./routes/stripeRoute";
 import paymentsRoute from "./routes/paymentsRoute";
 import postRoute from "./routes/postRoute";
 import userRoute from "./routes/usersRoute";
+import companyRoute from "./routes/companyRoute";
 import postCategoryRoute from "./routes/postCategoryRoute";
 
 /* MIDDLEWARES */
@@ -91,6 +92,7 @@ app.use("/stripe", stripeRoute);
 app.use("/payments", paymentsRoute);
 app.use("/posts", postRoute);
 app.use("/posts-category", postCategoryRoute);
+app.use("/company", companyRoute);
 app.use(
   "/geo",
   express.static(path.resolve(process.cwd(), "public/geo"), {

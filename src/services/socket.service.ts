@@ -58,7 +58,7 @@ export const initializeSocket = (server: http.Server) => {
     onlineUsers.get(userId)!.add(socket.id);
 
     // Broadcast online users
-    if (role === "BUYER") {
+    if (role === "ADMIN") {
       socket.to("admin-room").emit("user:online", {
         userId,
       });

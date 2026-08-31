@@ -67,7 +67,7 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       logger.warn("Verfiy user validation failed");
       return next(parsed.error.flatten().fieldErrors);
     }
-    const { email, fullName, role, password, otp } = parsed.data;
+    const { email, fullName, role, password, companyName, companyRegistrationNumber, otp } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -101,12 +101,23 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = await prisma.$transaction(async (tx) => {
+      let companyId: string | undefined;
+      const company = await tx.company.create({
+        data: {
+          name: companyName || "",
+          vat: companyRegistrationNumber,
+        },
+      });
+
+      companyId = company.id;
+
       const user = await tx.user.create({
         data: {
           email,
           password: hashedPassword,
           fullName,
           role,
+          companyId,
         },
       });
 
