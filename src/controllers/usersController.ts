@@ -9,6 +9,7 @@ import { logger } from "../config/logger";
 import { UpdateVerifyUserSchema } from "../schemas/updateVerifyUser.schema";
 import { onlineUsers } from "../services/socket.service";
 
+/* GET ALL USERS, ADMIN ONLY */
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const { page, skip, limit } = parsePagination(req.query);
@@ -48,7 +49,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
           ownerProfile: true,
         },
       }),
-      prisma.post.count(),
+      prisma.user.count(),
     ]);
 
     const meta = buildPageMeta(totalUsers, page, limit);
@@ -62,6 +63,83 @@ export const getAllUsers = async (req: Request, res: Response) => {
       meta,
       users: usersWithStatus,
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* GET OWNERS */
+export const getAllOwners = async (req: Request, res: Response): Promise<void> => {
+  const brokerId = req.user?.id;
+  const { page, skip, limit } = parsePagination(req.query);
+  const { sortBy, search } = req.query;
+  const orderBy = parseSortBy(sortBy as string, ["status", "createdAt"], { createdAt: "desc" });
+
+  const whereCondition: any = {};
+
+  if (search && typeof search === "string" && search.trim().length > 0) {
+    whereCondition.OR = [
+      {
+        fullName: {
+          contains: search.trim(),
+          mode: "insensitive",
+        },
+      },
+    ];
+  }
+
+  try {
+    const [owners, totalOwners] = await Promise.all([
+      await prisma.user.findMany({
+        where: {
+          role: "OWNER",
+
+          /*  ownerProfile: {
+            verificationStatus: "VERIFIED",
+          }, */
+        },
+        skip,
+        take: limit,
+        select: {
+          fullName: true,
+          company: {
+            select: {
+              name: true,
+              legalName: true,
+              logo: true,
+              city: true,
+              country: true,
+            },
+          },
+          ownerProfile: {
+            select: {
+              verificationStatus: true,
+            },
+          },
+
+          brokerAssignmentsAsOwner: {
+            where: {
+              brokerId,
+            },
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            take: 1,
+          },
+        },
+        orderBy,
+      }),
+
+      await prisma.user.count(),
+    ]);
+
+    const meta = buildPageMeta(totalOwners, page, limit);
+
+    res.status(200).json({ meta, owners });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
@@ -173,7 +251,7 @@ export const updateVerifyUserByAdmin = async (req: Request, res: Response, next:
   }
 };
 
-export const getSingleUserProfile = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+export const getSingleUserProfile = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 

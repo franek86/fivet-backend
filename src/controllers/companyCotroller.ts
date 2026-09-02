@@ -3,6 +3,7 @@ import prisma from "../prismaClient";
 import { logger } from "../config/logger";
 import { ValidationError } from "../helpers/error.helpers";
 import { EditCompanySchema } from "../schemas/company.schema";
+import cloudinary, { uploadSingleFile } from "../cloudinaryConfig";
 
 /* get company profile */
 export const getCompanyProfile = async (req: Request, res: Response): Promise<void> => {
@@ -53,15 +54,45 @@ export const editCompnyProfile = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ errors: parsedData.error.errors });
       return;
     }
-    console.log("RAW DATA ====================== ", req.body);
-    console.log("PARSED DATA =================== ", parsedData.data);
 
-    await prisma.company.update({
+    const company = existingCompanyProfile?.company;
+    let logoUrl = company.logo;
+    let logoPublicId = company.logoPublicId;
+
+    /*
+     * Upload new logo if provided
+     */
+    if (req.file) {
+      const uploadedLogo = await uploadSingleFile(req.file.buffer, "companies/logos");
+
+      logoUrl = uploadedLogo.url;
+      logoPublicId = uploadedLogo.publicId;
+
+      /*
+       * Delete previous logo from Cloudinary
+       */
+      if (company.logoPublicId) {
+        try {
+          await cloudinary.uploader.destroy(company.logoPublicId);
+        } catch (error) {
+          logger.error("Failed to delete old company logo");
+        }
+      }
+    }
+
+    const updatedData = await prisma.company.update({
       where: { id: existingCompanyProfile.company.id },
-      data: req.body.data,
+      data: {
+        ...parsedData.data,
+
+        ...(req.file && {
+          logo: logoUrl,
+          logoPublicId,
+        }),
+      },
     });
 
-    res.status(200).json({ message: "Compoany profile updated", status: true });
+    res.status(200).json({ message: "Compoany profile updated", status: true, data: updatedData });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });

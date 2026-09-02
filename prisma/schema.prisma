@@ -160,7 +160,9 @@ model Company {
   city String?
   country String?
   description String?
+
   logo String?
+  logoPublicId String?
 
   isVerified Boolean @default(false)
 
