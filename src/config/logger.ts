@@ -19,8 +19,8 @@ export const logger = pino({
     service: "my-api",
   },
 
-  redact: {
+  /*  redact: {
     paths: ["req.headers.authorization", "req.headers.cookie", "password", "token", "accessToken", "refreshToken"],
     censor: "[REDACTED]",
-  },
+  }, */
 });

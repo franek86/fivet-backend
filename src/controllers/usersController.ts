@@ -102,6 +102,7 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
         skip,
         take: limit,
         select: {
+          id: true,
           fullName: true,
           company: {
             select: {

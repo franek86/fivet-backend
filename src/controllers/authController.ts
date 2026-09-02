@@ -63,11 +63,12 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 export const verifyUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = VerifyUserSchema.safeParse(req.body);
+
     if (!parsed.success) {
       logger.warn("Verfiy user validation failed");
       return next(parsed.error.flatten().fieldErrors);
     }
-    const { email, fullName, role, password, companyName, companyRegistrationNumber, otp } = parsed.data;
+    const { email, fullName, role, password, city, country, address, zipCode, companyName, companyRegistrationNumber, otp } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -106,6 +107,8 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         data: {
           name: companyName || "",
           vat: companyRegistrationNumber,
+          city,
+          country,
         },
       });
 
@@ -118,6 +121,10 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
           fullName,
           role,
           companyId,
+          city,
+          country,
+          address,
+          zipCode,
         },
       });
 
