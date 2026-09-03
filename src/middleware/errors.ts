@@ -4,7 +4,6 @@ import { logger } from "../config/logger";
 
 const errorMiddleware = (err: Error, req: Request, res: Response, _next: NextFunction): void => {
   if (err instanceof AppError) {
-    //console.log(`Error ${req.method} ${req.url} - ${err.message}`);
     logger.warn(
       {
         method: req.method,
@@ -17,7 +16,6 @@ const errorMiddleware = (err: Error, req: Request, res: Response, _next: NextFun
     res.status(err.statusCode).json({
       status: "error",
       message: err.message,
-      ...(err.details && { details: err.details }),
     });
 
     return;
@@ -27,12 +25,16 @@ const errorMiddleware = (err: Error, req: Request, res: Response, _next: NextFun
     {
       method: req.method,
       url: req.url,
+      statusCode: 500,
       err,
     },
     "Unhandled error",
   );
-  res.status(500).json({ status: "error", error: "Something went wrong, please try again" });
-  return;
+
+  res.status(500).json({
+    status: "error",
+    error: "Something went wrong, please try again",
+  });
 };
 
 export default errorMiddleware;

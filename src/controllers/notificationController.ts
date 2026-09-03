@@ -48,16 +48,6 @@ export const sendUserNotification = async (userId: string, message: string, type
     },
   });
 
-  const io = getIO();
-
-  // 1. Send to specific user
-  io.to(`user:${userId}`).emit("user:notification:new", {
-    id: notification.id,
-    message: notification.message,
-    type: notification.type,
-    createdAt: notification.createdAt,
-  });
-
   //Update unread count
   const unreadCount = await prisma.notification.count({
     where: {
@@ -66,9 +56,11 @@ export const sendUserNotification = async (userId: string, message: string, type
     },
   });
 
-  io.to(`user:${userId}`).emit("user:notification:count", {
-    userId: notification.userId,
-    count: unreadCount,
+  const io = getIO();
+
+  io.to(`user:${userId}`).emit("user:notification:new", {
+    notification,
+    unreadCount,
   });
 
   return notification;
@@ -105,7 +97,6 @@ export const getUnreadNotification = async (req: Request, res: Response): Promis
       prisma.notification.findMany({
         where: { userId, isRead: false },
         orderBy: { createdAt: "desc" },
-        take: 3,
       }),
 
       prisma.notification.count({
@@ -168,16 +159,11 @@ export const updateUnreadNotification = async (req: Request<{ id: string }, {}, 
         isRead: false,
       },
     });
-    console.log("Updated notification ", unreadCount);
-    const io = getIO();
-    io.to(`user:${updated.userId}`).emit("user:notification:count", {
-      id: updated.userId,
-      count: unreadCount,
-    });
 
+    const io = getIO();
     io.to(`user:${updated.userId}`).emit("user:notification:updated", {
-      id: updated.id,
-      isRead: updated.isRead,
+      notification: updated,
+      unreadCount,
     });
 
     res.json({ message: "Notification marked as read", notification: updated });
@@ -211,7 +197,7 @@ export const deleteNotification = async (req: Request<{ id: string }>, res: Resp
         isRead: false,
       },
     });
-    console.log("Deleted notification ", unreadCount);
+
     const io = getIO();
     io.to("admin-room").emit("admin:notification:count", {
       count: unreadCount,

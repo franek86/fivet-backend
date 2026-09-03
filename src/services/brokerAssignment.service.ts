@@ -1,8 +1,9 @@
 // services/brokerAssignment.service.ts
 
-import { PrismaClient, AssignmentStatus, NotificationType } from "@prisma/client";
+import { PrismaClient, AssignmentStatus } from "@prisma/client";
 import { getIO } from "./socket.service";
 import { logger } from "../config/logger";
+import { sendUserNotification } from "../controllers/notificationController";
 
 const prisma = new PrismaClient();
 
@@ -35,6 +36,7 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
   /* 
     Check verified owner
   */
+
   const owner = await prisma.user.findFirst({
     where: {
       id: ownerId,
@@ -85,7 +87,9 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
     if (existingAssignment.status === AssignmentStatus.REVOKED) {
       // You can decide whether revoked relationships can be requested again.
       // Here we allow a new request by resetting it to PENDING.
-      return prisma.brokerAssignment.update({
+
+      console.log("Setp 9 if revokded update to peding =======");
+      return await prisma.brokerAssignment.update({
         where: {
           id: existingAssignment.id,
         },
@@ -96,7 +100,7 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
     }
 
     if (existingAssignment.status === AssignmentStatus.DECLINED) {
-      return prisma.brokerAssignment.update({
+      return await prisma.brokerAssignment.update({
         where: {
           id: existingAssignment.id,
         },
@@ -110,6 +114,7 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
   /*
     Create or reactivate request
   */
+
   const result = await prisma.$transaction(async (tx) => {
     let assignment;
 
@@ -134,17 +139,17 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
     }
 
     /* Save notification */
-    const notification = await tx.notification.create({
+    /*  const notification = await tx.notification.create({
       data: {
         userId: ownerId,
         type: NotificationType.INFO,
         message: `${broker.fullName} sent you a broker connection request.`,
       },
-    });
+    }); */
 
     return {
       assignment,
-      notification,
+      //notification,
     };
   });
 
@@ -152,16 +157,10 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
   // 8. Send realtime notification AFTER DB commit
   // --------------------------------------------------
 
+  await sendUserNotification(ownerId, `Broker "${broker.fullName}" wants to connect with you!`, "INFO");
   const io = getIO();
 
-  io.to(`user:${ownerId}`).emit("notification:new", {
-    id: result.notification.id,
-    type: result.notification.type,
-    message: result.notification.message,
-    isRead: result.notification.isRead,
-    createdAt: result.notification.createdAt,
-
-    // Useful for frontend navigation
+  io.to(`user:${ownerId}`).emit("user:notification:new", {
     data: {
       type: "BROKER_REQUEST",
       assignmentId: result.assignment.id,

@@ -29,7 +29,7 @@ export const initializeSocket = (server: http.Server) => {
     try {
       const payload = jwt.verify(cookieHeader, process.env.JWT_SECRET as string) as CustomJwtPayload;
       socket.user = payload;
-      console.log(`[SOCKET AUTH] User connected: ${payload.userId} | role: ${payload.role}`);
+      //console.log(`[SOCKET AUTH] User connected: ${payload.userId} | role: ${payload.role}`);
 
       next();
     } catch (err) {
@@ -42,7 +42,7 @@ export const initializeSocket = (server: http.Server) => {
     const role = socket.user.role;
 
     //Each user joins their own room
-    if (role === "BUYER" && userId) {
+    if (role !== "ADMIN" && userId) {
       socket.join(`user:${userId}`);
     }
 

@@ -6,6 +6,11 @@ export const httpLogger = pinoHttp({
 
   autoLogging: true,
 
+  serializers: {
+    req: () => undefined,
+    res: () => undefined,
+  },
+
   customLogLevel: (_req, res, error) => {
     if (error || res.statusCode >= 500) {
       return "error";

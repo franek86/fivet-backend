@@ -9,12 +9,8 @@ export const SendBrokerRequestSchema = z.object({
 });
 
 export const sendBrokerRequestToOwner = async (req: Request, res: Response): Promise<void> => {
-  console.log("RAW BODY ------ ", req.body);
-
   try {
     const parsed = SendBrokerRequestSchema.safeParse(req.body);
-
-    console.log("parsed BODY ------ ", parsed);
 
     if (!parsed.success) {
       res.status(400).json({
@@ -27,8 +23,6 @@ export const sendBrokerRequestToOwner = async (req: Request, res: Response): Pro
 
     const brokerId = req.user?.userId;
     const { ownerId } = req.body;
-
-    console.log("BROKER ID ===== ", brokerId);
 
     if (!ownerId) {
       logger.warn("ownerId is required");
