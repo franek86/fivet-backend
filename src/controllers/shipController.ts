@@ -338,8 +338,12 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
 
     // Sort handling
 
-    if (role !== "ADMIN") {
-      whereCondition.userId = userId;
+    if (role === "BROKER") {
+      whereCondition.listedById = userId;
+    }
+
+    if (role === "OWNER") {
+      whereCondition.ownerId = userId;
     }
 
     const orderBy = parseSortBy(sortBy as string, ["shipName", "price", "createdAt"], { createdAt: "desc" });
@@ -354,6 +358,11 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
         shipType: {
           select: {
             name: true,
+          },
+        },
+        listedBy: {
+          select: {
+            fullName: true,
           },
         },
       },
