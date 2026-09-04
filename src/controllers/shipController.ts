@@ -69,6 +69,7 @@ CREATE SHIP
 Authenticate user can create ship
 */
 export const createShip = async (req: Request, res: Response): Promise<void> => {
+  const role = req.user?.role;
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ message: "Unauthorized" });
@@ -142,6 +143,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       data: {
         ...validateData,
         listedById: userId,
+        ownerId: role === "OWNER" && userId,
         mainImage: mainImageData?.url,
         mainImagePublicId: mainImageData?.publicId,
         images: {
@@ -628,6 +630,39 @@ export const deleteShip = async (req: Request<{ id: string }>, res: Response): P
       message: "Ship deleted successfully",
     });
   } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* 
+COUNT PENDING SHIPS AWAITING APPROVEAL
+Admin only
+*/
+export const pendingCountShips = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+
+    const [data, count] = await Promise.all([
+      await prisma.ship.findMany({
+        skip,
+        take: limit,
+        where: {
+          listingStatus: "PENDING",
+        },
+      }),
+
+      await prisma.ship.count({
+        where: {
+          listingStatus: "PENDING",
+        },
+      }),
+    ]);
+
+    const meta = buildPageMeta(count, page, limit);
+
+    res.status(200).json({ meta, data });
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

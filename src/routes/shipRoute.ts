@@ -10,6 +10,7 @@ import {
   getShip,
   updatePublishedShip,
   updateShip,
+  pendingCountShips,
 } from "../controllers/shipController";
 
 import upload from "../middleware/uploads";
@@ -30,6 +31,7 @@ router.get("/published", getAllPublishedShips);
 router.get("/published/:slug", getPublishedShip);
 router.get("/numeric-fields", getShipsNumericFields);
 router.get("/", authenticateUser, getDashboardShips);
+router.get("/pending-ships", authenticateUser, requireRole("ADMIN"), pendingCountShips);
 router.get("/:id", getShip);
 router.patch("/:id", authenticateUser, upload.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), updateShip);
 router.patch("/:id/publish", authenticateUser, requireRole("ADMIN"), updatePublishedShip);
