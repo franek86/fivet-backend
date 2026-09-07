@@ -11,6 +11,7 @@ import {
   updatePublishedShip,
   updateShip,
   pendingCountShips,
+  reviewApprovalShip,
 } from "../controllers/shipController";
 
 import upload from "../middleware/uploads";
@@ -34,6 +35,7 @@ router.get("/", authenticateUser, getDashboardShips);
 router.get("/pending-ships", authenticateUser, requireRole("ADMIN"), pendingCountShips);
 router.get("/:id", getShip);
 router.patch("/:id", authenticateUser, upload.fields([{ name: "mainImage", maxCount: 1 }, { name: "images" }]), updateShip);
+router.patch("/:shipId/approval", authenticateUser, requireRole("ADMIN"), reviewApprovalShip);
 router.patch("/:id/publish", authenticateUser, requireRole("ADMIN"), updatePublishedShip);
 router.delete("/:id", authenticateUser, deleteShip);
 export default router;

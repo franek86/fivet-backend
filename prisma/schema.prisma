@@ -89,6 +89,21 @@ enum InquiryStatus {
   CLOSED
 }
 
+enum DealStatus {
+  NEGOTIATING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum BrokerRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
 
 model User {
   id          String       @id @default(uuid())
@@ -550,4 +565,64 @@ model Inquiry {
   @@index([shipId])
   @@index([recipientId, status])
   @@map("inquiry")
+}
+
+model Deal {
+  id String @id @default(uuid())
+
+  owner   User @relation("OwnerDeals", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+
+  broker   User @relation("BrokerDeals", fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId String
+
+  ship   Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  shipId String
+
+  brokerRequest   BrokerRequest? @relation(fields: [brokerRequestId], references: [id], onDelete: SetNull)
+  brokerRequestId String? @unique
+
+  status DealStatus @default(NEGOTIATING)
+
+
+  startDate DateTime?
+  endDate DateTime?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, status])
+  @@index([brokerId, status])
+  @@index([shipId, status])
+  @@map("deal")
+}
+
+model BrokerRequest {
+  id String @id @default(uuid())
+
+  // Broker who sent the request
+  broker   User @relation("BrokerRequestsSent", fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId String
+
+  // Owner who receives the request
+  owner   User @relation("OwnerRequestsReceived", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+
+  // Vessel the broker is interested in
+  ship   Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  shipId String
+
+  status BrokerRequestStatus @default(PENDING)
+
+  message String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, status])
+  @@index([brokerId, status])
+  @@index([shipId])
+  @@map("brokerRequest")
 }

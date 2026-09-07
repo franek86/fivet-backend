@@ -10,7 +10,8 @@ import { sendEmail } from "../utils/sendMail";
 import { formatDate } from "../helpers/date.helpers";
 import { sendAdminNotification, sendUserNotification } from "./notificationController";
 import { getIO } from "../services/socket.service";
-import { NotificationType } from "@prisma/client";
+import { ListingStatus, NotificationType } from "@prisma/client";
+import { logger } from "../config/logger";
 
 /* 
 LIMIT CREATE SHIP FOR USERS DEPEND OF SUBSCRIPTION
@@ -664,5 +665,87 @@ export const pendingCountShips = async (req: Request, res: Response) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* 
+REVIEW NEW SHIP BY ADMIN. CAN BE REJECT OR VERIFED
+Admin only
+*/
+export const reviewApprovalShip = async (req: Request<{ shipId: string }>, res: Response): Promise<void> => {
+  const { shipId } = req.params;
+  const { status, rejectionReason } = req.body;
+  const user = req.user;
+
+  if (!shipId) {
+    res.status(400).json({
+      message: "Ship id is required",
+    });
+    return;
+  }
+
+  if (!user) {
+    res.status(401).json({
+      message: "Unauthenticated",
+    });
+    return;
+  }
+
+  if (user.role !== "ADMIN") {
+    res.status(403).json({
+      message: "You are not authorized to review vessels",
+    });
+    return;
+  }
+
+  if (status !== ListingStatus.VERIFIED && status !== ListingStatus.REJECTED) {
+    res.status(400).json({ message: "Invalid listing status" });
+    return;
+  }
+
+  if (status === ListingStatus.REJECTED && (!rejectionReason || !rejectionReason.trim())) {
+    res.status(400).json({ message: "Rejection reason is required" });
+    return;
+  }
+
+  try {
+    const ship = await prisma.ship.findUnique({
+      where: {
+        id: shipId,
+      },
+    });
+
+    if (!ship) {
+      res.status(404).json({ message: "Vessel not found" });
+      return;
+    }
+
+    if (ship.listingStatus !== ListingStatus.PENDING) {
+      res.status(400).json({ message: "This vessel has already been reviewed" });
+      return;
+    }
+
+    const updatedShip = await prisma.ship.update({
+      where: {
+        id: shipId,
+      },
+      data: {
+        listingStatus: status,
+        //isPublished: status === ListingStatus.VERIFIED,
+        verifiedAt: status === ListingStatus.VERIFIED ? new Date() : null,
+        verifiedBy: status === ListingStatus.VERIFIED ? user.id : null,
+        rejectionReason: status === ListingStatus.REJECTED ? rejectionReason.trim() : null,
+      },
+    });
+
+    res.status(200).json({
+      message: status === ListingStatus.VERIFIED ? "Vessel approved and published" : "Vessel rejected",
+      data: updatedShip,
+    });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({
+      message: "Internal server error",
+    });
   }
 };
