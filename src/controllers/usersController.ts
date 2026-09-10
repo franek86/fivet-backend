@@ -247,7 +247,7 @@ export const updateVerifyUserByAdmin = async (req: Request, res: Response, next:
       profile: updatedProfile,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -274,6 +274,71 @@ export const getSingleUserProfile = async (req: Request<{ id: string }>, res: Re
     });
 
     res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* GET VERIFIED BROKER LIST OF OWNER */
+export const getVerifiedBrokerList = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page, skip, limit } = parsePagination(req.query);
+    const { sortBy, search } = req.query;
+    const orderBy = parseSortBy(sortBy as string, ["status", "createdAt"], { createdAt: "desc" });
+
+    const whereCondition: any = {};
+
+    if (search && typeof search === "string" && search.trim().length > 0) {
+      whereCondition.OR = [
+        {
+          fullName: {
+            contains: search.trim(),
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
+
+    const [brokers, totalBrokers] = await Promise.all([
+      await prisma.user.findMany({
+        where: {
+          role: "BROKER",
+
+          brokerProfile: {
+            verificationStatus: "VERIFIED",
+          },
+        },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          fullName: true,
+
+          company: {
+            select: {
+              name: true,
+              legalName: true,
+              logo: true,
+              city: true,
+              country: true,
+            },
+          },
+          brokerProfile: {
+            select: {
+              verificationStatus: true,
+            },
+          },
+        },
+        orderBy,
+      }),
+
+      await prisma.user.count(),
+    ]);
+
+    const meta = buildPageMeta(totalBrokers, page, limit);
+
+    res.status(200).json({ meta, brokers });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });

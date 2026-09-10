@@ -149,6 +149,15 @@ model User {
   brokerAssignmentsAsOwner  BrokerAssignment[] @relation("AssignmentOwner")
   brokerAssignmentsAsBroker BrokerAssignment[] @relation("AssignmentBroker")
 
+  // BrokerRequest relation
+  ownerRequestsReceived BrokerRequest[] @relation("OwnerRequestsReceived")
+  brokerRequestsSent BrokerRequest[] @relation("BrokerRequestsSent")
+
+  // Deal
+  ownerDeals  Deal[] @relation("OwnerDeals")
+  brokerDeals Deal[] @relation("BrokerDeals")
+  
+ 
   favorites    Favorite[]
   savedSearches SavedSearch[]
 
@@ -285,6 +294,12 @@ model Ship {
   // may list a vessel for an owner who isn't a platform user yet
   owner   User?   @relation("OwnedShips", fields: [ownerId], references: [id], onDelete: SetNull)
   ownerId String?
+
+  // Broker requests for this vessel
+  brokerRequests BrokerRequest[] @relation("ShipBrokerRequests")
+
+  // Deals for this vessel
+  deals Deal[] @relation("ShipDeals")
 
   listingStatus ListingStatus @default(PENDING)
   verifiedAt    DateTime?
@@ -576,10 +591,11 @@ model Deal {
   broker   User @relation("BrokerDeals", fields: [brokerId], references: [id], onDelete: Cascade)
   brokerId String
 
-  ship   Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  ship Ship @relation("ShipDeals",fields: [shipId],references: [id],onDelete: Cascade)
   shipId String
 
-  brokerRequest   BrokerRequest? @relation(fields: [brokerRequestId], references: [id], onDelete: SetNull)
+
+  brokerRequest BrokerRequest? @relation("BrokerRequestDeal",fields: [brokerRequestId],references: [id],onDelete: SetNull)
   brokerRequestId String? @unique
 
   status DealStatus @default(NEGOTIATING)
@@ -611,8 +627,11 @@ model BrokerRequest {
   ownerId String
 
   // Vessel the broker is interested in
-  ship   Ship @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  ship Ship @relation("ShipBrokerRequests", fields: [shipId], references: [id], onDelete: Cascade)
   shipId String
+
+  // Deal created from this request
+  deal Deal? @relation("BrokerRequestDeal")
 
   status BrokerRequestStatus @default(PENDING)
 
