@@ -95,9 +95,9 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
         where: {
           role: "OWNER",
 
-          /*  ownerProfile: {
+          ownerProfile: {
             verificationStatus: "VERIFIED",
-          }, */
+          },
         },
         skip,
         take: limit,

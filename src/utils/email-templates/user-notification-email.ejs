@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fivet User Verification</title>
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      min-width: 100%;
+      background-color: #fafafa;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: #222222;
+    "
+  >
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#fafafa">
+      <tr>
+        <td align="center" style="padding: 0; margin: 0">
+          <!-- Wrapper -->
+          <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff">
+            <!-- Header -->
+            <tr>
+              <td
+                align="center"
+                bgcolor="#0070f3"
+                style="padding: 24px; color: #ffffff; font-size: 24px; font-weight: 700; line-height: 1.25"
+              >
+                Verify new user
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 24px; color: #000000; font-size: 16px; line-height: 1.5; font-family: Arial, sans-serif">
+                <p style="margin-top: 0; margin-bottom: 24px">Hi Admin,</p>
+                <p style="margin-top: 0; margin-bottom: 24px">Created a new user <b><%= userName %></b> at <%= createdAt %>.</p>
+                <p style="margin-top: 0; margin-bottom: 24px">User role: <b><%= role %></b>.</p>
+                <p style="margin-top: 0; margin-bottom: 24px">
+                  Please click
+                  <a href="<%= reviewUrl %>" style="color: #0070f3; text-decoration: none; font-weight: bold"> here </a>
+                  to review and verify new user.
+                </p>
+                <p style="margin-top: 0; margin-bottom: 24px">Best,<br />Fivet Team</p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" bgcolor="#f6f6f6" style="padding: 24px; font-size: 14px; color: #555555; font-family: Arial, sans-serif">
+                &copy; <%= new Date().getFullYear() %> Fivet. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -9,6 +9,10 @@ import { generateOtp } from "../helpers/generateOtp.helpers";
 import { ForgotPasswordSchema, LoginSchema, RegisterUserSchema, VerifyOtpSchema, VerifyUserSchema } from "../schemas/auth.schema";
 import { UserMeResponseSchema } from "../schemas/user.schema";
 import { logger } from "../config/logger";
+import { formatDate } from "../helpers/date.helpers";
+import { sendAdminNotification } from "./notificationController";
+import { NotificationType } from "@prisma/client";
+import { sendEmail } from "../utils/sendMail";
 
 const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
   return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
@@ -156,6 +160,33 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
 
     setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
     setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
+
+    /* TO DO :Send email to admin  */
+    const admin = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    const userLink = `${process.env.FRONTEND_URL}/admin/users/${newUser?.id}`;
+    const emailData = {
+      userName: newUser.fullName,
+      role: newUser.role,
+      createdAt: formatDate(newUser.createdAt.toISOString()),
+      reviewUrl: userLink,
+    };
+    const emailToSend = admin?.email ?? "";
+
+    /* Add notification */
+    if (role !== "ADMIN" && admin) {
+      //send notification to admin
+      await sendAdminNotification(admin.id, `New user created: ${newUser.fullName}`, NotificationType.INFO);
+
+      //Send email to admin
+      await sendEmail(emailToSend, "New User created", "user-notification-email", emailData);
+    }
 
     logger.info("User registred");
     res.status(201).json({
