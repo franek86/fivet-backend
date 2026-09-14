@@ -105,6 +105,11 @@ enum BrokerRequestStatus {
 }
 
 
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+}
+
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
@@ -157,6 +162,11 @@ model User {
   ownerDeals  Deal[] @relation("OwnerDeals")
   brokerDeals Deal[] @relation("BrokerDeals")
   
+  //Conversations
+  ownerConversations  Conversation[] @relation("OwnerConversations")
+  brokerConversations Conversation[] @relation("BrokerConversations")
+
+  sentMessages Message[] @relation("SentMessages")
  
   favorites    Favorite[]
   savedSearches SavedSearch[]
@@ -635,6 +645,8 @@ model BrokerRequest {
 
   status BrokerRequestStatus @default(PENDING)
 
+  conversation Conversation? @relation("BrokerRequestConversation")
+
   message String? @db.Text
 
   createdAt DateTime @default(now())
@@ -644,4 +656,54 @@ model BrokerRequest {
   @@index([brokerId, status])
   @@index([shipId])
   @@map("brokerRequest")
+}
+
+model Conversation {
+  id String @id @default(uuid())
+
+  broker   User @relation("BrokerRequestsSent", fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId String
+
+  // Owner who receives the request
+  owner   User @relation("OwnerRequestsReceived", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+
+  // The request that authorized this conversation
+  brokerRequest   BrokerRequest? @relation("BrokerRequestConversation", fields: [brokerRequestId], references: [id], onDelete: SetNull)
+  brokerRequestId String? @unique
+
+   status ConversationStatus @default(ACTIVE)
+
+  messages Message[]
+
+  lastMessageAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, brokerId])
+  @@index([ownerId])
+  @@index([brokerId])
+  @@map("conversation")
+}
+
+model Message {
+  id String @id @default(uuid())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String
+
+  content String @db.Text
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("message")
 }
