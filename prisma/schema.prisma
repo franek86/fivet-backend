@@ -627,8 +627,8 @@ model BrokerRequest {
   ownerId String
 
   // Vessel the broker is interested in
-  ship Ship @relation("ShipBrokerRequests", fields: [shipId], references: [id], onDelete: Cascade)
-  shipId String
+  ship Ship? @relation("ShipBrokerRequests", fields: [shipId], references: [id], onDelete: Cascade)
+  shipId String?
 
   // Deal created from this request
   deal Deal? @relation("BrokerRequestDeal")

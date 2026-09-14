@@ -1,6 +1,6 @@
 // services/brokerAssignment.service.ts
 
-import { PrismaClient, AssignmentStatus } from "@prisma/client";
+import { PrismaClient, AssignmentStatus, BrokerRequestStatus } from "@prisma/client";
 import { getIO } from "./socket.service";
 import { logger } from "../config/logger";
 import { sendUserNotification } from "../controllers/notificationController";
@@ -64,93 +64,44 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
   /* 
     Check existing relationship 
   */
-  const existingAssignment = await prisma.brokerAssignment.findUnique({
+  const existingRequest = await prisma.brokerRequest.findFirst({
     where: {
-      ownerId_brokerId: {
-        ownerId,
-        brokerId,
-      },
+      brokerId,
+      ownerId,
+      status: BrokerRequestStatus.PENDING,
     },
   });
 
-  if (existingAssignment) {
-    if (existingAssignment.status === AssignmentStatus.PENDING) {
-      logger.warn("Request is already pending");
-      throw new Error("Request is already pending");
-    }
-
-    if (existingAssignment.status === AssignmentStatus.ACCEPTED) {
-      logger.warn("You are already connected with this owner");
-      throw new Error("You are already connected with this owner");
-    }
-
-    if (existingAssignment.status === AssignmentStatus.REVOKED) {
-      // You can decide whether revoked relationships can be requested again.
-      // Here we allow a new request by resetting it to PENDING.
-
-      console.log("Setp 9 if revokded update to peding =======");
-      return await prisma.brokerAssignment.update({
-        where: {
-          id: existingAssignment.id,
-        },
-        data: {
-          status: AssignmentStatus.PENDING,
-        },
-      });
-    }
-
-    if (existingAssignment.status === AssignmentStatus.DECLINED) {
-      return await prisma.brokerAssignment.update({
-        where: {
-          id: existingAssignment.id,
-        },
-        data: {
-          status: AssignmentStatus.PENDING,
-        },
-      });
-    }
+  if (existingRequest) {
+    throw new Error("Request already pending");
   }
 
   /*
     Create or reactivate request
   */
 
-  const result = await prisma.$transaction(async (tx) => {
-    let assignment;
-
-    if (existingAssignment) {
-      assignment = await tx.brokerAssignment.update({
-        where: {
-          id: existingAssignment.id,
+  const result = await prisma.brokerRequest.create({
+    data: {
+      brokerId,
+      ownerId,
+      status: BrokerRequestStatus.PENDING,
+    },
+    include: {
+      broker: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
         },
-        data: {
-          status: AssignmentStatus.PENDING,
-          updatedAt: new Date(),
-        },
-      });
-    } else {
-      assignment = await tx.brokerAssignment.create({
-        data: {
-          brokerId,
-          ownerId,
-          status: AssignmentStatus.PENDING,
-        },
-      });
-    }
-
-    /* Save notification */
-    /*  const notification = await tx.notification.create({
-      data: {
-        userId: ownerId,
-        type: NotificationType.INFO,
-        message: `${broker.fullName} sent you a broker connection request.`,
       },
-    }); */
-
-    return {
-      assignment,
-      //notification,
-    };
+      owner: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+        },
+      },
+    },
   });
 
   // --------------------------------------------------
@@ -163,13 +114,13 @@ export const sendBrokerRequestToOwnerService = async (brokerId: string, ownerId:
   io.to(`user:${ownerId}`).emit("user:notification:new", {
     data: {
       type: "BROKER_REQUEST",
-      assignmentId: result.assignment.id,
+      assignmentId: result.id,
       brokerId,
       ownerId,
     },
   });
 
-  return result.assignment;
+  return result;
 
   /* return prisma.brokerAssignment.create({
     data: {

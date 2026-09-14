@@ -119,7 +119,7 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
             },
           },
 
-          brokerAssignmentsAsOwner: {
+          ownerRequestsReceived: {
             where: {
               brokerId,
             },
@@ -327,6 +327,11 @@ export const getVerifiedBrokerList = async (req: Request, res: Response): Promis
           brokerProfile: {
             select: {
               verificationStatus: true,
+            },
+          },
+          brokerRequestsSent: {
+            select: {
+              status: true,
             },
           },
         },
