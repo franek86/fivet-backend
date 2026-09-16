@@ -2,6 +2,7 @@ import http from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { CustomJwtPayload } from "../middleware/verifyToken";
+import { registerChatHandlers } from "./chat.socket.service";
 
 declare module "socket.io" {
   interface Socket {
@@ -21,7 +22,10 @@ export const initializeSocket = (server: http.Server) => {
     },
   });
 
-  // Socket.IO
+  // ------------------------------------------
+  // SOCKET AUTHENTICATION
+  // ------------------------------------------
+
   io.use((socket, next) => {
     const cookieHeader = socket.handshake.auth.token;
     if (!cookieHeader) return next(new Error("No cookies"));
@@ -37,27 +41,37 @@ export const initializeSocket = (server: http.Server) => {
     }
   });
 
+  // ------------------------------------------
+  // CONNECTION
+  // ------------------------------------------
+
   io.on("connection", async (socket: Socket) => {
     const userId = socket.user.userId;
     const role = socket.user.role;
 
-    //Each user joins their own room
+    // User room
     if (role !== "ADMIN" && userId) {
       socket.join(`user:${userId}`);
     }
 
+    // Admin room
     if (role === "ADMIN") {
       socket.join("admin-room");
     }
 
-    // Add socket to user's set
+    // Online users
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
     }
 
     onlineUsers.get(userId)!.add(socket.id);
 
-    // Broadcast online users
+    //Chat handlers
+    if (userId) {
+      registerChatHandlers(socket, userId);
+    }
+
+    // Admin receives online event
     if (role === "ADMIN") {
       socket.to("admin-room").emit("user:online", {
         userId,

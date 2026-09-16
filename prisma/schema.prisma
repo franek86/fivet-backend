@@ -162,7 +162,7 @@ model User {
   ownerDeals  Deal[] @relation("OwnerDeals")
   brokerDeals Deal[] @relation("BrokerDeals")
   
-  //Conversations
+  //chat
   ownerConversations  Conversation[] @relation("OwnerConversations")
   brokerConversations Conversation[] @relation("BrokerConversations")
 
@@ -661,18 +661,18 @@ model BrokerRequest {
 model Conversation {
   id String @id @default(uuid())
 
-  broker   User @relation("BrokerRequestsSent", fields: [brokerId], references: [id], onDelete: Cascade)
+  broker   User @relation("BrokerConversations", fields: [brokerId], references: [id], onDelete: Cascade)
   brokerId String
 
   // Owner who receives the request
-  owner   User @relation("OwnerRequestsReceived", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner   User @relation("OwnerConversations", fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId String
 
   // The request that authorized this conversation
   brokerRequest   BrokerRequest? @relation("BrokerRequestConversation", fields: [brokerRequestId], references: [id], onDelete: SetNull)
   brokerRequestId String? @unique
 
-   status ConversationStatus @default(ACTIVE)
+  status ConversationStatus @default(ACTIVE)
 
   messages Message[]
 

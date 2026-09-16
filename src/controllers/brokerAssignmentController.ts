@@ -86,7 +86,15 @@ export const editBrokerRequestToUser = async (req: Request, res: Response): Prom
       },
     });
 
-    res.status(200).json({ message: "Request accpetd", result });
+    const conversation = await prisma.conversation.create({
+      data: {
+        ownerId: result.ownerId,
+        brokerId: result.brokerId,
+        brokerRequestId: result.id,
+      },
+    });
+
+    res.status(200).json({ message: "Request accpeted", conversation });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
