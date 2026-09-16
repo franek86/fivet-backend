@@ -330,8 +330,13 @@ export const getVerifiedBrokerList = async (req: Request, res: Response): Promis
             },
           },
           brokerRequestsSent: {
+            where: {
+              ownerId: req.user?.userId,
+            },
             select: {
+              id: true,
               status: true,
+              ownerId: true,
             },
           },
         },
