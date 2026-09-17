@@ -66,32 +66,116 @@ export const editBrokerRequestToUser = async (req: Request, res: Response): Prom
       return;
     }
 
-    const { brokerId, status } = req.body;
-    const updateBrokerRequest = await prisma.brokerRequest.findFirst({
+    const { brokerId, id, status } = req.body;
+    const findBrokerRequest = await prisma.brokerRequest.findFirst({
       where: {
+        id,
         brokerId,
         ownerId,
-        status: "PENDING",
       },
     });
 
-    if (!updateBrokerRequest) {
+    if (!findBrokerRequest) {
       throw new Error("Broker request not found");
     }
 
+    const currentStatus = findBrokerRequest.status;
+
+    const isValidTransition =
+      (currentStatus === "PENDING" && ["ACCEPTED", "REJECTED"].includes(status)) ||
+      (currentStatus === "ACCEPTED" && status === "CANCELLED");
+
+    if (!isValidTransition) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid status transition",
+      });
+      return;
+    }
+
+    // Reject → delete
+    if (status === "REJECTED") {
+      await prisma.brokerRequest.delete({
+        where: {
+          id: findBrokerRequest.id,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Request rejected",
+      });
+
+      return;
+    }
+
+    // Cancel → delete
+    /* if (status === "CANCELLED") {
+      await prisma.brokerRequest.delete({
+        where: {
+          id: findBrokerRequest.id,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Request cancelled",
+      });
+
+      return;
+    } */
+
+    if (status === "CANCELLED") {
+      await prisma.$transaction(async (tx) => {
+        await tx.conversation.deleteMany({
+          where: {
+            brokerRequestId: findBrokerRequest.id,
+          },
+        });
+
+        await tx.brokerRequest.delete({
+          where: {
+            id: findBrokerRequest.id,
+          },
+        });
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Broker connection cancelled",
+      });
+
+      return;
+    }
+
+    // ACCEPTED → update
     const result = await prisma.brokerRequest.update({
-      where: { id: updateBrokerRequest.id },
+      where: {
+        id: findBrokerRequest.id,
+      },
       data: {
-        status: status,
+        status: "ACCEPTED",
       },
     });
 
-    const conversation = await prisma.conversation.create({
-      data: {
-        ownerId: result.ownerId,
-        brokerId: result.brokerId,
-        brokerRequestId: result.id,
-      },
+    // Only create conversation when request is ACCEPTED
+    let conversation = null;
+
+    if (findBrokerRequest.status === "PENDING" && status === "ACCEPTED") {
+      conversation = await prisma.conversation.create({
+        data: {
+          ownerId: result.ownerId,
+          brokerId: result.brokerId,
+          brokerRequestId: result.id,
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Request ${status.toLowerCase()}`,
+      brokerRequest: result,
+      conversation,
     });
 
     res.status(200).json({ message: "Request accpeted", conversation });
