@@ -259,34 +259,40 @@ model Ship {
   id              String   @id @default(uuid())
   shipName        String
   slug            String @unique @default("default-slug")
-
-  shipType        ShipType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
-  typeId          String?
-
+  shipType        ShipType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  typeId          String
   imo             Int  @unique
-  refitYear       Int?
-  buildYear       Int?
-  price           Float
-  location        String?
-  latitude        Float?
-  longitude       Float?
-  mainEngine      String?
-  lengthOverall   Float?
-  beam            Float?
-  length          Float?
-  depth           Float?
-  draft           Float?
-  tonnage         Float?
-  cargoCapacity   String?
+  buildYear       Int
   buildCountry    String?
-  hullMaterial String?
-  remarks         String?
+  flag            String?
+
+  price           Decimal @db.Decimal(15, 2)
+  currency        String? @default("$")
+  
+  mainEngine      String?
+  enginePower     String?
+  dwt             Decimal @db.Decimal(8, 2)
+  lengthOverall   Decimal @db.Decimal(8, 2)
+  netTonnage      Decimal? @db.Decimal(12, 2)
+  grossTonnage    Decimal? @db.Decimal(12, 2)
+  beam            Decimal @db.Decimal(8, 2)
+  draft           Decimal @db.Decimal(8, 2)
+  cargoCapacity   String?
+
+  fuelType         String?
+  cruisingSpeed    Float?
+
+  classNotation    String?
+  ssDueDate        DateTime?
+  ddDueDate        DateTime?
+  currentPort      String?
+  nextPort         String?
+
   description     String?
-  flagState String?
+  
   isFeatured Boolean? @default(false)
-  currency String? @default("USD")
   vatPaid Boolean?
-  fuelType String?
+
 
   mainImage       String?
   mainImageAlt    String?

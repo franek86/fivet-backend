@@ -144,7 +144,7 @@ export const createShip = async (req: Request, res: Response): Promise<void> => 
       data: {
         ...validateData,
         listedById: userId,
-        ownerId: role === "OWNER" && userId,
+        ownerId: userId,
         mainImage: mainImageData?.url,
         mainImagePublicId: mainImageData?.publicId,
         images: {
@@ -232,22 +232,16 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
               name: true,
             },
           },
-          refitYear: true,
           buildYear: true,
           price: true,
-          location: true,
-          latitude: true,
-          longitude: true,
           mainEngine: true,
           lengthOverall: true,
           beam: true,
-          length: true,
-          depth: true,
+
           draft: true,
-          tonnage: true,
           cargoCapacity: true,
           buildCountry: true,
-          remarks: true,
+
           description: true,
           mainImage: true,
           images: true,
@@ -279,8 +273,8 @@ export const getShipsNumericFields = async (req: Request, res: Response) => {
     // Compute min/max for numeric fields across all published ships
     const numericStats = await prisma.ship.aggregate({
       where: { isPublished: true },
-      _min: { beam: true, tonnage: true, draft: true, length: true, cargoCapacity: true, depth: true, price: true },
-      _max: { beam: true, tonnage: true, draft: true, length: true, cargoCapacity: true, depth: true, price: true },
+      _min: { beam: true, draft: true, cargoCapacity: true, price: true },
+      _max: { beam: true, draft: true, cargoCapacity: true, price: true },
     });
 
     res.status(200).json({ numericStats });
@@ -325,14 +319,14 @@ GET ALL SHIPS
 Get all ships from admin published or not published. Users can see only their own ships 
 */
 export const getDashboardShips = async (req: Request, res: Response): Promise<any> => {
-  const { userId, role } = req.user as CustomJwtPayload;
-
-  const { page, limit, skip } = parsePagination(req.query);
-  const { sortBy } = req.query;
-
-  const filters = shipFilters(req.query);
-
   try {
+    const { userId, role } = req.user as CustomJwtPayload;
+
+    const { page, limit, skip } = parsePagination(req.query);
+    const { sortBy } = req.query;
+
+    const filters = shipFilters(req.query);
+
     let data;
 
     const whereCondition: any = {
