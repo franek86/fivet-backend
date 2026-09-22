@@ -1,4 +1,6 @@
+import { ShipFilters } from "../schemas/shipFilter.schema";
 import { parseDate } from "../helpers/date.helpers";
+import { Prisma } from "@prisma/client";
 
 /**
 @desc Accepts a string in the format `"min-max"` and converts it into an object
@@ -38,19 +40,16 @@ const parseRange = (value: string) => {
  *
  * @returns A `where` filter object containing conditional query
  */
-export const shipFilters = (query: any) => {
-  const { beam, price, shipType, dateFrom, dateTo, isPublished, search, minTonnage, maxTonnage } = query;
+export const shipFilters = (filters: ShipFilters) => {
+  const { shipType, search, isPublished, minPrice, maxPrice } = filters;
 
-  const where: any = {};
+  const where: Prisma.ShipWhereInput = {};
 
-  /* if (search && typeof search === "string" && search.trim().length > 0) {
-    where.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }, { imo: { contains: search.trim(), mode: "insensitive" } }];
-  } */
-  if (typeof search === "string") {
+  if (search) {
     const trimmed = search.trim();
 
     if (trimmed.length > 0) {
-      const orConditions: any[] = [
+      const orConditions: Prisma.ShipWhereInput[] = [
         {
           shipName: {
             contains: trimmed,
@@ -59,68 +58,37 @@ export const shipFilters = (query: any) => {
         },
       ];
 
-      if (!isNaN(Number(trimmed))) {
+      const imo = Number(trimmed);
+
+      if (!Number.isNaN(imo)) {
         orConditions.push({
-          imo: Number(trimmed),
+          imo,
         });
       }
 
-      where.AND = [...(where.AND || []), { OR: orConditions }];
+      where.OR = orConditions;
     }
   }
 
   // Is published
-  if (isPublished === "true") {
-    where.isPublished = true;
-  } else if (isPublished === "false") {
-    where.isPublished = false;
+  if (isPublished !== undefined) {
+    where.isPublished = isPublished;
   }
 
-  if (price) {
-    // Price
-    const [min, max] = price.split("-").map(Number);
-    where.price = {};
-    if (!isNaN(min)) where.price.gte = min;
-    if (!isNaN(max)) where.price.lte = max;
-  }
-
-  // Ship type
-  if (shipType) {
-    const shipTypeNames = shipType.split(",").map((t: string) => t.trim());
-
-    where.shipType = {
-      name: { in: shipTypeNames },
+  // Price
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    where.price = {
+      ...(minPrice !== undefined && { gte: minPrice }),
+      ...(maxPrice !== undefined && { lte: maxPrice }),
     };
   }
 
-  //Beam
-  if (beam) {
-    const value = beam;
-    where.beam = parseRange(value);
+  // Ship type
+  if (shipType.length > 0) {
+    where.shipType = {
+      name: { in: shipType },
+    };
   }
-
-  if (minTonnage) {
-    where.tonnage = { gte: Number(minTonnage) };
-  }
-
-  if (maxTonnage) {
-    where.tonnage = { gte: Number(maxTonnage) };
-  }
-
-  //Tonnage
-  /*  if (tonnage) {
-    const value = tonnage;
-    where.tonnage = parseRange(value);
-  } */
-
-  // Date range
-  const dateFromInit = parseDate(dateFrom);
-  const dateToInit = parseDate(dateTo);
-
-  where.createdAt = {
-    ...(dateFromInit && { gte: dateFromInit }),
-    ...(dateToInit && { lte: dateToInit }),
-  };
 
   return where;
 };

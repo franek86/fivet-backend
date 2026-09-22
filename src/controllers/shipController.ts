@@ -1,17 +1,20 @@
 import prisma from "../prismaClient";
 import { Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
-import { buildPageMeta, parsePagination } from "../utils/pagination";
+import { ListingStatus, NotificationType } from "@prisma/client";
 import cloudinary, { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
-import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
+import { getIO } from "../services/socket.service";
+
+import { logger } from "../config/logger";
 import { shipFilters } from "../utils/shipFilters";
 import { parseSortBy } from "../helpers/sort.helpers";
 import { sendEmail } from "../utils/sendMail";
+import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { formatDate } from "../helpers/date.helpers";
+
 import { sendAdminNotification, sendUserNotification } from "./notificationController";
-import { getIO } from "../services/socket.service";
-import { ListingStatus, NotificationType } from "@prisma/client";
-import { logger } from "../config/logger";
+import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
+import { ShipFilterSchema } from "../schemas/shipFilter.schema";
 
 /* 
 LIMIT CREATE SHIP FOR USERS DEPEND OF SUBSCRIPTION
@@ -204,23 +207,28 @@ It is public route. Get all published ships with pagination, sort, filters
 */
 export const getAllPublishedShips = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
-    const filters = shipFilters(req.query);
+    const result = ShipFilterSchema.safeParse(req.body);
 
-    const { sortBy } = req.query;
-    const orderBy = parseSortBy(sortBy as string, ["shipName", "price", "createdAt"], { createdAt: "desc" });
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
 
-    const where = {
-      isPublished: true,
-      ...filters,
-    };
+      return;
+    }
+
+    const filters = result.data;
+
+    const whereCondition = shipFilters({ isPublished: true, ...filters });
+    const skip = (filters.page - 1) * filters.limit;
 
     const [ships, totalShips] = await Promise.all([
       prisma.ship.findMany({
+        where: whereCondition,
         skip,
-        take: limit,
-        where,
-        orderBy,
+        take: filters.limit,
+        orderBy: { [filters.sortBy]: filters.order },
         select: {
           id: true,
           shipName: true,
@@ -249,10 +257,10 @@ export const getAllPublishedShips = async (req: Request, res: Response): Promise
           createdAt: true,
         },
       }),
-      prisma.ship.count({ where }),
+      prisma.ship.count({ where: whereCondition }),
     ]);
 
-    const meta = buildPageMeta(totalShips, page, limit);
+    const meta = buildPageMeta(totalShips, filters.page, filters.limit);
 
     res.status(200).json({
       meta,
@@ -322,18 +330,23 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
   try {
     const { userId, role } = req.user as CustomJwtPayload;
 
-    const { page, limit, skip } = parsePagination(req.query);
-    const { sortBy } = req.query;
+    const result = ShipFilterSchema.safeParse(req.query);
 
-    const filters = shipFilters(req.query);
+    if (!result.success) {
+      console.log("RAW QUERY:", req.query);
+      console.log("ZOD ERROR:", result.error.flatten());
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
 
-    let data;
+      return;
+    }
 
-    const whereCondition: any = {
-      ...filters,
-    };
+    const filters = result.data;
 
-    // Sort handling
+    const whereCondition = shipFilters(filters);
+    const skip = (filters.page - 1) * filters.limit;
 
     if (role === "BROKER") {
       whereCondition.listedById = userId;
@@ -343,29 +356,33 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       whereCondition.ownerId = userId;
     }
 
-    const orderBy = parseSortBy(sortBy as string, ["shipName", "price", "createdAt"], { createdAt: "desc" });
-    const totalShips = (data = await prisma.ship.count());
+    const [data, total] = await Promise.all([
+      prisma.ship.findMany({
+        where: whereCondition,
+        orderBy: { [filters.sortBy]: filters.order },
+        skip,
+        take: filters.limit,
 
-    data = await prisma.ship.findMany({
-      skip,
-      take: limit,
-      where: whereCondition,
-      orderBy,
-      include: {
-        shipType: {
-          select: {
-            name: true,
+        include: {
+          shipType: {
+            select: {
+              name: true,
+            },
+          },
+          listedBy: {
+            select: {
+              fullName: true,
+            },
           },
         },
-        listedBy: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
-    });
+      }),
 
-    const meta = buildPageMeta(totalShips, page, limit);
+      prisma.ship.count({
+        where: whereCondition,
+      }),
+    ]);
+
+    const meta = buildPageMeta(total, filters.page, filters.limit);
 
     return res.status(200).json({
       message: "Ships fetched successfully.",
