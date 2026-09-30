@@ -8,21 +8,32 @@ import { NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { logger } from "../config/logger";
 import { UpdateVerifyUserSchema } from "../schemas/updateVerifyUser.schema";
 import { onlineUsers } from "../services/socket.service";
+import { UserFilterSchema } from "../schemas/user.schema";
 
 /* GET ALL USERS, ADMIN ONLY */
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const { page, skip, limit } = parsePagination(req.query);
-    const { sortBy, search } = req.query;
-    const orderBy = parseSortBy(sortBy as string, ["status", "views", "createdAt"], { createdAt: "desc" });
+    const result = UserFilterSchema.safeParse(req.query);
+
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
+
+      return;
+    }
+
+    const filters = result.data;
 
     const whereCondition: any = {};
+    const skip = (filters.page - 1) * filters.limit;
 
-    if (search && typeof search === "string" && search.trim().length > 0) {
+    if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
       whereCondition.OR = [
         {
           fullName: {
-            contains: search.trim(),
+            contains: filters.search.trim(),
             mode: "insensitive",
           },
         },
@@ -33,8 +44,8 @@ export const getAllUsers = async (req: Request, res: Response) => {
       prisma.user.findMany({
         where: whereCondition,
         skip,
-        take: limit,
-        orderBy,
+        take: filters.limit,
+        orderBy: { [filters.sortBy]: filters.order },
         select: {
           id: true,
           fullName: true,
@@ -52,7 +63,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
       prisma.user.count(),
     ]);
 
-    const meta = buildPageMeta(totalUsers, page, limit);
+    const meta = buildPageMeta(totalUsers, filters.page, filters.limit);
 
     const usersWithStatus = users.map((u: any) => ({
       ...u,

@@ -7,14 +7,14 @@ import { getIO } from "../services/socket.service";
 
 import { logger } from "../config/logger";
 import { shipFilters } from "../utils/shipFilters";
-import { parseSortBy } from "../helpers/sort.helpers";
 import { sendEmail } from "../utils/sendMail";
-import { buildPageMeta, parsePagination } from "../utils/pagination";
+import { buildPageMeta } from "../utils/pagination";
 import { formatDate } from "../helpers/date.helpers";
 
 import { sendAdminNotification, sendUserNotification } from "./notificationController";
 import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
 import { ShipFilterSchema } from "../schemas/shipFilter.schema";
+import { PaginationSchema } from "../schemas/pagination.schema";
 
 /* 
 LIMIT CREATE SHIP FOR USERS DEPEND OF SUBSCRIPTION
@@ -333,8 +333,6 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
     const result = ShipFilterSchema.safeParse(req.query);
 
     if (!result.success) {
-      console.log("RAW QUERY:", req.query);
-      console.log("ZOD ERROR:", result.error.flatten());
       res.status(400).json({
         message: "Invalid filters",
         errors: result.error.flatten(),
@@ -652,12 +650,24 @@ Admin only
 */
 export const pendingCountShips = async (req: Request, res: Response) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const result = PaginationSchema.safeParse(req.query);
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
+
+      return;
+    }
+
+    const params = result.data;
+
+    const skip = (params.page - 1) * params.limit;
 
     const [data, count] = await Promise.all([
       await prisma.ship.findMany({
         skip,
-        take: limit,
+        take: params.limit,
         where: {
           listingStatus: "PENDING",
         },
@@ -670,7 +680,7 @@ export const pendingCountShips = async (req: Request, res: Response) => {
       }),
     ]);
 
-    const meta = buildPageMeta(count, page, limit);
+    const meta = buildPageMeta(count, params.page, params.limit);
 
     res.status(200).json({ meta, data });
   } catch (error) {

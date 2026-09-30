@@ -80,4 +80,14 @@ export const UserMeResponseSchema = UserSchema.pick({
   }),
 });
 
+/* USER FILTER SCHEMA */
+export const UserFilterSchema = z.object({
+  search: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(12),
+  sortBy: z.enum(["status", "views", "createdAt"]).default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export type UserFilterType = z.infer<typeof UserFilterSchema>;
 export type UserSchema = z.infer<typeof UserSchema>;
