@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
 
-import { CreatePostSchema, UpdatePostSchema } from "../schemas/post.schema";
+import { BlogFilterSchema, CreatePostSchema, UpdatePostSchema } from "../schemas/post.schema";
 import cloudinary, { uploadMultipleFiles, uploadSingleFileToCloudinary } from "../cloudinaryConfig";
 import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
@@ -97,22 +97,33 @@ export const createPost = async (req: Request, res: Response) => {
 /* get all blog lists */
 export const getAllPosts = async (req: Request, res: Response) => {
   try {
-    const { page, skip, limit } = parsePagination(req.query);
-    const filters = blogFilters(req.query);
-    const { sortBy } = req.query;
-    const orderBy = parseSortBy(sortBy as string, ["status", "views", "createdAt"], { createdAt: "desc" });
+    const result = BlogFilterSchema.safeParse(req.query);
+
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
+
+      return;
+    }
+
+    const filters = result.data;
+
+    const { where } = blogFilters(filters);
+    const skip = (filters.page - 1) * filters.limit;
 
     const [posts, totalPosts] = await Promise.all([
       prisma.post.findMany({
+        where,
         skip,
-        where: filters,
-        take: limit,
-        orderBy,
+        take: filters.limit,
+        orderBy: { [filters.sortBy]: filters.order },
       }),
-      prisma.post.count({ where: filters }),
+      prisma.post.count(where),
     ]);
 
-    const meta = buildPageMeta(totalPosts, page, limit);
+    const meta = buildPageMeta(totalPosts, filters.page, filters.limit);
 
     res.status(200).json({
       meta,

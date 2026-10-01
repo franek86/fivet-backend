@@ -1,22 +1,4 @@
-import { parseDate } from "../helpers/date.helpers";
-
-/**
-@desc Accepts a string in the format `"min-max"` and converts it into an object
- * containing `gte` (greater than or equal) and/or `lte` (less than or equal)
- * values.
-@param value - A range string formatted as `"min-max"`
-@returns An object containing `gte` and/or `lte` numeric properties based on
- * the parsed range. Returns an empty object if no valid numbers are found.
-*/
-const parseRange = (value: string) => {
-  const [min, max] = value.split("-").map(Number);
-  const range: any = {};
-
-  if (!isNaN(min)) range.gte = min;
-  if (!isNaN(max)) range.lte = max;
-
-  return range;
-};
+import { BlogFilters } from "src/schemas/post.schema";
 
 /**
  * @desc
@@ -35,14 +17,12 @@ const parseRange = (value: string) => {
  *
  * @returns A `where` filter object containing conditional query
  */
-export const blogFilters = (query: any) => {
+export const blogFilters = (query: BlogFilters) => {
   const { categories, tags, dateFrom, dateTo, status, search } = query;
 
   const where: any = {};
 
-  /* if (search && typeof search === "string" && search.trim().length > 0) {
-    where.OR = [{ shipName: { contains: search.trim(), mode: "insensitive" } }, { imo: { contains: search.trim(), mode: "insensitive" } }];
-  } */
+  //Blog search
   if (typeof search === "string") {
     const trimmed = search.trim();
 
@@ -60,17 +40,11 @@ export const blogFilters = (query: any) => {
         },
       ];
 
-      if (!isNaN(Number(trimmed))) {
-        orConditions.push({
-          imo: Number(trimmed),
-        });
-      }
-
       where.AND = [...(where.AND || []), { OR: orConditions }];
     }
   }
 
-  // STATUS
+  // Blog status
   switch (status) {
     case "DRAFT":
       where.status = "DRAFT";
@@ -85,6 +59,7 @@ export const blogFilters = (query: any) => {
       where.status = "DRAFT";
       break;
   }
+
   // Blog categores
   if (categories) {
     const categoryTitle = categories.split(",").map((t: string) => t.trim());
@@ -104,8 +79,8 @@ export const blogFilters = (query: any) => {
   }
 
   // Date range
-  const dateFromInit = parseDate(dateFrom);
-  const dateToInit = parseDate(dateTo);
+  const dateFromInit = dateFrom;
+  const dateToInit = dateTo;
 
   where.createdAt = {
     ...(dateFromInit && { gte: dateFromInit }),

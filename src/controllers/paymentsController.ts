@@ -1,27 +1,41 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
 import { paymentFilters } from "../utils/paymentFilters";
-import { buildPageMeta, parsePagination } from "../utils/pagination";
+import { buildPageMeta } from "../utils/pagination";
+import { PaymentFilterSchema } from "../schemas/payment.schema";
 
 /* Get all payments
     ADMIN ONLY
 */
 export const getPayments = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
-    const { where } = paymentFilters(req.query);
+    const result = PaymentFilterSchema.safeParse(req.query);
+
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
+
+      return;
+    }
+
+    const filters = result.data;
+
+    const { where } = paymentFilters(filters);
+    const skip = (filters.page - 1) * filters.limit;
 
     const [data, total] = await Promise.all([
       prisma.payment.findMany({
         where,
         skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
+        take: filters.limit,
+        orderBy: { [filters.sortBy]: filters.order },
       }),
       prisma.payment.count(),
     ]);
 
-    const meta = buildPageMeta(total, page, limit);
+    const meta = buildPageMeta(total, filters.page, filters.limit);
 
     res.status(200).json({ meta, payload: data });
   } catch (error) {

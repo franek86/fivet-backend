@@ -55,5 +55,19 @@ export const CreatePostSchema = z.object({
 
 export const UpdatePostSchema = CreatePostSchema.partial();
 
+export const BlogFilterSchema = z.object({
+  categories: z.string().optional(),
+  tags: z.string().optional(),
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional(),
+  status: PostStatusEnum.optional().default("DRAFT"),
+  search: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(12),
+  sortBy: z.enum(["title", "createdAt", "updatedAt", "views"]).default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export type BlogFilters = z.infer<typeof BlogFilterSchema>;
 export type CreatePostInput = z.infer<typeof CreatePostSchema>;
 export type UpdatePostInput = z.infer<typeof UpdatePostSchema>;
