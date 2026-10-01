@@ -665,7 +665,7 @@ export const pendingCountShips = async (req: Request, res: Response) => {
     const skip = (params.page - 1) * params.limit;
 
     const [data, count] = await Promise.all([
-      await prisma.ship.findMany({
+      prisma.ship.findMany({
         skip,
         take: params.limit,
         where: {
@@ -673,7 +673,7 @@ export const pendingCountShips = async (req: Request, res: Response) => {
         },
       }),
 
-      await prisma.ship.count({
+      prisma.ship.count({
         where: {
           listingStatus: "PENDING",
         },

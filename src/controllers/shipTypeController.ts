@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../prismaClient";
 
 import { buildPageMeta, parsePagination } from "../utils/pagination";
-import { parseSortBy } from "../helpers/sort.helpers";
+import { ShipTypeFilterSchema } from "../schemas/shipType.schema";
 
 /* CREATE SHIP TYPE BY ADMIN 
   Only admin can create ship type
@@ -95,22 +95,32 @@ export const deleteShipType = async (req: Request<{ id: string }>, res: Response
   Public route
 */
 export const getShipType = async (req: Request, res: Response): Promise<void> => {
-  const { page, limit, skip } = parsePagination(req.query);
-  const { sortBy, search } = req.query;
+  const result = ShipTypeFilterSchema.safeParse(req.query);
 
-  const orderBy = parseSortBy(sortBy as string, ["name", "createdAt"], { createdAt: "desc" });
+  if (!result.success) {
+    res.status(400).json({
+      message: "Invalid filters",
+      errors: result.error.flatten(),
+    });
+
+    return;
+  }
+
+  const filters = result.data;
 
   const whereCondition: Prisma.ShipTypeWhereInput = {};
-  if (search && typeof search === "string" && search.trim().length > 0) {
+  const skip = (filters.page - 1) * filters.limit;
+
+  if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
     whereCondition.OR = [
       {
         name: {
-          contains: search.trim(),
+          contains: filters.search.trim(),
           mode: "insensitive",
         },
       },
       {
-        description: { contains: search.trim(), mode: "insensitive" },
+        description: { contains: filters.search.trim(), mode: "insensitive" },
       },
     ];
   }
@@ -119,13 +129,13 @@ export const getShipType = async (req: Request, res: Response): Promise<void> =>
     const shipType = await prisma.shipType.findMany({
       where: whereCondition,
       skip,
-      take: limit,
-      orderBy,
+      take: filters.limit,
+      orderBy: { [filters.sortBy]: filters.order },
     });
 
     const total = await prisma.shipType.count();
 
-    const meta = buildPageMeta(total, page, limit);
+    const meta = buildPageMeta(total, filters.page, filters.limit);
 
     res.status(200).json({
       meta,

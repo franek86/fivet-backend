@@ -30,10 +30,16 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const skip = (filters.page - 1) * filters.limit;
 
     if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
+      const search = filters.search.trim();
+
       whereCondition.OR = [
         {
           fullName: {
-            contains: filters.search.trim(),
+            contains: search,
+            mode: "insensitive",
+          },
+          email: {
+            contains: search,
             mode: "insensitive",
           },
         },
