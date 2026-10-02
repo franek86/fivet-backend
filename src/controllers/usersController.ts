@@ -103,30 +103,26 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
 
   const filters = result.data as UserFilterType;
 
-  const whereCondition: any = {};
+  const whereCondition: any = {
+    role: "OWNER",
+
+    ownerProfile: {
+      verificationStatus: "VERIFIED",
+    },
+  };
   const skip = (filters.page - 1) * filters.limit;
 
   if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
-    whereCondition.OR = [
-      {
-        fullName: {
-          contains: filters.search.trim(),
-          mode: "insensitive",
-        },
-      },
-    ];
+    whereCondition.fullName = {
+      contains: filters.search.trim(),
+      mode: "insensitive",
+    };
   }
 
   try {
     const [owners, totalOwners] = await Promise.all([
-      await prisma.user.findMany({
-        where: {
-          role: "OWNER",
-
-          ownerProfile: {
-            verificationStatus: "VERIFIED",
-          },
-        },
+      prisma.user.findMany({
+        where: whereCondition,
         skip,
         take: filters.limit,
         orderBy: { [filters.sortBy]: filters.order },
@@ -163,7 +159,7 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
         },
       }),
 
-      await prisma.user.count(),
+      prisma.user.count({ where: whereCondition }),
     ]);
 
     const meta = buildPageMeta(totalOwners, filters.page, filters.limit);
