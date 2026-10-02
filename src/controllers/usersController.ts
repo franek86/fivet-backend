@@ -8,7 +8,7 @@ import { NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { logger } from "../config/logger";
 import { UpdateVerifyUserSchema } from "../schemas/updateVerifyUser.schema";
 import { onlineUsers } from "../services/socket.service";
-import { UserFilterSchema } from "../schemas/user.schema";
+import { UserFilterSchema, UserFilterType } from "../schemas/user.schema";
 
 /* GET ALL USERS, ADMIN ONLY */
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -89,17 +89,28 @@ export const getAllUsers = async (req: Request, res: Response) => {
 /* GET OWNERS */
 export const getAllOwners = async (req: Request, res: Response): Promise<void> => {
   const brokerId = req.user?.id;
-  const { page, skip, limit } = parsePagination(req.query);
-  const { sortBy, search } = req.query;
-  const orderBy = parseSortBy(sortBy as string, ["status", "createdAt"], { createdAt: "desc" });
+
+  const result = UserFilterSchema.safeParse(req.query);
+
+  if (!result.success) {
+    res.status(400).json({
+      message: "Invalid filters",
+      errors: result.error.flatten(),
+    });
+
+    return;
+  }
+
+  const filters = result.data as UserFilterType;
 
   const whereCondition: any = {};
+  const skip = (filters.page - 1) * filters.limit;
 
-  if (search && typeof search === "string" && search.trim().length > 0) {
+  if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
     whereCondition.OR = [
       {
         fullName: {
-          contains: search.trim(),
+          contains: filters.search.trim(),
           mode: "insensitive",
         },
       },
@@ -117,7 +128,8 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
           },
         },
         skip,
-        take: limit,
+        take: filters.limit,
+        orderBy: { [filters.sortBy]: filters.order },
         select: {
           id: true,
           fullName: true,
@@ -149,13 +161,12 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
             take: 1,
           },
         },
-        orderBy,
       }),
 
       await prisma.user.count(),
     ]);
 
-    const meta = buildPageMeta(totalOwners, page, limit);
+    const meta = buildPageMeta(totalOwners, filters.page, filters.limit);
 
     res.status(200).json({ meta, owners });
   } catch (error) {

@@ -89,5 +89,11 @@ export const UserFilterSchema = z.object({
   order: z.enum(["asc", "desc"]).default("desc"),
 });
 
+/* ALL OWNER FILTER */
+export const OwnerFilterSchema = UserFilterSchema.extend({
+  status: z.enum(["REVOKED", "DECLINED", "ACCEPTED", "PENDING"]).optional(),
+});
+
+export type OwnerFilterType = z.infer<typeof OwnerFilterSchema>;
 export type UserFilterType = z.infer<typeof UserFilterSchema>;
 export type UserSchema = z.infer<typeof UserSchema>;

@@ -2,40 +2,80 @@ import { Response, Request } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../prismaClient";
 import geoip from "geoip-lite";
+import z from "zod";
 
 import { countries } from "../utils/countries";
 import { AddressBookSchema, CreateAddressBookInput, UpdateAddressBookInput, UpdateAddressBookSchema } from "../schemas/addressBook.schema";
+import { buildPageMeta } from "../utils/pagination";
+
+const AddressBookFilterSchema = z.object({
+  search: z.string().trim().optional(),
+  page: z.coerce.number().optional().default(1),
+  limit: z.coerce.number().optional().default(12),
+  order: z.enum(["asc", "desc"]).default("desc"),
+  sortBy: z.enum(["createdAt"]).default("createdAt"),
+});
+
+type AddressBookFilterType = z.infer<typeof AddressBookFilterSchema>;
 
 /*  GET ALL ADDRESS BOOK BASED ON USER ID*/
-export const getAddressBook = async (req: Request, res: Response): Promise<void> => {
+export const getAddressBook = async (req: Request, res: Response) => {
   const userId = req.user?.userId;
-  const { search } = req.query;
 
   if (!userId) {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
+
+  const result = AddressBookFilterSchema.safeParse(req.query);
+
+  if (!result.success) {
+    res.status(400).json({
+      message: "Invalid filters",
+      errors: result.error.flatten(),
+    });
+
+    return;
+  }
+
+  const filters = result.data as AddressBookFilterType;
+
   const whereCondition: Prisma.AddressBookWhereInput = {};
+  const skip = (filters.page - 1) * filters.limit;
 
   if (userId) whereCondition.userId = userId;
 
-  if (search && typeof search === "string" && search.trim().length > 0) {
+  if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
     whereCondition.OR = [
       {
         fullName: {
-          contains: search.trim(),
+          contains: filters.search.trim(),
           mode: "insensitive",
         },
       },
       {
-        email: { contains: search.trim(), mode: "insensitive" },
+        email: { contains: filters.search.trim(), mode: "insensitive" },
+      },
+      {
+        address: { contains: filters.search.trim(), mode: "insensitive" },
       },
     ];
   }
 
   try {
-    const data = await prisma.addressBook.findMany({ where: whereCondition, orderBy: { createdAt: "desc" } });
-    res.status(200).json(data);
+    const [address, total] = await Promise.all([
+      prisma.addressBook.findMany({
+        where: whereCondition,
+        skip,
+        take: filters.limit,
+        orderBy: { [filters.sortBy]: filters.order },
+      }),
+      prisma.addressBook.count({ where: whereCondition }),
+    ]);
+
+    const meta = buildPageMeta(total, filters.page, filters.limit);
+
+    res.status(200).json({ address, meta });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
