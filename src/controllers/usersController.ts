@@ -307,17 +307,27 @@ export const getSingleUserProfile = async (req: Request<{ id: string }>, res: Re
 /* GET VERIFIED BROKER LIST OF OWNER */
 export const getVerifiedBrokerList = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page, skip, limit } = parsePagination(req.query);
-    const { sortBy, search } = req.query;
-    const orderBy = parseSortBy(sortBy as string, ["status", "createdAt"], { createdAt: "desc" });
+    const result = UserFilterSchema.safeParse(req.query);
+
+    if (!result.success) {
+      res.status(400).json({
+        message: "Invalid filters",
+        errors: result.error.flatten(),
+      });
+
+      return;
+    }
+
+    const filters = result.data as UserFilterType;
 
     const whereCondition: any = {};
+    const skip = (filters.page - 1) * filters.limit;
 
-    if (search && typeof search === "string" && search.trim().length > 0) {
+    if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
       whereCondition.OR = [
         {
           fullName: {
-            contains: search.trim(),
+            contains: filters.search.trim(),
             mode: "insensitive",
           },
         },
@@ -325,7 +335,7 @@ export const getVerifiedBrokerList = async (req: Request, res: Response): Promis
     }
 
     const [brokers, totalBrokers] = await Promise.all([
-      await prisma.user.findMany({
+      prisma.user.findMany({
         where: {
           role: "BROKER",
 
@@ -334,7 +344,8 @@ export const getVerifiedBrokerList = async (req: Request, res: Response): Promis
           },
         },
         skip,
-        take: limit,
+        orderBy: { [filters.sortBy]: filters.order },
+        take: filters.limit,
         select: {
           id: true,
           fullName: true,
@@ -364,13 +375,12 @@ export const getVerifiedBrokerList = async (req: Request, res: Response): Promis
             },
           },
         },
-        orderBy,
       }),
 
-      await prisma.user.count(),
+      prisma.user.count(),
     ]);
 
-    const meta = buildPageMeta(totalBrokers, page, limit);
+    const meta = buildPageMeta(totalBrokers, filters.page, filters.limit);
 
     res.status(200).json({ meta, brokers });
   } catch (error) {
