@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { Role } from "@prisma/client";
-import { parseSortBy } from "../helpers/sort.helpers";
 import prisma from "../prismaClient";
 
-import { buildPageMeta, parsePagination } from "../utils/pagination";
+import { buildPageMeta } from "../utils/pagination";
 import { NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { logger } from "../config/logger";
 import { UpdateVerifyUserSchema } from "../schemas/updateVerifyUser.schema";

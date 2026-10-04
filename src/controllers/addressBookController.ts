@@ -1,24 +1,26 @@
-import { Response, Request } from "express";
+import type { Response, Request } from "express";
 import { Prisma } from "@prisma/client";
-import prisma from "../prismaClient";
 import geoip from "geoip-lite";
-import z from "zod";
 
+import prisma from "../prismaClient";
+import { AddressBookFilterSchema, AddressBookSchema, UpdateAddressBookSchema } from "../schemas/addressBook.schema";
 import { countries } from "../utils/countries";
-import { AddressBookSchema, CreateAddressBookInput, UpdateAddressBookInput, UpdateAddressBookSchema } from "../schemas/addressBook.schema";
 import { buildPageMeta } from "../utils/pagination";
 
-const AddressBookFilterSchema = z.object({
-  search: z.string().trim().optional(),
-  page: z.coerce.number().optional().default(1),
-  limit: z.coerce.number().optional().default(12),
-  order: z.enum(["asc", "desc"]).default("desc"),
-  sortBy: z.enum(["createdAt"]).default("createdAt"),
-});
+/* -------------------------------------------------------------------------- */
+/* Types */
+/* -------------------------------------------------------------------------- */
+type AddressBookParams = { id: string };
 
-type AddressBookFilterType = z.infer<typeof AddressBookFilterSchema>;
-
-/*  GET ALL ADDRESS BOOK BASED ON USER ID*/
+/* -------------------------------------------------------------------------- */
+/* GET ADDRESS BOOK */
+/* -------------------------------------------------------------------------- */
+/**
+ * Supports:
+ * Search by full name, email and address.
+ * Pagination
+ * Sort by create date
+ * */
 export const getAddressBook = async (req: Request, res: Response) => {
   const userId = req.user?.userId;
 
@@ -27,37 +29,38 @@ export const getAddressBook = async (req: Request, res: Response) => {
     return;
   }
 
-  const result = AddressBookFilterSchema.safeParse(req.query);
+  const parsedFilters = AddressBookFilterSchema.safeParse(req.query);
 
-  if (!result.success) {
+  if (!parsedFilters.success) {
     res.status(400).json({
       message: "Invalid filters",
-      errors: result.error.flatten(),
+      errors: parsedFilters.error.flatten(),
     });
 
     return;
   }
 
-  const filters = result.data as AddressBookFilterType;
+  const filters = parsedFilters.data;
 
-  const whereCondition: Prisma.AddressBookWhereInput = {};
   const skip = (filters.page - 1) * filters.limit;
 
-  if (userId) whereCondition.userId = userId;
+  const where: Prisma.AddressBookWhereInput = { userId };
 
-  if (filters.search && typeof filters.search === "string" && filters.search.trim().length > 0) {
-    whereCondition.OR = [
+  const search = filters.search?.trim();
+
+  if (search) {
+    where.OR = [
       {
         fullName: {
-          contains: filters.search.trim(),
+          contains: search,
           mode: "insensitive",
         },
       },
       {
-        email: { contains: filters.search.trim(), mode: "insensitive" },
+        email: { contains: search, mode: "insensitive" },
       },
       {
-        address: { contains: filters.search.trim(), mode: "insensitive" },
+        address: { contains: search, mode: "insensitive" },
       },
     ];
   }
@@ -65,107 +68,180 @@ export const getAddressBook = async (req: Request, res: Response) => {
   try {
     const [address, total] = await Promise.all([
       prisma.addressBook.findMany({
-        where: whereCondition,
+        where,
         skip,
         take: filters.limit,
-        orderBy: { [filters.sortBy]: filters.order },
+        orderBy: {
+          [filters.sortBy]: filters.order,
+        },
       }),
-      prisma.addressBook.count({ where: whereCondition }),
+      prisma.addressBook.count({ where }),
     ]);
 
     const meta = buildPageMeta(total, filters.page, filters.limit);
 
-    res.status(200).json({ address, meta });
+    res.status(200).json({
+      address,
+      meta,
+    });
   } catch (error) {
+    console.error("Failed to fetch address book:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
+/* -------------------------------------------------------------------------- */
 /* GET SINGLE ADDRESS BOOK */
-export const getSingleAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+/* -------------------------------------------------------------------------- */
+
+/**
+ *  Returns single address book belonging to the authenticated user
+ * */
+export const getSingleAddressBook = async (req: Request<AddressBookParams>, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
   const { id } = req.params;
+
+  if (!userId) {
+    res.status(401).json({
+      message: "Unauthorize",
+    });
+    return;
+  }
+
   if (!id) {
-    res.status(401).json({ message: "Address book ID are required" });
+    res.status(400).json({
+      message: "Address book ID are required",
+    });
     return;
   }
   try {
-    const singleData = await prisma.addressBook.findUnique({ where: { id } });
+    const address = await prisma.addressBook.findFirst({ where: { id, userId } });
+    if (!address) {
+      res.status(404).json({ message: "Address book not found" });
+      return;
+    }
 
-    res.status(200).json(singleData);
+    res.status(200).json(address);
   } catch (error) {
+    console.error("Failed to fetch address book entry:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-/* CREATE ADDRESS BOOK ONLY USER */
+/* -------------------------------------------------------------------------- */
+/* CREATE ADDRESS BOOK */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Create address book entry for the authenicated user
+ */
 export const createAddressBook = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
+
+  if (!userId) {
+    res.status(401).json({
+      message: "Unauthorized",
+    });
+    return;
+  }
+
+  const parsedData = AddressBookSchema.safeParse(req.body);
+  if (!parsedData.success) {
+    res.status(400).json({ message: "Invalid address data", errors: parsedData.error.flatten() });
+    return;
+  }
+  try {
+    const address = await prisma.addressBook.create({
+      data: {
+        ...parsedData.data,
+        userId,
+      },
+    });
+    res.status(201).json(address);
+  } catch (error) {
+    console.error("Failed to create address book entry:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* UPDATE ADDRESS BOOK */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Updates an address belonging to the authenticated user.
+ */
+export const updateAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
+  const { id } = req.params;
+
   if (!userId) {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
-  const validateData: CreateAddressBookInput = AddressBookSchema.parse(req.body);
-  try {
-    const addressBookData = {
-      ...validateData,
-      userId: userId,
-    };
-    const createAddressBookData = await prisma.addressBook.create({ data: addressBookData });
-    res.status(201).json(createAddressBookData);
-  } catch (error) {
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-/* UPDATE ADDRESS BOOK */
-export const updateAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-  const { id } = req.params;
   if (!id) {
-    res.status(401).json({ message: "Address book ID are required" });
+    res.status(400).json({
+      message: "Address book ID are required",
+    });
     return;
   }
 
   const parsedData = UpdateAddressBookSchema.safeParse(req.body);
   if (!parsedData.success) {
-    res.status(400).json({ errors: parsedData.error.errors });
+    res.status(400).json({ message: "Invalid address data", errors: parsedData.error.flatten() });
     return;
   }
 
-  const updateData: UpdateAddressBookInput = parsedData.data;
-  //const { ...updateData } = req.body;
-
   try {
-    const uniqueAddressBook = await prisma.addressBook.findUnique({ where: { id } });
-    if (!uniqueAddressBook) {
-      res.status(404).json({ message: "Address book not found" });
+    const address = await prisma.addressBook.findFirst({ where: { id, userId } });
+
+    if (!address) {
+      res.status(404).json({
+        message: "Address book not found",
+      });
       return;
     }
 
-    await prisma.addressBook.update({
+    const updatedAddress = await prisma.addressBook.update({
       where: { id },
-      data: updateData,
+      data: parsedData.data,
     });
 
     res.status(200).json({
-      success: true,
       message: "Address book successfully updated.",
+      address: updatedAddress,
     });
   } catch (error) {
+    console.error("Failed to update address book entry:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-/* DELETE ADDRESS BOOK ONLY USER */
-export const deleteAddressBook = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+/* -------------------------------------------------------------------------- */
+/* DELETE ADDRESS BOOOK */
+/* -------------------------------------------------------------------------- */
+
+/**
+ *  Delete address book belonging to the authenticated suer
+ */
+export const deleteAddressBook = async (req: Request<AddressBookParams>, res: Response): Promise<void> => {
+  const userId = req.user?.userId;
   const { id } = req.params;
-  if (!id) {
-    res.status(401).json({ message: "Address book ID are required" });
+
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
     return;
   }
+
+  if (!id) {
+    res.status(400).json({ message: "Address book ID are required" });
+    return;
+  }
+
   try {
-    const uniqueAddressBook = await prisma.addressBook.findUnique({ where: { id } });
-    if (!uniqueAddressBook) {
+    const address = await prisma.addressBook.findFirst({ where: { id, userId } });
+    if (!address) {
       res.status(404).json({ message: "Address book not found" });
       return;
     }
@@ -178,11 +254,20 @@ export const deleteAddressBook = async (req: Request<{ id: string }>, res: Respo
       message: `Address book by ${id} deleted successfully`,
     });
   } catch (error) {
+    console.error("Failed to delete address book entry:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-/* GET COUNTRY PHONE CODE BY IP */
+/* -------------------------------------------------------------------------- */
+/* GEO COUNTRY PHONE CODE */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Detects the user's country from they IP address
+ * and returs corresponding contry information
+ * */
+
 export const getCountryPhoneCode = async (req: Request, res: Response): Promise<void> => {
   try {
     const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.ip || req.socket.remoteAddress || "";
@@ -192,8 +277,14 @@ export const getCountryPhoneCode = async (req: Request, res: Response): Promise<
 
     const country = countries.find((c) => c.code === countryCode);
 
+    if (!country) {
+      res.status(404).json({ message: "Country information not found" });
+      return;
+    }
+
     res.status(200).json(country);
   } catch (error) {
+    console.error("Failed to detect country:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

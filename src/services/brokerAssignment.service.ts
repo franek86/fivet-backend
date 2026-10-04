@@ -1,6 +1,6 @@
 // services/brokerAssignment.service.ts
 
-import { PrismaClient, AssignmentStatus, BrokerRequestStatus } from "@prisma/client";
+import { PrismaClient, BrokerRequestStatus } from "@prisma/client";
 import { getIO } from "./socket.service";
 import { logger } from "../config/logger";
 import { sendUserNotification } from "../controllers/notificationController";

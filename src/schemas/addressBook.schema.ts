@@ -19,7 +19,19 @@ export const AddressBookSchema = z.object({
   address: z.string().optional().nullable(),
 });
 
+/**
+ * Query params used for filtering and pagination
+ */
+export const AddressBookFilterSchema = z.object({
+  search: z.string().trim().optional(),
+  page: z.coerce.number().optional().default(1),
+  limit: z.coerce.number().optional().default(12),
+  order: z.enum(["asc", "desc"]).default("desc"),
+  sortBy: z.enum(["createdAt"]).default("createdAt"),
+});
+
 export const UpdateAddressBookSchema = AddressBookSchema.partial();
 
+export type AddressBookFilterType = z.infer<typeof AddressBookFilterSchema>;
 export type CreateAddressBookInput = z.infer<typeof AddressBookSchema>;
 export type UpdateAddressBookInput = z.infer<typeof UpdateAddressBookSchema>;

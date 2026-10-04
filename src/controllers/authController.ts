@@ -1,86 +1,93 @@
 import { NextFunction, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { AuthError, NotFoundError, ValidationError } from "../helpers/error.helpers";
-import { sendOtp } from "../helpers/auth.helpers";
-import { setCookie } from "../utils/cookies/setCookies";
+
 import prisma from "../prismaClient";
-import { generateOtp } from "../helpers/generateOtp.helpers";
-import { ForgotPasswordSchema, LoginSchema, RegisterUserSchema, VerifyOtpSchema, VerifyUserSchema } from "../schemas/auth.schema";
-import { UserMeResponseSchema } from "../schemas/user.schema";
+
+import { sendOtp } from "../helpers/auth.helpers";
+import { AuthError, NotFoundError, ValidationError } from "../helpers/error.helpers";
+import { NotificationType } from "@prisma/client";
+
 import { logger } from "../config/logger";
 import { formatDate } from "../helpers/date.helpers";
-import { sendAdminNotification } from "./notificationController";
-import { NotificationType } from "@prisma/client";
+import { setCookie } from "../utils/cookies/setCookies";
 import { sendEmail } from "../utils/sendMail";
 
-const generateAccessToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
-  return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.JWT_SECRET as string, { expiresIn: "5m" });
-};
+import { UserMeResponseSchema } from "../schemas/user.schema";
+import {
+  ForgotPasswordSchema,
+  LoginSchema,
+  RegisterUserSchema,
+  ResetPasswordSchema,
+  VerifyOtpSchema,
+  VerifyUserSchema,
+} from "../schemas/auth.schema";
 
-const generateRefreshToken = (userId: string, role: string, fullName: string, subscription: string, isActiveSubscription: boolean) => {
-  return jwt.sign({ userId, role, fullName, subscription, isActiveSubscription }, process.env.REFRESH_SECRET as string, {
-    expiresIn: "7d",
-  });
-};
+import { createOTP, verifyOtp } from "../services/otp.service";
 
-/*  REGISTER NEW USER WITH OTP */
+import { sendAdminNotification } from "./notificationController";
+import {
+  generateAccessToken,
+  generatePasswordResetToken,
+  generateRefreshToken,
+  verifyPasswordResetToken,
+  verifyRefreshToken,
+} from "../services/token.service";
+
+/* -------------------------------------------------------------------------- */
+/* REGISTER */
+/* -------------------------------------------------------------------------- */
 export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const parsed = RegisterUserSchema.safeParse(req.body);
+    const parsedData = RegisterUserSchema.safeParse(req.body);
 
-    if (!parsed.success) {
-      logger.warn("Register validation failed");
-      return next(parsed.error.flatten().fieldErrors);
+    if (!parsedData.success) {
+      return next(new ValidationError("Invalid registration data."));
     }
 
-    const { email, fullName } = parsed.data;
+    const { email, fullName } = parsedData.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
+
     if (existingUser) {
-      logger.warn("User exists");
       throw new ValidationError("User already exists with this email");
     }
 
-    // generate otp
-    const otp = generateOtp(6);
-
-    //Save OTP to database
-    await prisma.otp.create({
-      data: {
-        email,
-        otp,
-        expiresAt: new Date(Date.now() + 60 * 1000), // Expires in 1 minute
-      },
-    });
+    const otp = await createOTP(email);
 
     await sendOtp(fullName, email, "user-activation-email", otp);
 
-    logger.info("OTP send");
-    res.status(200).json({ message: "OTP send to email. Please verify your account" });
+    logger.info(`Registration OTP sent to ${email}`);
+
+    res.status(200).json({
+      message: "OTP send to email. Please verify your account",
+    });
   } catch (error) {
     next(error);
   }
 };
 
-/* VERIFY USER WITH OTP */
-export const verifyUser = async (req: Request, res: Response, next: NextFunction) => {
+/* -------------------------------------------------------------------------- */
+/* VERIFY USER */
+/* -------------------------------------------------------------------------- */
+export const verifyUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const parsed = VerifyUserSchema.safeParse(req.body);
+    const parsedData = VerifyUserSchema.safeParse(req.body);
 
-    if (!parsed.success) {
-      logger.warn("Verfiy user validation failed");
-      return next(parsed.error.flatten().fieldErrors);
+    if (!parsedData.success) {
+      return next(new ValidationError("Invalid verification data."));
     }
-    const { email, fullName, role, password, city, country, address, zipCode, companyName, companyRegistrationNumber, otp } = parsed.data;
+    const { email, fullName, role, password, city, country, address, zipCode, companyName, companyRegistrationNumber, otp } =
+      parsedData.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
+
     if (existingUser) {
-      logger.warn("User exists");
-      return next(new ValidationError("User already exists!"));
+      throw new ValidationError("User already exists.");
     }
 
-    const recordOtp = await prisma.otp.findUnique({ where: { email } });
+    await verifyOtp(email, otp);
+
+    /* const recordOtp = await prisma.otp.findUnique({ where: { email } });
     if (!recordOtp) {
       logger.error("OTP not found");
       res.status(400).json({ message: "OTP not found. Request a new one." });
@@ -99,14 +106,12 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       logger.error("Invalid OTP");
       res.status(400).json({ message: "Invalid OTP" });
       return;
-    }
+    } */
 
     //Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.$transaction(async (tx) => {
-      let companyId: string | undefined;
       const company = await tx.company.create({
         data: {
           name: companyName || "",
@@ -116,15 +121,13 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         },
       });
 
-      companyId = company.id;
-
       const user = await tx.user.create({
         data: {
           email,
           password: hashedPassword,
           fullName,
           role,
-          companyId,
+          companyId: company.id,
           city,
           country,
           address,
@@ -136,7 +139,9 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
         await tx.brokerProfile.create({
           data: { userId: user.id, verificationStatus: "PENDING" },
         });
-      } else if (role === "OWNER") {
+      }
+
+      if (role === "OWNER") {
         await tx.ownerProfile.create({
           data: { userId: user.id, verificationStatus: "PENDING" },
         });
@@ -145,23 +150,30 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       return user;
     });
 
-    await prisma.otp.delete({
+    /* await prisma.otp.delete({
       where: { email },
+    }); */
+
+    const accessToken = generateAccessToken({
+      id: newUser.id,
+      role: newUser.role,
+      fullName: newUser.fullName,
+      subscription: newUser.subscription,
+      isActiveSubscription: newUser.isActiveSubscription,
     });
 
-    const accessToken = generateAccessToken(newUser.id, newUser.role, newUser.fullName, newUser.subscription, newUser.isActiveSubscription);
     const refreshToken = generateRefreshToken(
       newUser.id,
-      newUser.role,
+      /*  newUser.role,
       newUser.fullName,
       newUser.subscription,
-      newUser.isActiveSubscription,
+      newUser.isActiveSubscription, */
     );
 
     setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
     setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
 
-    /* TO DO :Send email to admin  */
+    /* 
     const admin = await prisma.user.findFirst({
       where: { role: "ADMIN" },
       select: {
@@ -179,49 +191,54 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
     };
     const emailToSend = admin?.email ?? "";
 
-    /* Add notification */
+   
     if (role !== "ADMIN" && admin) {
-      //send notification to admin
+      
       await sendAdminNotification(admin.id, `New user created: ${newUser.fullName}`, NotificationType.INFO);
-
-      //Send email to admin
       await sendEmail(emailToSend, "New User created", "user-notification-email", emailData);
-    }
+    } */
 
-    logger.info("User registred");
+    await notifyAdminAboutNewUser(newUser);
+
+    logger.info(`User registered successfully: ${newUser.id}`);
+
     res.status(201).json({
       success: true,
-      message: "User registred successfully!",
+      message: "User registered successfully!",
     });
   } catch (error) {
     next(error);
   }
 };
 
-/* LOGIN USER WITH ACCESS AND REFRESH TOKEN */
+/* -------------------------------------------------------------------------- */
+/* LOGIN */
+/* -------------------------------------------------------------------------- */
 export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const parsed = LoginSchema.safeParse(req.body);
+    const parsedData = LoginSchema.safeParse(req.body);
 
-    if (!parsed.success) {
-      logger.warn("Unauthorized request");
-      return next(parsed.error.flatten().fieldErrors);
+    if (!parsedData.success) {
+      return next(new ValidationError("Invalid login credentials."));
     }
 
-    const { email, password, rememberMe } = parsed.data;
+    const { email, password, rememberMe } = parsedData.data;
 
     const user = await prisma.user.findUnique({ where: { email } });
+
     if (!user) {
-      logger.error("User does not exists");
       throw new AuthError("Invalid credentails.");
     }
 
     const validatePassword = await bcrypt.compare(password, user.password);
 
     if (!validatePassword) {
-      logger.warn("Invalid credentials");
       throw new AuthError("Invalid credentails.");
     }
+
+    /*  if (!user.isActive) {
+      throw new AuthError("Your account is inactive.");
+    } */
 
     await prisma.user.update({
       where: { id: user.id },
@@ -230,18 +247,21 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       },
     });
 
-    const accessToken = generateAccessToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
-    const refreshToken = generateRefreshToken(user.id, user.role, user.fullName, user.subscription, user.isActiveSubscription);
+    const accessToken = generateAccessToken({
+      id: user.id,
+      role: user.role,
+      fullName: user.fullName,
+      subscription: user.subscription,
+      isActiveSubscription: user.isActiveSubscription,
+    });
 
-    /* 
-      if is remember me, set token in 30 days other ways set token to 7 days
-    */
-    const refreshTokenExpiry = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+    const refreshExpiration = rememberMe ? "30d" : "7d";
 
-    //setCookie(res, "access_token", accessToken, 5 * 60 * 1000); //5 minutes
-    setCookie(res, "refresh_token", refreshToken, refreshTokenExpiry); // 7 days
+    const refreshToken = generateRefreshToken(user.id, refreshExpiration);
 
-    //logger.info("User loggedin");
+    setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
+    setCookie(res, "refresh_token", refreshToken, rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000);
+
     res.json({
       message: "User loggedin successfully",
       accessToken,
@@ -251,51 +271,52 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+/* -------------------------------------------------------------------------- */
 /* REFRESH TOKEN */
-export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+/* -------------------------------------------------------------------------- */
+export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { refresh_token } = req.cookies;
+    const token = req.cookies.refresh_token;
 
-    if (!refresh_token) {
-      logger.warn("No refresh token");
-      res.status(401).json({ message: "No refresh token provided" });
-      return;
+    if (!token) {
+      throw new AuthError("No refresh token provided.");
     }
-    const decoded = jwt.verify(refresh_token, process.env.REFRESH_SECRET as string) as JwtPayload;
+    const decoded = verifyRefreshToken(token);
 
-    if (!decoded || !decoded.userId || !decoded.role) {
-      logger.error("Invalid refresh token");
-      res.status(401).json({ message: "Invalid refresh token" });
-      return;
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+
+    if (!user || !user.isActive) {
+      throw new AuthError("Invalid refresh token.");
     }
 
-    const new_access_token = generateAccessToken(
-      decoded.userId,
-      decoded.role,
-      decoded.fullName,
-      decoded.subscription,
-      decoded.isActiveSubscription,
-    );
-    //setCookie(res, "access_token", new_access_token, 5 * 60 * 1000);
-    logger.info("Acces token success");
+    const accessToken = generateAccessToken({
+      id: user.id,
+      role: user.role,
+      fullName: user.fullName,
+      subscription: user.subscription,
+      isActiveSubscription: user.isActiveSubscription,
+    });
+
+    setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
+
     res.json({
       success: true,
-      accessToken: new_access_token,
+      accessToken: accessToken,
     });
   } catch (error) {
-    res.status(401).json({ message: "Invalid refresh token" });
-    return;
+    next(new AuthError("Invalid or expired refresh token."));
   }
 };
 
-/* AUTHENTICATED USER */
+/* -------------------------------------------------------------------------- */
+/* CURRENT USER */
+/* -------------------------------------------------------------------------- */
 export const userMe = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
   try {
     const userId = req.user?.userId;
 
     if (!userId) {
-      logger.error("Unauthorized user");
-      throw new ValidationError("Unauthorized");
+      throw new AuthError("Unauthorized.");
     }
 
     const user = await prisma.user.findUnique({
@@ -317,8 +338,7 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
     });
 
     if (!user) {
-      logger.error("User not found");
-      throw new NotFoundError("User not found");
+      throw new NotFoundError("User not found.");
     }
     const response = {
       id: user.id,
@@ -339,87 +359,87 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
     };
 
     const validatedResponse = UserMeResponseSchema.parse(response);
-    logger.info("Validate user");
+
     return res.status(200).json(validatedResponse);
   } catch (error) {
     next(error);
   }
 };
 
-/* LOGOUT AND CLEAR TOKENS */
+/* -------------------------------------------------------------------------- */
+/* LOGOUT */
+/* -------------------------------------------------------------------------- */
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.clearCookie("refresh_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
-    res.clearCookie("access_token", { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
+    const cookiesOption = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? ("none" as const) : ("lax" as const),
+    };
 
-    logger.info("User logout");
+    res.clearCookie("access_token", cookiesOption);
+    res.clearCookie("refresh_token", cookiesOption);
+
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     next(error);
   }
 };
 
-/* FORGOT PASSWORD */
-export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+/* -------------------------------------------------------------------------- */
+/* FORGET PASSWORD */
+/* -------------------------------------------------------------------------- */
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const parsed = ForgotPasswordSchema.safeParse(req.body);
-    if (!parsed.success) {
-      logger.warn("Forget password validation failed");
-      return next(parsed.error.flatten().fieldErrors);
+    const parsedData = ForgotPasswordSchema.safeParse(req.body);
+
+    if (!parsedData.success) {
+      return next(new ValidationError("Invalid email address."));
     }
 
-    const { email } = parsed.data;
+    const { email } = parsedData.data;
 
     const user = await prisma.user.findUnique({ where: { email } });
+
     if (!user) {
-      logger.warn("User not found");
       throw new ValidationError("User not found.");
     }
 
-    // Delete expired OTPs for this email first
-    await prisma.otp.deleteMany({
-      where: {
-        email,
-        expiresAt: { lt: new Date() },
-      },
-    });
-
     // generate otp
-    const otp = generateOtp(6);
-
-    //Save OTP to database
-    await prisma.otp.create({
-      data: {
-        email,
-        otp,
-        expiresAt: new Date(Date.now() + 60 * 1000), // Expires in 1 minute
-      },
-    });
-
+    const otp = await createOTP(email);
     await sendOtp(user.fullName, email, "forgot-password-email", otp);
 
-    logger.info("OTP send");
     res.status(200).json({ message: "OTP send to email. Please verify your account." });
   } catch (error) {
     next(error);
   }
 };
 
-/* VERIFY FORGOT PASSWORD OTP*/
-export const verifyForgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+/* -------------------------------------------------------------------------- */
+/* VERIFY PASSWORD RESET OTP */
+/* -------------------------------------------------------------------------- */
+export const verifyForgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const parsed = VerifyOtpSchema.safeParse(req.body);
+    const parsedData = VerifyOtpSchema.safeParse(req.body);
 
-    if (!parsed.success) {
-      logger.warn("Verify forget password validation error");
-      return next(parsed.error.flatten().fieldErrors);
+    if (!parsedData.success) {
+      return next(new ValidationError("Invalid OTP data."));
     }
 
-    const { email, otp } = parsed.data;
+    const { email, otp } = parsedData.data;
 
-    const recordOtp = await prisma.otp.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found.");
+    }
+
+    /*  const recordOtp = await prisma.otp.findUnique({ where: { email } });
     if (!recordOtp) {
       logger.error("OTP not found");
       res.status(400).json({ message: "OTP not found. Request a new one." });
@@ -438,49 +458,95 @@ export const verifyForgotPassword = async (req: Request, res: Response, next: Ne
       logger.error("Invalid OTP");
       res.status(400).json({ message: "Invalid OTP" });
       return;
-    }
-    logger.info("OTP verified");
-    res.status(200).json({ message: "OTP verified. You can reset you password" });
+    } */
+
+    await verifyOtp(email, otp);
+
+    const resetToken = generatePasswordResetToken(user.id);
+
+    res.status(200).json({ message: "OTP verified. You can reset you password", resetToken });
   } catch (error) {
     next(error);
   }
 };
 
-/* RESET USER PASSWORD */
-export const resetUserPassword = async (req: Request, res: Response, next: NextFunction) => {
+/* -------------------------------------------------------------------------- */
+/* RESET PASSWORD */
+/* -------------------------------------------------------------------------- */
+export const resetUserPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, newPassword } = req.body;
-    if (!email || !newPassword) {
-      logger.warn("Reset pawwsord validation failed");
-      return next(new ValidationError("Email and passwords are required!"));
+    const parsedData = ResetPasswordSchema.safeParse(req.body);
+
+    if (!parsedData.success) {
+      return next(new ValidationError("Invalid password reset data."));
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const { resetToken, newPassword } = parsedData.data;
+
+    const decoded = verifyPasswordResetToken(resetToken);
+    if (decoded.purpose !== "password-reset") {
+      throw new AuthError("Invalid password reset token.");
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+
     if (!user) {
-      logger.error("User not found");
-      return next(new NotFoundError("User not found"));
+      throw new NotFoundError("User not found.");
     }
 
     //compare new password with the existing one
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
+
     if (isSamePassword) {
-      logger.warn("Same password");
-      return next(new ValidationError("Password can not be the same as old password"));
+      throw new ValidationError("New password cannot be the same as the old password.");
     }
 
     //hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(newPassword, salt);
+    const hashPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: { password: hashPassword },
     });
-    await prisma.otp.deleteMany({ where: { email } });
 
-    logger.info("Password reset");
     res.status(200).json({ message: "Password reset successfully!" });
   } catch (error) {
     next(error);
   }
+};
+
+/* -------------------------------------------------------------------------- */
+/* NOTIFY ADMIN */
+/* -------------------------------------------------------------------------- */
+/**
+ * Notify admin about new register user
+ */
+const notifyAdminAboutNewUser = async (user: { id: string; fullName: string; role: string; createdAt: Date }): Promise<void> => {
+  if (user.role === "ADMIN") {
+    return;
+  }
+
+  const admin = await prisma.user.findFirst({
+    where: {
+      role: "ADMIN",
+    },
+    select: {
+      id: true,
+      email: true,
+    },
+  });
+
+  if (!admin) {
+    return;
+  }
+
+  const reviewUrl = `${process.env.FRONTEND_URL}/admin/users/${user.id}`;
+  await sendAdminNotification(admin.id, `New user created: ${user.fullName}`, NotificationType.INFO);
+
+  await sendEmail(admin.email, "New User created", "user-notification-email", {
+    userName: user.fullName,
+    role: user.role,
+    createdAt: formatDate(user.createdAt.toISOString()),
+    reviewUrl,
+  });
 };

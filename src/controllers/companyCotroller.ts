@@ -3,7 +3,8 @@ import prisma from "../prismaClient";
 import { logger } from "../config/logger";
 import { ValidationError } from "../helpers/error.helpers";
 import { EditCompanySchema } from "../schemas/company.schema";
-import cloudinary, { uploadSingleFile } from "../cloudinaryConfig";
+import cloudinary from "../config/cloudinary";
+import { uploadSingleFile } from "../services/cloundinary.service";
 
 /* get company profile */
 export const getCompanyProfile = async (req: Request, res: Response): Promise<void> => {

@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
+import cloudinary from "../config/cloudinary";
 
 import { BlogFilterSchema, CreatePostSchema, UpdatePostSchema } from "../schemas/post.schema";
-import cloudinary, { uploadMultipleFiles, uploadSingleFileToCloudinary } from "../cloudinaryConfig";
+
+import { uploadMultipleFiles, uploadSingleFileToCloudinary } from "../services/cloundinary.service";
 import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
 import { blogFilters } from "../utils/blogFilters";

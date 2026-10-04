@@ -2,16 +2,20 @@ import prisma from "../prismaClient";
 import { Request, Response } from "express";
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { ListingStatus, NotificationType } from "@prisma/client";
-import cloudinary, { uploadMultipleFiles, uploadSingleFile } from "../cloudinaryConfig";
+
 import { getIO } from "../services/socket.service";
+import { uploadMultipleFiles, uploadSingleFile } from "../services/cloundinary.service";
 
 import { logger } from "../config/logger";
+import cloudinary from "../config/cloudinary";
+
 import { shipFilters } from "../utils/shipFilters";
 import { sendEmail } from "../utils/sendMail";
 import { buildPageMeta } from "../utils/pagination";
 import { formatDate } from "../helpers/date.helpers";
 
 import { sendAdminNotification, sendUserNotification } from "./notificationController";
+
 import { CreateShipSchema, EditShipSchema } from "../schemas/ship.schema";
 import { ShipFilterSchema } from "../schemas/shipFilter.schema";
 import { PaginationSchema } from "../schemas/pagination.schema";
