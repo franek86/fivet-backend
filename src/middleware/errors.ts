@@ -2,38 +2,25 @@ import { Response, Request, NextFunction } from "express";
 import { AppError } from "../helpers/error.helpers";
 import { logger } from "../config/logger";
 
-const errorMiddleware = (err: Error, req: Request, res: Response, _next: NextFunction): void => {
-  if (err instanceof AppError) {
-    logger.warn(
-      {
-        method: req.method,
-        url: req.url,
-        statusCode: err.statusCode,
-      },
-      err.message,
-    );
-
-    res.status(err.statusCode).json({
-      status: "error",
-      message: err.message,
+const errorMiddleware = (error: unknown, req: Request, res: Response, next: NextFunction): void => {
+  if (error instanceof AppError) {
+    if (error.statusCode >= 500) {
+      logger.error(error);
+    }
+    res.status(error.statusCode).json({
+      success: false,
+      message: error.message,
+      ...(error.details ? { details: error.details } : {}),
     });
 
     return;
   }
 
-  logger.error(
-    {
-      method: req.method,
-      url: req.url,
-      statusCode: 500,
-      err,
-    },
-    "Unhandled error",
-  );
+  logger.error(error);
 
   res.status(500).json({
-    status: "error",
-    error: "Something went wrong, please try again",
+    success: false,
+    error: "Internal server error",
   });
 };
 
