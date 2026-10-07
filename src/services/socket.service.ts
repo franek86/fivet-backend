@@ -1,19 +1,68 @@
 import http from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
+
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { registerChatHandlers } from "./chat.socket.service";
+import { AuthError, NotFoundError } from "../helpers/error.helpers";
 
 declare module "socket.io" {
   interface Socket {
     user: CustomJwtPayload;
   }
 }
+export let io: Server;
 
+/**
+ * Online users
+ * A user can have multiple connections
+ * Example: userId -> Set(socketId1, socketId2)
+ */
 export const onlineUsers = new Map<string, Set<string>>();
 
-let io: Server;
+/**
+ *
+ * HELPERS
+ */
+const getOnlineUserIds = (): string[] => {
+  return Array.from(onlineUsers.keys());
+};
 
+const addOnlineUser = (userId: string, socketId: string): boolean => {
+  let sockets = onlineUsers.get(userId);
+
+  const wasOffline = !sockets;
+
+  if (!sockets) {
+    sockets = new Set<string>();
+    onlineUsers.set(userId, sockets);
+  }
+
+  sockets.add(socketId);
+
+  return wasOffline;
+};
+
+const removeOnlineUser = (userId: string, socketId: string): boolean => {
+  const sockets = onlineUsers.get(userId);
+
+  if (!sockets) {
+    return false;
+  }
+
+  sockets.delete(socketId);
+
+  if (sockets.size === 0) {
+    onlineUsers.delete(userId);
+    return true;
+  }
+
+  return false;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Initialize Socket.IO   */
+/* -------------------------------------------------------------------------- */
 export const initializeSocket = (server: http.Server) => {
   io = new Server(server, {
     cors: {
@@ -22,90 +71,88 @@ export const initializeSocket = (server: http.Server) => {
     },
   });
 
-  // ------------------------------------------
-  // SOCKET AUTHENTICATION
-  // ------------------------------------------
-
+  /* -------------------------------------------------------------------------- */
+  /* Socket authentication  */
+  /* -------------------------------------------------------------------------- */
   io.use((socket, next) => {
     const cookieHeader = socket.handshake.auth.token;
-    if (!cookieHeader) return next(new Error("No cookies"));
+    if (!cookieHeader) {
+      return next(new NotFoundError("No cookies"));
+    }
 
     try {
       const payload = jwt.verify(cookieHeader, process.env.JWT_SECRET as string) as CustomJwtPayload;
+
       socket.user = payload;
-      //console.log(`[SOCKET AUTH] User connected: ${payload.userId} | role: ${payload.role}`);
 
       next();
     } catch (err) {
-      next(new Error("Unauthorized"));
+      next(new AuthError("Unauthorized"));
     }
   });
 
-  // ------------------------------------------
-  // CONNECTION
-  // ------------------------------------------
+  /* -------------------------------------------------------------------------- */
+  /* CONNECTION */
+  /* -------------------------------------------------------------------------- */
+  io.on("connection", (socket: Socket) => {
+    const { userId, role } = socket.user;
 
-  io.on("connection", async (socket: Socket) => {
-    const userId = socket.user.userId;
-    const role = socket.user.role;
+    if (!userId) {
+      socket.disconnect();
+      return;
+    }
 
     // User room
-    if (role !== "ADMIN" && userId) {
-      socket.join(`user:${userId}`);
-    }
+    socket.join(`user:${userId}`);
 
     // Admin room
     if (role === "ADMIN") {
       socket.join("admin-room");
     }
 
-    // Online users
-    if (!onlineUsers.has(userId)) {
-      onlineUsers.set(userId, new Set());
-    }
+    // Track oline user
+    const wasOffline = addOnlineUser(userId, socket.id);
 
-    onlineUsers.get(userId)!.add(socket.id);
+    // send user
+    socket.emit("user:online", {
+      userId: getOnlineUserIds(),
+    });
 
-    //Chat handlers
-    if (userId) {
-      registerChatHandlers(socket, userId);
-    }
-
-    // Admin receives online event
-    if (role === "ADMIN") {
-      socket.to("admin-room").emit("user:online", {
+    //Only emit user:online when this is the user's first connection.
+    if (wasOffline) {
+      socket.broadcast.emit("user:online", {
         userId,
       });
-      socket.to("admin-room").emit("user:count", {
-        count: onlineUsers.size,
-      });
     }
 
+    // Admin online count
+    io.to("admin-room").emit("user:count", {
+      count: onlineUsers.size,
+    });
+
+    // Chat handlers
+    registerChatHandlers(socket, userId);
+
+    // Disconnect socket
     socket.on("disconnect", () => {
-      const sockets = onlineUsers.get(userId);
-      if (!sockets) return;
+      const wentOffline = removeOnlineUser(userId, socket.id);
 
-      sockets.delete(socket.id);
-
-      const isOffline = sockets.size === 0;
-
-      if (isOffline) {
-        onlineUsers.delete(userId);
-        if (role === "BUYER") {
-          socket.to("admin-room").emit("user:offline", {
-            userId,
-          });
-        }
+      if (wentOffline) {
+        socket.broadcast.emit("user:offline", {
+          userId,
+        });
       }
 
-      socket.to("admin-room").emit("user:count", {
+      io.to("admin-room").emit("user:count", {
         count: onlineUsers.size,
       });
     });
   });
 };
 
-export const getIO = () => {
-  if (!io) throw new Error("Socket.io not initialized");
+export const getIO = (): Server => {
+  if (!io) {
+    throw new Error("Socket.io not initialized");
+  }
   return io;
 };
