@@ -154,4 +154,8 @@ export const registerChatHandlers = (socket: Socket, userId: string) => {
       emitChatError(socket, "Unable to send message");
     }
   });
+
+  /* -------------------------------------------------------------------------- */
+  /* COUNT READ MESSAEGE */
+  /* -------------------------------------------------------------------------- */
 };

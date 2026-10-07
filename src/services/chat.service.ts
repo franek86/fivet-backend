@@ -1,5 +1,6 @@
 import prisma from "../prismaClient";
 import { ForbiddenError, NotFoundError } from "../helpers/error.helpers";
+import { Prisma } from "@prisma/client";
 
 /* -------------------------------------------------------------------------- */
 /* GET CHAT MESSAGES */
@@ -44,9 +45,54 @@ export const getChatMessagesService = async (conversationId: string, userId: str
 /* -------------------------------------------------------------------------- */
 /* GET CONVERSATIONS */
 /* -------------------------------------------------------------------------- */
-export const getConversationsService = async (userId: string) => {
+export const getConversationsService = async (userId: string, search: string | undefined) => {
+  const where: Prisma.ConversationWhereInput = {
+    OR: [{ ownerId: userId }, { brokerId: userId }],
+  };
+
+  if (search?.trim()) {
+    const searchValue = search.trim();
+
+    where.AND = {
+      OR: [
+        {
+          owner: {
+            fullName: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          owner: {
+            email: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          broker: {
+            fullName: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          broker: {
+            email: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+        },
+      ],
+    };
+  }
+
   const conversations = await prisma.conversation.findMany({
-    where: { OR: [{ ownerId: userId }, { brokerId: userId }] },
+    where,
 
     include: {
       owner: {

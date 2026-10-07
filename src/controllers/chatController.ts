@@ -35,12 +35,13 @@ export const getChatMessages = async (req: Request<{ conversationId: string }>, 
 export const getConversations = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
+    const search = req.query.search as string | undefined;
 
     if (!userId) {
       throw new AuthError("Unauthorized");
     }
 
-    const conversations = await getConversationsService(userId);
+    const conversations = await getConversationsService(userId, search);
     res.status(200).json({ conversations });
   } catch (error) {
     next(error);

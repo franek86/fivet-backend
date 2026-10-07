@@ -87,27 +87,6 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
 
     await verifyOtp(email, otp);
 
-    /* const recordOtp = await prisma.otp.findUnique({ where: { email } });
-    if (!recordOtp) {
-      logger.error("OTP not found");
-      res.status(400).json({ message: "OTP not found. Request a new one." });
-      return;
-    }
-
-    if (recordOtp.expiresAt < new Date()) {
-      await prisma.otp.delete({ where: { email } });
-
-      logger.warn("OTP expired");
-      res.status(400).json({ message: "OTP expired. Request a new one." });
-      return;
-    }
-
-    if (recordOtp.otp !== otp) {
-      logger.error("Invalid OTP");
-      res.status(400).json({ message: "Invalid OTP" });
-      return;
-    } */
-
     //Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -285,7 +264,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
-    if (!user || !user.isActive) {
+    if (!user) {
       throw new AuthError("Invalid refresh token.");
     }
 
@@ -304,6 +283,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       accessToken: accessToken,
     });
   } catch (error) {
+    console.log(error);
     next(new AuthError("Invalid or expired refresh token."));
   }
 };
