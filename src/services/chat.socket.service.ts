@@ -158,4 +158,46 @@ export const registerChatHandlers = (socket: Socket, userId: string) => {
   /* -------------------------------------------------------------------------- */
   /* COUNT READ MESSAEGE */
   /* -------------------------------------------------------------------------- */
+  socket.on("conversation:read", async (conversationId: string) => {
+    try {
+      const parsedData = ConversationIdSchema.safeParse(conversationId);
+
+      if (!parsedData.success) {
+        emitChatError(socket, "Invalid conversation ID");
+        return;
+      }
+
+      const conversation = await getUserConversation(conversationId, userId);
+
+      if (!conversation) {
+        emitChatError(socket, "Conversation not found");
+        return;
+      }
+
+      await prisma.message.updateMany({
+        where: {
+          conversationId,
+          senderId: {
+            not: userId,
+          },
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+        },
+      });
+
+      const io = getIO();
+
+      io.to(getUserRoom(userId)).emit("conversation:read", {
+        conversationId,
+      });
+
+      logger.info(`[CHAT] User ${userId} read conversation ${conversationId}`);
+    } catch (error) {
+      logger.error(`[CHAT] Mark messages as read error: ${String(error)}`);
+
+      emitChatError(socket, "Unable to mark messages as read");
+    }
+  });
 };

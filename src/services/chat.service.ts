@@ -45,7 +45,7 @@ export const getChatMessagesService = async (conversationId: string, userId: str
 /* -------------------------------------------------------------------------- */
 /* GET CONVERSATIONS */
 /* -------------------------------------------------------------------------- */
-export const getConversationsService = async (userId: string, search: string | undefined) => {
+export const getConversationsService = async (userId: string, search?: string) => {
   const where: Prisma.ConversationWhereInput = {
     OR: [{ ownerId: userId }, { brokerId: userId }],
   };

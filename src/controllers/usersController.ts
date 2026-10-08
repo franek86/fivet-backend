@@ -128,6 +128,7 @@ export const getAllOwners = async (req: Request, res: Response): Promise<void> =
         select: {
           id: true,
           fullName: true,
+          avatar: true,
           company: {
             select: {
               name: true,

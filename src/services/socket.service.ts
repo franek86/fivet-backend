@@ -114,7 +114,7 @@ export const initializeSocket = (server: http.Server) => {
     const wasOffline = addOnlineUser(userId, socket.id);
 
     // send user
-    socket.emit("user:online", {
+    socket.emit("users:online", {
       userId: getOnlineUserIds(),
     });
 
