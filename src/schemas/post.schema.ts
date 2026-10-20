@@ -2,15 +2,6 @@ import z from "zod";
 
 export const PostStatusEnum = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
-// single item inside a column cell
-const columnItemSchema = z.object({
-  id: z.string(),
-  type: z.enum(["text", "image"]),
-});
-
-// one column = array of items
-const columnSchema = z.array(columnItemSchema);
-
 export const PostBlockSchema = z.object({
   text: z.string().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
