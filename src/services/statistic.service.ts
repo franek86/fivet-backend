@@ -20,6 +20,8 @@ interface UsersByCountry {
   admins: number;
 }
 
+export type RevenuePeriod = "weekly" | "monthly" | "yearly";
+
 const RECENT_LIMIT = 5;
 
 const verifiedPublishedShipWhere = {
@@ -98,6 +100,7 @@ export const serviceAdminDashboard = async () => {
         id: true,
         shipName: true,
         slug: true,
+        imo: true,
         clicks: true,
         price: true,
         currency: true,
@@ -231,146 +234,98 @@ export const serviceUsersByCountry = async () => {
 };
 
 // ADMIN REVENUE
-/*  const  getRevenue = async(period) => {
-    const now = new Date();
-    const start = new Date(now);
+export const serviceRevenue = async (period: RevenuePeriod) => {
+  const now = new Date();
+  const start = new Date(now);
 
-    if (period === "weekly") {
-      start.setDate(start.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
-    } else if (period === "monthly") {
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-    } else {
-      start.setMonth(0, 1);
-      start.setHours(0, 0, 0, 0);
-    }
-
-    const payments = await prisma.payment.findMany({
-      where: {
-        status: PaymentStatus.PAID,
-        createdAt: {
-          gte: start,
-          lte: now,
-        },
-      },
-      select: {
-        amount: true,
-        currency: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "asc" },
-    });
-
-    // Ne zbrajamo različite valute zajedno.
-    const currencies = new Set(payments.map((payment) => payment.currency.toUpperCase()));
-
-    if (currencies.size > 1) {
-      throw new Error("Revenue contains multiple currencies. Filter by currency or convert amounts before aggregation.");
-    }
-
-    const currency = currencies.values().next().value ?? "EUR";
-    const points = new Map<string, number>();
-
-    // Unaprijed popunjavamo sva razdoblja, uključujući dane/mjesece
-    // bez uplata, tako da grafikon nema praznine.
-    if (period === "weekly" || period === "monthly") {
-      const cursor = new Date(start);
-
-      while (cursor <= now) {
-        const key = this.dateKey(cursor, "day");
-        points.set(key, 0);
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    } else {
-      const cursor = new Date(start);
-
-      while (cursor <= now) {
-        const key = this.dateKey(cursor, "month");
-        points.set(key, 0);
-        cursor.setMonth(cursor.getMonth() + 1);
-      }
-    }
-
-    for (const payment of payments) {
-      const key = this.dateKey(payment.createdAt, period === "yearly" ? "month" : "day");
-
-      points.set(key, (points.get(key) ?? 0) + payment.amount);
-    }
-
-    const resultPoints = [...points.entries()].map(([date, revenue]) => ({
-      date,
-      revenue: Number(revenue.toFixed(2)),
-      currency,
-    }));
-
-    const totalRevenue = resultPoints.reduce((total, point) => total + point.revenue, 0);
-
-    return {
-      period,
-      currency,
-      totalRevenue: Number(totalRevenue.toFixed(2)),
-      points: resultPoints,
-    };
+  if (period === "weekly") {
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+  } else if (period === "monthly") {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  } else {
+    start.setMonth(0, 1);
+    start.setHours(0, 0, 0, 0);
   }
 
-  const dateKey = (date: Date, granularity: "day" | "month"): string =>  {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
+  const payments = await prisma.payment.findMany({
+    where: {
+      status: PaymentStatus.PAID,
+      createdAt: {
+        gte: start,
+        lte: now,
+      },
+    },
+    select: {
+      amount: true,
+      currency: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
 
-    if (granularity === "month") {
-      return `${year}-${month}`;
-    }
+  // Dont count diffrent currency
+  const currencies = new Set(payments.map((payment) => payment.currency.toUpperCase()));
 
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+  if (currencies.size > 1) {
+    throw new Error("Revenue contains multiple currencies. Filter by currency or convert amounts before aggregation.");
   }
 
+  const currency = currencies.values().next().value ?? "EUR";
+  const points = new Map<string, number>();
 
-  const getUsersByCountry =  async()=> {
-    const users = await prisma.user.findMany({
-      select: {
-        country: true,
-        role: true,
-      },
-    });
+  if (period === "weekly" || period === "monthly") {
+    const cursor = new Date(start);
 
-    const countryMap = new Map<string, UsersByCountry>();
-
-    for (const user of users) {
-      const country = user.country?.trim() || "Unknown";
-
-      const current = countryMap.get(country) ?? {
-        country,
-        total: 0,
-        brokers: 0,
-        owners: 0,
-        buyers: 0,
-        admins: 0,
-      };
-
-      current.total += 1;
-
-      switch (user.role) {
-        case Role.BROKER:
-          current.brokers += 1;
-          break;
-        case Role.OWNER:
-          current.owners += 1;
-          break;
-        case Role.BUYER:
-          current.buyers += 1;
-          break;
-        case Role.ADMIN:
-          current.admins += 1;
-          break;
-      }
-
-      countryMap.set(country, current);
+    while (cursor <= now) {
+      const key = dateKey(cursor, "day");
+      points.set(key, 0);
+      cursor.setDate(cursor.getDate() + 1);
     }
+  } else {
+    const cursor = new Date(start);
 
-    return [...countryMap.values()].sort((a, b) => b.total - a.total);
-  } */
+    while (cursor <= now) {
+      const key = dateKey(cursor, "month");
+      points.set(key, 0);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  }
+
+  for (const payment of payments) {
+    const key = dateKey(payment.createdAt, period === "yearly" ? "month" : "day");
+
+    points.set(key, (points.get(key) ?? 0) + payment.amount);
+  }
+
+  const resultPoints = [...points.entries()].map(([date, revenue]) => ({
+    date,
+    revenue: Number(revenue.toFixed(2)),
+    currency,
+  }));
+
+  const totalRevenue = resultPoints.reduce((total, point) => total + point.revenue, 0);
+
+  return {
+    period,
+    currency,
+    totalRevenue: Number(totalRevenue.toFixed(2)),
+    points: resultPoints,
+  };
+};
+
+const dateKey = (date: Date, granularity: "day" | "month"): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  if (granularity === "month") {
+    return `${year}-${month}`;
+  }
+
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 // BROKER DASHBOARD
 export const serivceBrokerDashboard = async (userId: string) => {

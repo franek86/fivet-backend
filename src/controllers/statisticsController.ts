@@ -1,9 +1,16 @@
 import type { Request, Response, NextFunction } from "express";
 import { AuthError } from "../helpers/error.helpers";
 
-import { serivceBrokerDashboard, serivceOwnerDashboard, serviceAdminDashboard, serviceUsersByCountry } from "../services/statistic.service";
+import {
+  RevenuePeriod,
+  serivceBrokerDashboard,
+  serivceOwnerDashboard,
+  serviceAdminDashboard,
+  serviceRevenue,
+  serviceUsersByCountry,
+} from "../services/statistic.service";
 
-/* const revenuePeriods = ["weekly", "monthly", "yearly"]; */
+export const revenuePeriods = ["weekly", "monthly", "yearly"];
 
 export const getAdminDashboard = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -19,7 +26,7 @@ export const getAdminDashboard = async (req: Request, res: Response, next: NextF
   }
 };
 
-/* export const getRevenue = async (req: Request, res: Response, next: NextFunction) => {
+export const getRevenue = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const period = req.query.period ?? "monthly";
 
@@ -31,7 +38,7 @@ export const getAdminDashboard = async (req: Request, res: Response, next: NextF
       return;
     }
 
-    const data = await getRevenue(period);
+    const data = await serviceRevenue(period as RevenuePeriod);
 
     res.status(200).json({
       success: true,
@@ -41,7 +48,6 @@ export const getAdminDashboard = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
- */
 
 export const getUsersByCountry = async (req: Request, res: Response, next: NextFunction) => {
   try {
