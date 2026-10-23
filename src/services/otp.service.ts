@@ -1,5 +1,6 @@
 import prisma from "../prismaClient";
 import { generateOtp } from "../helpers/generateOtp.helpers";
+import { ValidationError } from "../helpers/error.helpers";
 
 const OTP_EXPIRATION_MS = 60 * 1000;
 
@@ -30,17 +31,23 @@ export const createOTP = async (email: string): Promise<string> => {
  *
  * Validates an OTP and removes it after successful verification.
  * */
+const MAX_ATTEMPTS = 5;
 export const verifyOtp = async (email: string, otp: string): Promise<void> => {
   const record = await prisma.otp.findUnique({ where: { email } });
   if (!record) {
-    throw new Error("OTP not found. Request a new one.");
+    throw new ValidationError("OTP not found. Request a new one.");
   }
   if (record.expiresAt < new Date()) {
     await prisma.otp.delete({ where: { email } });
-    throw new Error("OTP expired. Request a new one.");
+    throw new ValidationError("OTP expired. Request a new one.");
   }
   if (record.otp !== otp) {
-    throw new Error("Invalid OTP");
+    if (record.attempts + 1 >= MAX_ATTEMPTS) {
+      await prisma.otp.delete({ where: { email } });
+      throw new ValidationError("Too many attempts. Request a new code.");
+    }
+    await prisma.otp.update({ where: { email }, data: { attempts: { increment: 1 } } });
+    throw new ValidationError("Invalid OTP");
   }
   await prisma.otp.delete({ where: { email } });
 };

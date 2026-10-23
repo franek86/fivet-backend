@@ -215,6 +215,7 @@ model Otp {
   email String @unique
   otp String
   expiresAt DateTime
+  attempts Int @default(0)
   @@map("otp")
 }
 

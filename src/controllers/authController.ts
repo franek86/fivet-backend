@@ -177,14 +177,14 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
       await sendEmail(emailToSend, "New User created", "user-notification-email", emailData);
     } */
 
-    await notifyAdminAboutNewUser(newUser);
-
     logger.info(`User registered successfully: ${newUser.id}`);
 
     res.status(201).json({
       success: true,
       message: "User registered successfully!",
     });
+
+    notifyAdminAboutNewUser(newUser).catch((err) => logger.error("Admin notify failed", err));
   } catch (error) {
     next(error);
   }

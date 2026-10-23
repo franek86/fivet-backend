@@ -1,19 +1,8 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
+import { Resend } from "resend";
 import ejs from "ejs";
 import path from "path";
 
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  service: process.env.SMTP_SERVICE,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 //Render EJS email templete
 const renderEmailTemplate = async (templateName: string, data: Record<string, any>): Promise<string> => {
@@ -22,17 +11,12 @@ const renderEmailTemplate = async (templateName: string, data: Record<string, an
 };
 
 export const sendEmail = async (to: string, subject: string, templateName: string, data: Record<string, any>) => {
-  try {
-    const html = await renderEmailTemplate(templateName, data);
-    await transporter.sendMail({
-      from: `<${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    return true;
-  } catch (error) {
-    console.log("Error sending mail", error);
-    return false;
-  }
+  const html = await renderEmailTemplate(templateName, data);
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM!, // e.g. "Fivet <noreply@yourdomain.com>"
+    to,
+    subject,
+    html,
+  });
+  if (error) throw new Error(`Email failed: ${error.message}`);
 };

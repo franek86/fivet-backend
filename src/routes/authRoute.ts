@@ -15,6 +15,13 @@ import { authenticateUser } from "../middleware/verifyToken";
 
 const router = express.Router();
 
+//Verify user rate limiter
+export const verifyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  message: { message: "Too many attempts. Try again later." },
+});
+
 // Create a rate limiter for login attempts
 const loginRateLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 15 minutes
@@ -30,7 +37,7 @@ const loginRateLimiter = rateLimit({
 });
 
 router.post("/register", registerUser);
-router.post("/verify-user", verifyUser);
+router.post("/verify-user", verifyLimiter, verifyUser);
 router.post("/login", loginRateLimiter, loginUser);
 router.post("/refresh-token", refreshToken);
 router.post("/logout", logout);

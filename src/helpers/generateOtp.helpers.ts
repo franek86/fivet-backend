@@ -4,8 +4,10 @@
  * @returns OTP as a string, padded with leading zeros if necessary
  */
 
+import { randomInt } from "crypto";
+
 export const generateOtp = (length = 6): string => {
-  return Math.floor(Math.random() * Math.pow(10, length))
+  return randomInt(0, 10 ** length)
     .toString()
     .padStart(length, "0");
 };
