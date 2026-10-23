@@ -1,8 +1,5 @@
-import { Resend } from "resend";
 import ejs from "ejs";
 import path from "path";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 //Render EJS email templete
 const renderEmailTemplate = async (templateName: string, data: Record<string, any>): Promise<string> => {
@@ -12,11 +9,24 @@ const renderEmailTemplate = async (templateName: string, data: Record<string, an
 
 export const sendEmail = async (to: string, subject: string, templateName: string, data: Record<string, any>) => {
   const html = await renderEmailTemplate(templateName, data);
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM!, // e.g. "Fivet <noreply@yourdomain.com>"
-    to,
-    subject,
-    html,
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": process.env.BREVO_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "Fivet", email: process.env.EMAIL_FROM! }, // your verified sender
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(10000),
   });
-  if (error) throw new Error(`Email failed: ${error.message}`);
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Email failed: ${res.status} ${body}`);
+  }
 };
