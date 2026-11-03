@@ -21,7 +21,6 @@ router.post(
   requireRole("ADMIN"),
   upload.fields([
     { name: "bannerImage", maxCount: 1 },
-    { name: "blockImages", maxCount: 30 },
     { name: "gallery", maxCount: 10 },
   ]),
   createPost,
@@ -29,11 +28,10 @@ router.post(
 router.get("/", authenticateUser, requireRole("ADMIN"), getAllPosts);
 router.patch(
   "/:id",
-  /*  authenticateUser,
-  authAdmin, */
+  authenticateUser,
+  requireRole("ADMIN"),
   upload.fields([
     { name: "bannerImage", maxCount: 1 },
-    { name: "blockImages", maxCount: 30 },
     { name: "gallery", maxCount: 10 },
   ]),
   updatePost,

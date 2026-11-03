@@ -1,4 +1,4 @@
-import { BlogFilters } from "src/schemas/post.schema";
+import { BlogFilters } from "src/schemas/blog.schema";
 
 /**
  * @desc

@@ -441,83 +441,68 @@ model Payment {
 
 model Post {
   id String @id @default(uuid())
-
-  author User @relation(fields: [authorId], references: [id])
-  authorId String
-
   title String
+  slug String @unique @default("blog-slug")
   subTitle String?
   shortDescription String?
-  slug String @unique @default("post-slug")
-  status PostStatus @default(DRAFT)
-
-  blocks PostBlock[]
-
-  category PostCategory? @relation(fields: [categoryId], references: [id])
-  categoryId Int?
-
-  tags String[]
+  content String @db.Text
 
   bannerImage String?
   bannerPublicId String?
   bannerImageAlt String?
-  gallery PostGallery[]
 
   publishedAt DateTime?
+  status PostStatus @default(DRAFT)
+
+  authorId String
+  author User @relation(fields: [authorId], references: [id])
+
+  tags String[]
+
+  categoryId String
+  category PostCategory @relation(fields: [categoryId], references: [id])
+
+  gallery PostGallery[]
 
   metaTitle String?
   metaDescription String?
-  metaKeywords String?
-
+  metaKeywords String[]
   ogImage String?
   canonicalUrl String?
 
-  readingTime Int?
   views Int @default(0)
+  readingTime Int? @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([slug])
-  @@index([status])
+  @@index([slug,status,publishedAt])
+  @@index([categoryId])
   @@map("blogs")
 }
 
-model PostBlock {
-  id      String    @id @default(uuid())
 
-  postId  String
-  post    Post   @relation(fields: [postId], references: [id],onDelete: Cascade)
-
-  text      String?   @db.Text
-  imageUrl  String?
-  imageAlt  String?
-  blockImagePublicId String?
-
-  order     Int
-  createdAt DateTime @default(now())
-
-  @@index([postId])
-  @@map("blogBlock")
-}
 
 model PostGallery {
   id      String    @id @default(uuid())
   alt     String?
   url     String
   publicId String?
+  order Int @default(0)
 
   postId  String
   post    Post   @relation(fields: [postId], references: [id],onDelete: Cascade)
 
   createdAt DateTime @default(now())
+
+  @@index([postId])
   @@map("blogGallery")
 }
 
 model PostCategory {
-  id Int  @id @default(autoincrement())
-  title String
-
+  id String  @id @default(uuid())
+  title String @unique
+  slug  String @unique
   post Post[]
 
   createdAt DateTime @default(now())

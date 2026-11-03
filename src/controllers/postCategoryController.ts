@@ -1,6 +1,6 @@
 import { Response, Request } from "express";
 import prisma from "../prismaClient";
-import { PostCategorySchema } from "../schemas/postCategory.schema";
+import { PostCategorySchema } from "../schemas/blogCategory.schema";
 
 export const createPostCategory = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
