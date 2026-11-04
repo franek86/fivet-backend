@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import {
   createPost,
   deletePost,
@@ -12,6 +12,7 @@ import {
 import { checkShipsLimit } from "../middleware";
 import upload from "../middleware/uploads";
 import { authenticateUser, requireRole } from "../middleware/verifyToken";
+import { uploadSingleFile } from "../services/cloundinary.service";
 
 const router = express.Router();
 
@@ -40,5 +41,12 @@ router.get("/published", getPublishedPosts);
 router.delete("/:id", authenticateUser, requireRole("ADMIN"), deletePost);
 router.get("/:slug", getSinglePostBySlug);
 router.get("/admin/:slug", getSinglePostBySlugProtected);
+
+//upload image fron blog content
+router.post("/uploads/image", authenticateUser, requireRole("ADMIN"), upload.single("image"), async (req: Request, res: Response) => {
+  if (!req.file) return res.status(400).json({ message: "Image is required" });
+  const { url, publicId } = await uploadSingleFile(req.file.buffer, "posts/blockImage");
+  res.status(201).json({ url, publicId });
+});
 
 export default router;
