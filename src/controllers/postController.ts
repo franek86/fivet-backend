@@ -9,6 +9,16 @@ import { buildPageMeta, parsePagination } from "../utils/pagination";
 import { parseSortBy } from "../helpers/sort.helpers";
 import { blogFilters } from "../utils/blogFilters";
 
+const parseJsonField = (value: unknown) => {
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
 type BlogFliesType = {
   bannerImage?: Express.Multer.File[];
   gallery?: Express.Multer.File[];
@@ -305,6 +315,7 @@ export const deletePost = async (req: Request<{ id: string }>, res: Response): P
 /* UPDATED POST BY ID
   PROTECTED - ADMIN ONLY
 */
+
 export const updatePost = async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.userId;
   const id = req.params.id as string;
@@ -314,16 +325,13 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  // Track uploaded files for cleanup if database update fails.
   const uploadedPublicIds: string[] = [];
 
   try {
-    // 1.Find existing blog
+    // 1. Find existing post
     const existingPost = await prisma.post.findUnique({
       where: { id },
-      include: {
-        gallery: true,
-      },
+      include: { gallery: true },
     });
 
     if (!existingPost) {
@@ -331,22 +339,16 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // 2. Parse FormData JSON fields
-    let galleryMeta: GalleryMeta[];
-    let existingImagesMeta: ExistingImagesMeta[];
-    let deleteImageIds: string[];
-    let tags: string[] | undefined;
-
-    galleryMeta = req.body.galleryMeta;
-    existingImagesMeta = JSON.parse(req.body.existingImagesMeta || []);
-    deleteImageIds = JSON.parse(req.body.deleteImageIds || []);
-    tags = req.body.tags !== undefined ? JSON.parse(req.body.tags) : undefined;
-
-    // 3.Validate body
-    const validatedData = UpdatePostSchema.safeParse({
+    // 2. Parse JSON fields from FormData
+    const body = {
       ...req.body,
-      ...(tags !== undefined && { tags }),
-    });
+      deleteImageIds: parseJsonField(req.body.deleteImageIds ?? "[]"),
+      existingImagesMeta: parseJsonField(req.body.existingImagesMeta ?? "[]"),
+      galleryMeta: parseJsonField(req.body.galleryMeta ?? "[]"),
+    };
+
+    // 3. Validate
+    const validatedData = UpdatePostSchema.safeParse(body);
 
     if (!validatedData.success) {
       res.status(400).json({
@@ -358,21 +360,19 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
 
     const data = validatedData.data;
 
-    // 4.Get files
+    // 4. Get uploaded files
     const files = (req.files || {}) as BlogFliesType;
 
     const banner = files.bannerImage?.[0];
     const gallery = files.gallery ?? [];
 
-    // 5. Upload new banner if provided
+    // 5. Upload new banner
     let newBanner = null;
+
     if (banner) {
       const result = await uploadSingleFile(banner.buffer, "posts/bannerImage");
-      newBanner = {
-        url: result.url,
-        publicId: result.publicId,
-      };
 
+      newBanner = result;
       uploadedPublicIds.push(result.publicId);
     }
 
@@ -386,98 +386,55 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
         return {
           url: result.url,
           publicId: result.publicId,
-          alt: galleryMeta[index]?.alt ?? "",
+          alt: data.galleryMeta?.[index]?.alt ?? null,
+          order: existingPost.gallery.length + index,
         };
       }),
     );
 
-    // 7. Find selected images to delete
+    // 7. Find images to delete
+    const deleteImageIds = data.deleteImageIds ?? [];
+
     const imagesToDelete = existingPost.gallery.filter((image) => deleteImageIds.includes(image.id));
 
-    /* ---------------- Gallery ---------------- */
-
-    /*  const galleryMeta = req.body.galleryMeta || []; */
-
-    /*  let formattedGallery: any[] = [];
-
-    if (gallery.length > 0) {
-      // delete old gallery images from Cloudinary + DB
-      await Promise.all(
-        existingPost.gallery.map(async (img) => {
-          if (img.publicId) {
-            await cloudinary.uploader.destroy(img.publicId);
-          }
-        }),
-      );
-
-      const uploadedGallery = await uploadSingleFile(gallery.buffer, "posts/blogGallery");
-
-      formattedGallery = uploadedGallery.map((img, index) => ({
-        url: img.url,
-        publicId: img.publicId,
-        alt: galleryMeta[index]?.alt || "",
-      }));
-    } */
-
-    /* ---------------- Delete selected gallery images ---------------- */
-
-    /* const deleteImageIds: string[] = JSON.parse(req.body.deleteImageIds || "[]"); */
-
-    /*  if (deleteImageIds.length > 0) {
-      const imagesToDelete = existingPost.gallery.filter((img) => deleteImageIds.includes(img.id));
-
-      await Promise.all(
-        imagesToDelete.map(async (img) => {
-          if (img.publicId) {
-            await cloudinary.uploader.destroy(img.publicId);
-          }
-        }),
-      );
-
-      await prisma.postGallery.deleteMany({
-        where: {
-          id: { in: deleteImageIds },
-          postId: id,
-        },
-      });
-    } */
-
-    /* ---------------- Update existing gallery meta data ---------------- */
-
-    /* const existingImagesMeta: { id: string; alt?: string }[] = JSON.parse(req.body.existingImagesMeta || []); */
-
-    /* await Promise.all(
-      existingImagesMeta.map((img) => {
-        return prisma.postGallery.updateMany({
-          where: { id: img.id, postId: id },
-          data: { alt: img.alt },
-        });
-      }),
-    ); */
-
-    /* ---------------- Update ---------------- */
-
+    // 8. Update post
     const updatedPost = await prisma.$transaction(async (tx) => {
       await tx.post.update({
         where: { id },
         data: {
-          title: data.title,
-          slug: data.slug,
-          shortDescription: data.shortDescription,
-          authorId: userId,
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.slug !== undefined && { slug: data.slug }),
+          ...(data.subTitle !== undefined && { subTitle: data.subTitle }),
+          ...(data.shortDescription !== undefined && {
+            shortDescription: data.shortDescription,
+          }),
+          ...(data.content !== undefined && { content: data.content }),
 
-          tags: data.tags,
-          category: {
-            connect: {
-              id: data.categoryId,
-            },
-          },
+          ...(data.tags !== undefined && { tags: data.tags }),
+          ...(data.categoryId !== undefined && {
+            categoryId: data.categoryId,
+          }),
 
-          bannerImageAlt: data.bannerImageAlt,
+          ...(data.status !== undefined && { status: data.status }),
+          ...(data.publishedAt !== undefined && {
+            publishedAt: data.publishedAt,
+          }),
 
-          metaTitle: data.metaTitle,
-          metaKeywords: data.metaKeywords,
-          metaDescription: data.metaDescription,
+          ...(data.bannerImageAlt !== undefined && {
+            bannerImageAlt: data.bannerImageAlt,
+          }),
+
+          ...(data.metaTitle !== undefined && { metaTitle: data.metaTitle }),
+          ...(data.metaDescription !== undefined && {
+            metaDescription: data.metaDescription,
+          }),
+          ...(data.metaKeywords !== undefined && {
+            metaKeywords: data.metaKeywords,
+          }),
+          ...(data.ogImage !== undefined && { ogImage: data.ogImage }),
+          ...(data.canonicalUrl !== undefined && {
+            canonicalUrl: data.canonicalUrl,
+          }),
 
           ...(newBanner && {
             bannerImage: newBanner.url,
@@ -485,7 +442,6 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
           }),
 
           gallery: {
-            // Delete selected gallery records
             ...(imagesToDelete.length > 0 && {
               deleteMany: {
                 id: {
@@ -494,7 +450,6 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
               },
             }),
 
-            // Add new gallery images
             ...(newGalleryImages.length > 0 && {
               create: newGalleryImages,
             }),
@@ -502,8 +457,8 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
         },
       });
 
-      // Update existing gallery alt descriptions
-      for (const image of existingImagesMeta) {
+      // Update alt text of existing images
+      for (const image of data.existingImagesMeta ?? []) {
         if (deleteImageIds.includes(image.id)) continue;
 
         await tx.postGallery.updateMany({
@@ -512,7 +467,7 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
             postId: id,
           },
           data: {
-            alt: image.alt ?? "",
+            alt: image.alt ?? null,
           },
         });
       }
@@ -520,15 +475,15 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       return tx.post.findUnique({
         where: { id },
         include: {
+          category: true,
           gallery: true,
         },
       });
     });
 
-    // 9. Delete old Cloudinary images after successful DB update
+    // 9. Delete old Cloudinary images
     const oldPublicIds = [
       ...(newBanner && existingPost.bannerPublicId ? [existingPost.bannerPublicId] : []),
-
       ...imagesToDelete.map((image) => image.publicId),
     ].filter((publicId): publicId is string => Boolean(publicId));
 
@@ -541,7 +496,7 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     console.error(error);
 
-    // Remove newly uploaded images if update fails
+    // Cleanup newly uploaded images if update fails
     await Promise.allSettled(uploadedPublicIds.map((publicId) => cloudinary.uploader.destroy(publicId)));
 
     res.status(500).json({

@@ -59,17 +59,27 @@ export const CreatePostSchema = z.object({
   canonicalUrl: z.string().url().nullish().optional(),
 });
 
-export const UpdatePostSchema = CreatePostSchema.partial().extend({
-  deleteImageIds: z.array(z.string()).optional(),
-  existingImagesMeta: z
-    .array(
-      z.object({
-        id: z.string(),
-        alt: z.string().optional(),
-      }),
-    )
-    .optional(),
-});
+export const UpdatePostSchema = CreatePostSchema.omit({ gallery: true })
+  .partial()
+  .extend({
+    deleteImageIds: z.array(z.string()).optional(),
+    existingImagesMeta: z
+      .array(
+        z.object({
+          id: z.string(),
+          alt: z.string().optional(),
+        }),
+      )
+      .optional(),
+
+    galleryMeta: z
+      .array(
+        z.object({
+          alt: z.string().optional(),
+        }),
+      )
+      .optional(),
+  });
 
 export const BlogFilterSchema = z.object({
   categories: z.string().optional(),
