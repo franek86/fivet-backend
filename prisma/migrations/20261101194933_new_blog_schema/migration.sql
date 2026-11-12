@@ -10,8 +10,6 @@
   - Added the required column `content` to the `blogs` table without a default value. This is not possible if the table is not empty.
 
 */
--- DropForeignKey
-ALTER TABLE "blogBlock" DROP CONSTRAINT "blogBlock_postId_fkey";
 
 -- DropForeignKey
 ALTER TABLE "blogs" DROP CONSTRAINT "blogs_categoryId_fkey";
@@ -32,12 +30,13 @@ DROP SEQUENCE "blogCategories_id_seq";
 
 -- AlterTable
 ALTER TABLE "blogs" DROP COLUMN "categoryId",
-ADD COLUMN     "content" TEXT NOT NULL,
+ADD COLUMN     "content" TEXT NOT NULL DEFAULT '',
 ALTER COLUMN "slug" SET DEFAULT 'blog-slug',
 ALTER COLUMN "readingTime" SET DEFAULT 1;
+ALTER TABLE "blogs" ALTER COLUMN "content" DROP DEFAULT;
 
 -- DropTable
-DROP TABLE "blogBlock";
+DROP TABLE IF EXISTS "blogBlock";
 
 -- CreateTable
 CREATE TABLE "_PostToPostCategory" (
