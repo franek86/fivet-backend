@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Enums (match Prisma enums exactly)
  */
-export const RoleEnum = z.enum(["ADMIN", "BROKER", "OWNER", "BUYER"]);
+export const RoleEnum = z.enum(["BROKER", "OWNER", "BUYER"]);
 export const SubscriptionEnum = z.enum(["STARTER", "PREMIUM", "STANDARD"]);
 
 /**
@@ -11,14 +11,13 @@ export const SubscriptionEnum = z.enum(["STARTER", "PREMIUM", "STANDARD"]);
  */
 const uuidSchema = z.string().uuid();
 
-const emailSchema = z.string().email("Invalid email format").min(5).max(255).toLowerCase().trim();
+const emailSchema = z.string().trim().toLowerCase().email("Invalid email format").min(5).max(255);
 
-const passwordSchema = z.string().min(6, "Password must be at least 6 characters").max(100);
+const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 
-const nameSchema = z.string().min(2, "Full name too short").max(100).trim();
+const nameSchema = z.string().trim().min(2, "Full name too short").max(100);
 
-const optionalString = z.string().min(1).max(255).trim().optional().nullable();
-
+const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string().max(255).trim().optional().nullable());
 /**
  * Core User Schema (DB shape)
  */
@@ -85,7 +84,7 @@ export const UserFilterSchema = z.object({
   search: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(12),
-  sortBy: z.enum(["status", "createdAt"]).default("createdAt"),
+  sortBy: z.enum(["createdAt"]).default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
 });
 

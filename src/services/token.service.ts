@@ -52,12 +52,12 @@ export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
  * password-reset OTP verification
  */
 export const generatePasswordResetToken = (userId: string): string => {
-  return jwt.sign({ userId, purpose: "password-reset" }, process.env.JWT_SECRET as string, { expiresIn: "10m" });
+  return jwt.sign({ userId, purpose: "password-reset" }, process.env.RESET_SECRET as string, { expiresIn: "10m" });
 };
 
 /**
  * Verify token for password reset OTP
  */
 export const verifyPasswordResetToken = (token: string): { userId: string; purpose: string } => {
-  return jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string; purpose: string };
+  return jwt.verify(token, process.env.RESET_SECRET as string) as { userId: string; purpose: string };
 };

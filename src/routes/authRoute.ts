@@ -23,8 +23,8 @@ export const verifyLimiter = rateLimit({
 });
 
 // Create a rate limiter for login attempts
-const loginRateLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 15 minutes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 requests per windowMs
   standardHeaders: true,
   legacyHeaders: true,
@@ -36,13 +36,13 @@ const loginRateLimiter = rateLimit({
   keyGenerator: (req: any) => req.ip,
 });
 
-router.post("/register", registerUser);
+router.post("/register", authLimiter, registerUser);
 router.post("/verify-user", verifyLimiter, verifyUser);
-router.post("/login", loginRateLimiter, loginUser);
-router.post("/refresh-token", refreshToken);
+router.post("/login", authLimiter, loginUser);
+router.post("/refresh-token", authLimiter, refreshToken);
 router.post("/logout", logout);
-router.post("/forgot-password", forgotPassword);
-router.post("/verify-forgot-password", verifyForgotPassword);
+router.post("/forgot-password", authLimiter, forgotPassword);
+router.post("/verify-forgot-password", verifyLimiter, verifyForgotPassword);
 router.post("/reset-password", resetUserPassword);
 router.get("/me", authenticateUser, userMe);
 

@@ -206,13 +206,13 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      throw new AuthError("Invalid credentails.");
+      throw new AuthError("Invalid credentials.");
     }
 
     const validatePassword = await bcrypt.compare(password, user.password);
 
     if (!validatePassword) {
-      throw new AuthError("Invalid credentails.");
+      throw new AuthError("Invalid credentials.");
     }
 
     /*  if (!user.isActive) {
@@ -283,8 +283,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       accessToken: accessToken,
     });
   } catch (error) {
-    console.log(error);
-    next(new AuthError("Invalid or expired refresh token."));
+    next(error);
   }
 };
 
@@ -320,27 +319,13 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
     if (!user) {
       throw new NotFoundError("User not found.");
     }
-    const response = {
-      id: user.id,
-      role: user.role,
-      fullName: user.fullName,
-      subscription: user.subscription,
-      isActive: user.isActive,
-      verifyPayment: user.verifyPayment,
-      isActiveSubscription: user.isActiveSubscription,
-      avatar: user.avatar || "",
-      company: user.company || "",
-      brokerProfile: {
-        verificationStatus: user.brokerProfile?.verificationStatus || "PENDING",
-      },
-      ownerProfile: {
-        verificationStatus: user.ownerProfile?.verificationStatus || "PENDING",
-      },
-    };
 
-    const validatedResponse = UserMeResponseSchema.parse(response);
-
-    return res.status(200).json(validatedResponse);
+    return res.status(200).json({
+      ...user,
+      avatar: user.avatar ?? "",
+      brokerProfile: { verificationStatus: user.brokerProfile?.verificationStatus ?? "PENDING" },
+      ownerProfile: { verificationStatus: user.ownerProfile?.verificationStatus ?? "PENDING" },
+    });
   } catch (error) {
     next(error);
   }
