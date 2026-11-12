@@ -28,6 +28,7 @@ import postCategoryRoute from "./routes/blogCategoryRoute";
 import brokerAssignmentsRoute from "./routes/brokerAssignmentsRoute";
 import chatRoute from "./routes/chatRoute";
 import statisticRoute from "./routes/statisticRoute";
+import settingsRoute from "./routes/settingsRoute";
 
 /* MIDDLEWARES */
 import { errorMiddleware } from "./middleware";
@@ -102,6 +103,7 @@ app.use("/company", companyRoute);
 app.use("/broker-assignments", brokerAssignmentsRoute);
 app.use("/chat", chatRoute);
 app.use("/statistics", statisticRoute);
+app.use("/settings", settingsRoute);
 app.use(
   "/geo",
   express.static(path.resolve(process.cwd(), "public/geo"), {

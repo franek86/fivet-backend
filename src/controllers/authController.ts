@@ -223,6 +223,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       where: { id: user.id },
       data: {
         lastLogin: new Date(),
+        ...(user.isFrozen && { isFrozen: false, frozenAt: null }),
       },
     });
 
@@ -264,7 +265,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
-    if (!user) {
+    if (!user || user.isFrozen) {
       throw new AuthError("Invalid refresh token.");
     }
 

@@ -134,6 +134,10 @@ model User {
   city        String?
   country     String?
   avatar String?
+  avatarPublicId String?
+
+  isFrozen  Boolean   @default(false)
+  frozenAt  DateTime?
 
   addressBook AddressBook[]
   events Event[]
