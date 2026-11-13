@@ -12,7 +12,7 @@ export const ChangePasswordSchema = z
   });
 
 export const RequestEmailChangeSchema = z.object({
-  newEmail: z.string().email(),
+  email: z.string().email(),
   password: z.string().min(1),
 });
 

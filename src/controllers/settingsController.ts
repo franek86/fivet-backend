@@ -7,7 +7,10 @@ import { logger } from "../config/logger";
 import { sendOtp } from "../helpers/auth.helpers";
 import { AuthError, NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { createOTP, verifyOtp } from "../services/otp.service";
+import { uploadSingleFile } from "../services/cloundinary.service";
+
 import { ChangePasswordSchema, ConfirmEmailChangeSchema, FreezeAccountSchema, RequestEmailChangeSchema } from "../schemas/settings.schema";
+import { buffer } from "stream/consumers";
 
 const getCurrentUser = async (req: Request) => {
   const userId = req.user?.userId;
@@ -39,7 +42,8 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 
     res.status(200).json({ message: "Password changed successfully." });
   } catch (error) {
-    next(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -49,21 +53,22 @@ export const requestEmailChange = async (req: Request, res: Response, next: Next
     const parsed = RequestEmailChangeSchema.safeParse(req.body);
     if (!parsed.success) return next(new ValidationError("Invalid email data."));
 
-    const { newEmail, password } = parsed.data;
+    const { email, password } = parsed.data;
     const user = await getCurrentUser(req);
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new AuthError("Password is incorrect.");
 
-    const taken = await prisma.user.findUnique({ where: { email: newEmail } });
+    const taken = await prisma.user.findUnique({ where: { email } });
     if (taken) throw new ValidationError("Email is already in use.");
 
-    const otp = await createOTP(newEmail);
-    await sendOtp(user.fullName, newEmail, "user-activation-email", otp);
+    const otp = await createOTP(email);
+    await sendOtp(user.fullName, email, "user-activation-email", otp);
 
     res.status(200).json({ message: "OTP sent to the new email address." });
   } catch (error) {
-    next(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -89,12 +94,13 @@ export const confirmEmailChange = async (req: Request, res: Response, next: Next
 
     res.status(200).json(updated);
   } catch (error) {
-    next(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
 /* CHANGE AVATAR */
-export const changeAvatar = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const changeAvatar = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) throw new ValidationError("Image is required.");
     const user = await getCurrentUser(req);
@@ -117,7 +123,8 @@ export const changeAvatar = async (req: Request, res: Response, next: NextFuncti
 
     res.status(200).json(updated);
   } catch (error) {
-    next(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -148,6 +155,7 @@ export const freezeAccount = async (req: Request, res: Response, next: NextFunct
 
     res.status(200).json({ message: "Account frozen. Log in again to restore it." });
   } catch (error) {
-    next(error);
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

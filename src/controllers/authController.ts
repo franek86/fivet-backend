@@ -12,7 +12,6 @@ import { formatDate } from "../helpers/date.helpers";
 import { setCookie } from "../utils/cookies/setCookies";
 import { sendEmail } from "../utils/sendMail";
 
-import { UserMeResponseSchema } from "../schemas/user.schema";
 import {
   ForgotPasswordSchema,
   LoginSchema,
@@ -373,6 +372,8 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       throw new ValidationError("User not found.");
     }
 
+    console.log("suer forget password ======== ", user);
+
     // generate otp
     const otp = await createOTP(email);
     await sendOtp(user.fullName, email, "forgot-password-email", otp);
@@ -404,27 +405,6 @@ export const verifyForgotPassword = async (req: Request, res: Response, next: Ne
     if (!user) {
       throw new NotFoundError("User not found.");
     }
-
-    /*  const recordOtp = await prisma.otp.findUnique({ where: { email } });
-    if (!recordOtp) {
-      logger.error("OTP not found");
-      res.status(400).json({ message: "OTP not found. Request a new one." });
-      return;
-    }
-
-    if (recordOtp.expiresAt < new Date()) {
-      await prisma.otp.delete({ where: { email } });
-
-      logger.warn("OTP expired");
-      res.status(400).json({ message: "OTP expired. Request a new one." });
-      return;
-    }
-
-    if (recordOtp.otp !== otp) {
-      logger.error("Invalid OTP");
-      res.status(400).json({ message: "Invalid OTP" });
-      return;
-    } */
 
     await verifyOtp(email, otp);
 
