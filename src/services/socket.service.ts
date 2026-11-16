@@ -4,14 +4,14 @@ import jwt from "jsonwebtoken";
 
 import { CustomJwtPayload } from "../middleware/verifyToken";
 import { registerChatHandlers } from "./chat.socket.service";
-import { AuthError, NotFoundError } from "../helpers/error.helpers";
+import { AuthError } from "../helpers/error.helpers";
 
 declare module "socket.io" {
   interface Socket {
     user: CustomJwtPayload;
   }
 }
-export let io: Server;
+let io: Server | undefined;
 
 /**
  * Online users
@@ -24,6 +24,7 @@ export const onlineUsers = new Map<string, Set<string>>();
  *
  * HELPERS
  */
+
 const getOnlineUserIds = (): string[] => {
   return Array.from(onlineUsers.keys());
 };
@@ -60,28 +61,32 @@ const removeOnlineUser = (userId: string, socketId: string): boolean => {
   return false;
 };
 
+const allowedOrigins = [process.env.FRONTEND_URL, process.env.WEB_URL].filter((o): o is string => Boolean(o));
+
 /* -------------------------------------------------------------------------- */
 /* Initialize Socket.IO   */
 /* -------------------------------------------------------------------------- */
 export const initializeSocket = (server: http.Server) => {
-  io = new Server(server, {
+  const ioServer = new Server(server, {
     cors: {
-      origin: [process.env.FRONTEND_URL || "", process.env.WEB_URL || ""],
+      origin: allowedOrigins,
       credentials: true,
     },
   });
+  io = ioServer;
 
   /* -------------------------------------------------------------------------- */
   /* Socket authentication  */
   /* -------------------------------------------------------------------------- */
-  io.use((socket, next) => {
-    const cookieHeader = socket.handshake.auth.token;
-    if (!cookieHeader) {
-      return next(new NotFoundError("No cookies"));
+  ioServer.use((socket, next) => {
+    const cookieHeader = socket.handshake.auth?.token;
+    if (typeof !cookieHeader !== "string" || !cookieHeader) {
+      return next(new AuthError("Unauthorized"));
     }
 
     try {
       const payload = jwt.verify(cookieHeader, process.env.JWT_SECRET as string) as CustomJwtPayload;
+      if (!payload.userId) return next(new AuthError("Unauthorized"));
 
       socket.user = payload;
 
@@ -94,13 +99,8 @@ export const initializeSocket = (server: http.Server) => {
   /* -------------------------------------------------------------------------- */
   /* CONNECTION */
   /* -------------------------------------------------------------------------- */
-  io.on("connection", (socket: Socket) => {
+  ioServer.on("connection", (socket: Socket) => {
     const { userId, role } = socket.user;
-
-    if (!userId) {
-      socket.disconnect();
-      return;
-    }
 
     // User room
     socket.join(`user:${userId}`);
@@ -126,7 +126,7 @@ export const initializeSocket = (server: http.Server) => {
     }
 
     // Admin online count
-    io.to("admin-room").emit("user:count", {
+    ioServer.to("admin-room").emit("user:count", {
       count: onlineUsers.size,
     });
 
@@ -143,7 +143,7 @@ export const initializeSocket = (server: http.Server) => {
         });
       }
 
-      io.to("admin-room").emit("user:count", {
+      ioServer.to("admin-room").emit("user:count", {
         count: onlineUsers.size,
       });
     });

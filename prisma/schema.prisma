@@ -571,8 +571,12 @@ model Inquiry {
   ship   Ship   @relation(fields: [shipId], references: [id], onDelete: Cascade)
   shipId String
 
-  sender     User   @relation("InquiriesSent", fields: [senderId], references: [id], onDelete: Cascade)
-  senderId   String
+  sender     User?   @relation("InquiriesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId   String?
+
+  senderName  String
+  senderEmail String
+  senderPhone String?
 
   recipient   User   @relation("InquiriesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
   recipientId String
