@@ -581,6 +581,7 @@ model Inquiry {
   recipient   User   @relation("InquiriesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
   recipientId String
 
+  subject String @default("General inquiry")
   message String  @db.Text
   status  InquiryStatus @default(OPEN)
 

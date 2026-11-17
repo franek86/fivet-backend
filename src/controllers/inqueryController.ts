@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import prisma from "../prismaClient";
-import { createInquirySchema, listQuerySchema, SORT_FIELDS, STATUSES } from "../schemas/inquery.schema";
+import { createInquirySchema, idParamsSchema, listQuerySchema, SORT_FIELDS, STATUSES, updateStatusSchema } from "../schemas/inquery.schema";
 import { getIO } from "../services/socket.service";
 import { sendEmail } from "../utils/sendMail";
 import { Prisma } from "@prisma/client";
+import { ConflictError } from "../helpers/error.helpers";
 
 const escapeHtml = (value: string): string =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -18,6 +19,10 @@ const ORDER_BY: Record<SortBy, (order: Prisma.SortOrder) => Prisma.InquiryOrderB
   shipName: (order) => ({ ship: { shipName: order } }),
 };
 
+/*
+ * Create inquery
+ * Public - create inquery for specific vessel from web
+ */
 export const createInquiry = async (req: Request<ShipParams>, res: Response) => {
   try {
     const { shipId } = req.params;
@@ -43,6 +48,7 @@ export const createInquiry = async (req: Request<ShipParams>, res: Response) => 
           senderEmail: data.senderEmail,
           senderPhone: data.senderPhone,
           message: data.message,
+          subject: data.subject,
           shipId: ship.id,
           recipientId,
           senderId,
@@ -52,7 +58,7 @@ export const createInquiry = async (req: Request<ShipParams>, res: Response) => 
         data: {
           userId: recipientId,
           type: "INFO",
-          message: `New inquiry for ${ship.shipName} from ${data.senderName}`,
+          message: `New inquiry for ${ship.shipName} from ${data.senderName} : ${data.subject}`,
         },
       }),
     ]);
@@ -73,6 +79,7 @@ export const createInquiry = async (req: Request<ShipParams>, res: Response) => 
       shipName: escapeHtml(ship.shipName),
       senderName: escapeHtml(data.senderName),
       message: escapeHtml(data.message),
+      subject: escapeHtml(data.subject),
       messageLink: `${process.env.FRONTEND_URL}/inquiries`,
     };
     const emailToSend = ship?.listedBy?.email;
@@ -86,6 +93,10 @@ export const createInquiry = async (req: Request<ShipParams>, res: Response) => 
   }
 };
 
+/*
+ * Get my inquery list
+ * Protected - get inquery only for owenr of the vessel
+ */
 export const getMyInquiries = async (req: Request, res: Response) => {
   const parsed = listQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -106,6 +117,7 @@ export const getMyInquiries = async (req: Request, res: Response) => {
         { senderName: { contains: search, mode: "insensitive" } },
         { senderEmail: { contains: search, mode: "insensitive" } },
         { message: { contains: search, mode: "insensitive" } },
+        { subject: { contains: search, mode: "insensitive" } },
         { ship: { shipName: { contains: search, mode: "insensitive" } } },
       ],
     }),
@@ -125,6 +137,7 @@ export const getMyInquiries = async (req: Request, res: Response) => {
           senderEmail: true,
           senderPhone: true,
           message: true,
+          subject: true,
           status: true,
           createdAt: true,
           ship: {
@@ -155,5 +168,105 @@ export const getMyInquiries = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Get inquiries error:", error);
     res.status(500).json({ error: "Could not load inquiries" });
+  }
+};
+
+/*
+ * Update inquery status
+ * Protected - only owner can update status
+ */
+export const updateInqueryStatus = async (req: Request, res: Response) => {
+  const params = idParamsSchema.safeParse(req.params);
+  const body = updateStatusSchema.safeParse(req.body);
+
+  if (!params.success || !body.success) {
+    return res.status(400).json({ error: "Invalid request" });
+  }
+
+  try {
+    const result = await prisma.inquiry.updateMany({
+      where: { id: params.data.id, recipientId: req.user!.userId },
+      data: { status: body.data.status },
+    });
+    if (result.count === 0) return res.status(404).json({ error: "Inquiry not found" });
+
+    res.json({ id: params.data.id, status: body.data.status });
+  } catch (error) {
+    console.error("Update inquiry status error:", error);
+    res.status(500).json({ error: "Could not load inquiries" });
+  }
+};
+
+/*
+ * Delete inquery
+ * Protected - only owner ca delete inquery
+ */
+
+export const deleteInquiry = async (req: Request, res: Response) => {
+  const params = idParamsSchema.safeParse(req.params);
+  if (!params.success) return res.status(400).json({ error: "Invalid inquiry id" });
+
+  try {
+    const result = await prisma.inquiry.deleteMany({
+      where: { id: params.data.id, recipientId: req.user!.userId },
+    });
+    if (result.count === 0) return res.status(404).json({ error: "Inquiry not found" });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Delete inquiry error:", error);
+    res.status(500).json({ error: "Could not delete inquiry" });
+  }
+};
+
+/*
+ * Save sender to address book
+ * Protected
+ */
+
+export const saveInquirySenderToAddressBook = async (req: Request, res: Response) => {
+  console.log("Request param id ========= ", req.params);
+  const params = idParamsSchema.safeParse(req.params);
+  if (!params.success) return res.status(400).json({ error: "Invalid inquiry id" });
+
+  const userId = req.user!.userId;
+
+  try {
+    // recipientId in the WHERE = only the owner/broker who received the inquiry can use it
+    const inquiry = await prisma.inquiry.findFirst({
+      where: { id: params.data.id, recipientId: userId },
+      select: {
+        senderName: true,
+        senderEmail: true,
+        senderPhone: true,
+        ship: { select: { shipName: true } },
+      },
+    });
+    if (!inquiry) return res.status(404).json({ error: "Inquiry not found" });
+
+    // addressBook has no unique (userId, email), so check for a duplicate first
+    const existing = await prisma.addressBook.findFirst({
+      where: { userId, email: { equals: inquiry.senderEmail, mode: "insensitive" } },
+      select: { id: true },
+    });
+
+    if (existing) throw new ConflictError("Contact already exists in the address book");
+
+    const contact = await prisma.addressBook.create({
+      data: {
+        userId,
+        fullName: inquiry.senderName,
+        email: inquiry.senderEmail,
+        phone_number: inquiry.senderPhone,
+        note: `Inquiry about ${inquiry.ship.shipName}`,
+      },
+    });
+
+    console.log(contact);
+
+    res.status(201).json({ id: contact.id, alreadyExists: false });
+  } catch (error) {
+    console.error("Save sender to address book error:", error);
+    res.status(500).json({ error: "Could not save contact" });
   }
 };
