@@ -20,10 +20,10 @@ export const ShipFilterSchema = z.object({
 
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(12),
   sortBy: z.enum(["createdAt", "price", "shipName", "dwt", "beam", "draft"]).default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(12),
 });
 
 export type ShipFilters = z.infer<typeof ShipFilterSchema>;

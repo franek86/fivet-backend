@@ -358,7 +358,7 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
       whereCondition.ownerId = userId;
     }
 
-    const [data, total] = await Promise.all([
+    const [ships, total] = await Promise.all([
       prisma.ship.findMany({
         where: whereCondition,
         orderBy: { [filters.sortBy]: filters.order },
@@ -389,7 +389,7 @@ export const getDashboardShips = async (req: Request, res: Response): Promise<an
     return res.status(200).json({
       message: "Ships fetched successfully.",
       meta,
-      data,
+      ships,
     });
   } catch (error) {
     console.log(error);
