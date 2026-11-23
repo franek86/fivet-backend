@@ -7,9 +7,6 @@ import cookieParser from "cookie-parser";
 import http from "http";
 import path from "path";
 
-/* LIBS */
-import job from "./libs/cron";
-
 /* ROUTES IMPORT*/
 import authRoute from "./routes/authRoute";
 import shipRoute from "./routes/shipRoute";
@@ -18,7 +15,6 @@ import addressBookRoute from "./routes/addressBookRoute";
 import eventsRoute from "./routes/eventsRoute";
 import notificationRoute from "./routes/notificationRoute";
 import dashboardRoute from "./routes/dashboardRoute";
-import webhookStripeRoute from "./routes/stripeWebhookRoute";
 import stripeRoute from "./routes/stripeRoute";
 import paymentsRoute from "./routes/paymentsRoute";
 import postRoute from "./routes/blogRoute";
@@ -30,6 +26,8 @@ import chatRoute from "./routes/chatRoute";
 import statisticRoute from "./routes/statisticRoute";
 import settingsRoute from "./routes/settingsRoute";
 import inqueryRoute from "./routes/inqueryRoute";
+
+import { stripeWebhook } from "./controllers/stripeWebhookController";
 
 /* MIDDLEWARES */
 import { errorMiddleware } from "./middleware";
@@ -69,7 +67,7 @@ app.use(morgan("common"));
 app.use(cors(corsOptions));
 
 /* WEBHOOKS STRIPE MUST BE BEFORE bodyParser json  */
-app.use("/", webhookStripeRoute);
+app.post("/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
 /* MIDDLEWARES */
 app.use(express.json());
@@ -96,7 +94,6 @@ app.use("/address-book", addressBookRoute);
 app.use("/events", eventsRoute);
 app.use("/notification", notificationRoute);
 app.use("/dashboard", dashboardRoute);
-app.use("/stripe", stripeRoute);
 app.use("/payments", paymentsRoute);
 app.use("/posts", postRoute);
 app.use("/posts-category", postCategoryRoute);
@@ -106,6 +103,7 @@ app.use("/chat", chatRoute);
 app.use("/statistics", statisticRoute);
 app.use("/settings", settingsRoute);
 app.use("/inqueries", inqueryRoute);
+app.use("/stripe", stripeRoute);
 app.use(
   "/geo",
   express.static(path.resolve(process.cwd(), "public/geo"), {
@@ -120,8 +118,4 @@ app.use(errorMiddleware);
 const port = Number(process.env.PORT) || 5000;
 httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
-
-  if (process.env.NODE_ENV === "production") {
-    job.start();
-  }
 });

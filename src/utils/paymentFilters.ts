@@ -11,7 +11,13 @@ export const paymentFilters = (query: PaymentFilters) => {
     if (trimmed.length > 0) {
       where.OR = [
         {
-          stripePaymentId: {
+          subscriptionId: {
+            contains: trimmed,
+            mode: "insensitive",
+          },
+        },
+        {
+          stripeInvoiceId: {
             contains: trimmed,
             mode: "insensitive",
           },

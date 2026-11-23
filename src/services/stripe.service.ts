@@ -1,159 +1,45 @@
-import { NotificationType, Subscription } from "@prisma/client";
 import prisma from "../prismaClient";
-import { stripe } from "../utils/stripe";
-import { sendAdminNotification } from "../controllers/notificationController";
+import { stripe, STRIPE_PLANS } from "../utils/stripe";
 
-export const handleStripeEvent = async (event: any) => {
-  switch (event.type) {
-    case "invoice.payment_succeeded": {
-      const invoice = event.data.object;
-      const customerId = invoice.customer as string;
+import { CreateCheckoutInput } from "../schemas/stripe.schema";
+import { ValidationError } from "../helpers/error.helpers";
 
-      const user = await prisma.user.findFirst({
-        where: { stripeCustomerId: customerId },
-      });
-
-      if (user) {
-        const subscriptionId = invoice.parent?.subscription_details?.subscription || null;
-        let subscriptionType: Subscription = "STANDARD";
-
-        if (subscriptionId) {
-          const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-          const priceId = stripeSubscription.items.data[0].price.id;
-
-          if (priceId === process.env.STRIPE_PRICE_STANDARD) {
-            subscriptionType = "STANDARD";
-          } else if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
-            subscriptionType = "PREMIUM";
-          }
-        }
-
-        // Update user subscription & mark payment verified
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            subscription: subscriptionType,
-            verifyPayment: true,
-            stripeSubscriptionId: subscriptionId,
-            isActiveSubscription: true,
-          },
-        });
-
-        await prisma.payment.create({
-          data: {
-            userId: user.id,
-            amount: (invoice.amount_paid ?? 0) / 100,
-            stripePaymentId: invoice.payment_intent || "",
-            status: "PAID",
-          },
-        });
-
-        /* Add notification for admin */
-        const admin = await prisma.user.findFirst({
-          where: { role: "ADMIN" },
-        });
-
-        if (admin) {
-          await sendAdminNotification(admin.id, "New Payment Received", NotificationType.INFO);
-        }
-      }
-
-      break;
-    }
-
-    case "invoice.payment_failed": {
-      const invoice = event.data.object;
-      const customerId = invoice.customer as string;
-
-      const user = await prisma.user.findFirst({
-        where: { stripeCustomerId: customerId },
-      });
-
-      if (user) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            isActiveSubscription: false,
-          },
-        });
-
-        await prisma.payment.create({
-          data: {
-            userId: user.id,
-            amount: (invoice.amount_due ?? 0) / 100,
-            stripePaymentId: invoice.payment_intent || "",
-            status: "FAILED",
-          },
-        });
-      }
-      break;
-    }
-
-    case "customer.subscription.updated": {
-      const subscription = event.data.object;
-      const stripeSubId = subscription.id as string;
-      const customerId = subscription.customer as string;
-
-      const user = await prisma.user.findFirst({
-        where: { stripeCustomerId: customerId },
-      });
-
-      if (!user) break;
-
-      const priceId = subscription.items.data[0].price.id;
-
-      let subscriptionType: Subscription = "STANDARD";
-
-      if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
-        subscriptionType = "PREMIUM";
-      }
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          subscription: subscriptionType,
-          stripeSubscriptionId: stripeSubId,
-          isActiveSubscription: subscription.status === "active",
-        },
-      });
-
-      break;
-    }
-
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      const stripeSubId = subscription.id as string;
-
-      const user = await prisma.user.findFirst({ where: { stripeSubscriptionId: stripeSubId } });
-      if (!user) break;
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          subscription: "STARTER",
-          verifyPayment: false,
-          stripeSubscriptionId: null,
-          isActiveSubscription: false,
-        },
-      });
-      break;
-    }
-  }
-};
-
-export const cancelSubscription = async (userId: string) => {
+/* Create stripe checkout session */
+export const createCheckoutSession = async (userId: string, input: CreateCheckoutInput) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.stripeSubscriptionId) throw new Error("No active subscription found");
+  if (!user) throw new ValidationError("User not found");
 
-  await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+  const plan = STRIPE_PLANS[input.plan];
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      stripeSubscriptionId: null,
-      subscription: "STARTER",
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price: plan.priceId,
+        quantity: 1,
+      },
+    ],
+
+    success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
+    customer: user.stripeCustomerId || undefined,
+    customer_email: user.stripeCustomerId ? undefined : user.email,
+    client_reference_id: userId,
+    metadata: {
+      userId,
+      plan: input.plan,
+    },
+
+    subscription_data: {
+      metadata: {
+        userId,
+        plan: input.plan,
+      },
     },
   });
 
-  return { canceled: true };
+  return {
+    checkoutUrl: session.url,
+  };
 };

@@ -29,14 +29,11 @@ export const UserSchema = z.object({
   role: RoleEnum.default("BUYER"),
 
   subscription: SubscriptionEnum.default("STARTER"),
-  isActiveSubscription: z.boolean().default(false),
-  verifyPayment: z.boolean().default(false),
 
   stripeCustomerId: z.string().optional().nullable(),
-  stripeSubscriptionId: z.string().optional().nullable(),
 
-  isActive: z.boolean().default(false),
   lastLogin: z.date().optional().nullable(),
+  isActive: z.boolean().default(false),
 
   address: z.string().optional(),
   zipCode: z.string().optional(),
@@ -57,7 +54,6 @@ export const UserSchema = z.object({
 export const PublicUserSchema = UserSchema.omit({
   password: true,
   stripeCustomerId: true,
-  stripeSubscriptionId: true,
 });
 
 export const UserMeResponseSchema = UserSchema.pick({
@@ -66,8 +62,6 @@ export const UserMeResponseSchema = UserSchema.pick({
   fullName: true,
   subscription: true,
   isActive: true,
-  verifyPayment: true,
-  isActiveSubscription: true,
   avatar: true,
   companyName: true,
 }).extend({

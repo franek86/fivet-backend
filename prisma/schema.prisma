@@ -18,10 +18,18 @@ enum Role {
   BUYER
 }
 
-enum Subscription {
+enum SubscriptionPlan {
   STARTER
   STANDARD
   PREMIUM
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
 }
 
 enum Status {
@@ -51,7 +59,8 @@ enum PaymentStatus {
   PENDING     
   PAID        
   FAILED     
-  CANCELED   
+  CANCELED
+  REFUNDED 
 }
 
 enum PostStatus {
@@ -117,14 +126,10 @@ model User {
   fullName    String
   role        Role         @default(BUYER)
 
-  subscription Subscription @default(STARTER)
-  isActiveSubscription Boolean @default(false)
-
-  stripeCustomerId String?
-  stripeSubscriptionId String?
-
-  verifyPayment Boolean @default(false)
+  subscription Subscription[]
   payments Payment[]
+
+  stripeCustomerId String? @unique
 
   isActive    Boolean @default(false)
   lastLogin   DateTime?
@@ -430,16 +435,30 @@ model Notification {
 model Payment {
   id String @id @default(uuid())
 
-  user User @relation(fields: [userId], references: [id])
   userId String
+  user User @relation(fields: [userId], references: [id],  onDelete: Cascade)
 
-  status          PaymentStatus  @default(PENDING)
-  amount Float
-  currency String @default("EUR")
-  stripePaymentId String
+  subscriptionId String?
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+
+  amount Int
+  currency String
+
+  status PaymentStatus
+
+  paidAt DateTime?
+  
+  stripePaymentIntentId String? @unique
+  stripeInvoiceId String? @unique
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([status, createdAt])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+
   @@map("payments")
 }
 
@@ -484,8 +503,6 @@ model Post {
   @@index([categoryId])
   @@map("blogs")
 }
-
-
 
 model PostGallery {
   id      String    @id @default(uuid())
@@ -563,6 +580,50 @@ model SavedSearch {
   updatedAt DateTime @updatedAt
   @@map("savedSearch")
 }
+
+model Subscription {
+  id String @id @default(uuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeSubscriptionId String @unique
+  stripeCustomerId String
+
+  plan SubscriptionPlan
+  status SubscriptionStatus
+
+  stripePriceId String
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd DateTime?
+
+  cancelAtPeriodEnd Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+
+  @@map("subscription")
+}
+
+model StripeEvent {
+  id String @id @default(uuid())
+
+  stripeEventId String @unique
+  type String
+
+  processedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@map("stripeEvent")
+}
+
 
 // Buyer -> Broker/Owner contact request about a specific ship
 model Inquiry {

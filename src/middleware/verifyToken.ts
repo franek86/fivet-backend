@@ -12,7 +12,6 @@ export interface CustomJwtPayload {
   role: "ADMIN" | "BROKER" | "OWNER" | "BUYER";
   fullName: string;
   subscription: string;
-  isActiveSubscription: boolean;
 }
 
 export const authenticateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

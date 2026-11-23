@@ -135,18 +135,11 @@ export const verifyUser = async (req: Request, res: Response, next: NextFunction
     const accessToken = generateAccessToken({
       id: newUser.id,
       role: newUser.role,
-      fullName: newUser.fullName,
-      subscription: newUser.subscription,
-      isActiveSubscription: newUser.isActiveSubscription,
+      /*  fullName: newUser.fullName,
+      subscription: newUser.subscription, */
     });
 
-    const refreshToken = generateRefreshToken(
-      newUser.id,
-      /*  newUser.role,
-      newUser.fullName,
-      newUser.subscription,
-      newUser.isActiveSubscription, */
-    );
+    const refreshToken = generateRefreshToken(newUser.id);
 
     setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
     setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
@@ -229,9 +222,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const accessToken = generateAccessToken({
       id: user.id,
       role: user.role,
-      fullName: user.fullName,
-      subscription: user.subscription,
-      isActiveSubscription: user.isActiveSubscription,
+      /*  fullName: user.fullName,
+      subscription: user.subscription, */
     });
 
     const refreshExpiration = rememberMe ? "30d" : "7d";
@@ -271,9 +263,8 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     const accessToken = generateAccessToken({
       id: user.id,
       role: user.role,
-      fullName: user.fullName,
-      subscription: user.subscription,
-      isActiveSubscription: user.isActiveSubscription,
+      /*   fullName: user.fullName,
+      subscription: user.subscription, */
     });
 
     setCookie(res, "access_token", accessToken, 5 * 60 * 1000);
@@ -305,14 +296,17 @@ export const userMe = async (req: Request, res: Response, next: NextFunction): P
         fullName: true,
         email: true,
         role: true,
-        subscription: true,
-        verifyPayment: true,
-        isActiveSubscription: true,
+        subscription: {
+          select: {
+            plan: true,
+          },
+        },
         isActive: true,
         avatar: true,
         company: true,
-        brokerProfile: true,
-        ownerProfile: true,
+        brokerProfile: req.user?.role === "BROKER" ? { select: { verificationStatus: true } } : false,
+
+        ownerProfile: req.user?.role === "OWNER" ? { select: { verificationStatus: true } } : false,
       },
     });
 

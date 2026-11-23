@@ -1,10 +1,9 @@
-import { Router } from "express";
-import { getPaymentSession, postCancelSubscription, postCheckoutSession } from "../controllers/stripeController";
+import express from "express";
+import { authenticateUser } from "../middleware/verifyToken";
+import { createStripeCheckout } from "../controllers/stripeController";
 
-const router = Router();
+const router = express.Router();
 
-router.post("/cancel-subscription", postCancelSubscription);
-router.post("/create-checkout-session", postCheckoutSession);
-router.get("/get-session", getPaymentSession);
+router.post("/checkout", authenticateUser, createStripeCheckout);
 
 export default router;

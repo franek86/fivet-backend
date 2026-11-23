@@ -7,10 +7,8 @@ import { logger } from "../config/logger";
 import { sendOtp } from "../helpers/auth.helpers";
 import { AuthError, NotFoundError, ValidationError } from "../helpers/error.helpers";
 import { createOTP, verifyOtp } from "../services/otp.service";
-import { uploadSingleFile } from "../services/cloundinary.service";
 
 import { ChangePasswordSchema, ConfirmEmailChangeSchema, FreezeAccountSchema, RequestEmailChangeSchema } from "../schemas/settings.schema";
-import { buffer } from "stream/consumers";
 
 const getCurrentUser = async (req: Request) => {
   const userId = req.user?.userId;

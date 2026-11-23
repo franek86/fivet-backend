@@ -3,9 +3,8 @@ import jwt from "jsonwebtoken";
 type TokenUserType = {
   id: string;
   role: string;
-  fullName: string;
-  subscription: string;
-  isActiveSubscription: boolean;
+  /*  fullName: string;
+  subscription: string; */
 };
 
 type RefreshTokenPayload = {
@@ -21,9 +20,8 @@ export const generateAccessToken = (user: TokenUserType): string => {
     {
       userId: user.id,
       role: user.role,
-      fullName: user.fullName,
-      subscription: user.subscription,
-      isActiveSubscription: user.isActiveSubscription,
+      /* fullName: user.fullName,
+      subscription: user.subscription, */
     },
     process.env.JWT_SECRET as string,
     { expiresIn: "5m" },

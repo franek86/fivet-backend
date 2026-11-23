@@ -18,10 +18,10 @@ const router = express.Router();
 // Create a rate limiter for login attempts
 export const authLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 5, standardHeaders: true });
 
-router.post("/register", authLimiter, registerUser);
-router.post("/verify-user", authLimiter, verifyUser);
-router.post("/login", authLimiter, loginUser);
-router.post("/refresh-token", authLimiter, refreshToken);
+router.post("/register", registerUser);
+router.post("/verify-user", verifyUser);
+router.post("/login", loginUser);
+router.post("/refresh-token", refreshToken);
 router.post("/logout", logout);
 router.post("/forgot-password", authLimiter, forgotPassword);
 router.post("/verify-forgot-password", authLimiter, verifyForgotPassword);
