@@ -72,9 +72,6 @@ export const getPaymentDetails = async (req: Request<{ sessionId: string }>, res
       expand: ["subscription"],
     });
 
-    console.log("Session id ---- ", sessionId);
-    console.log("Session ---- ", session);
-
     const subscription = session.subscription;
 
     if (!subscription || typeof subscription === "string") {

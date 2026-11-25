@@ -48,6 +48,7 @@ export const serviceAdminDashboard = async () => {
     recentUsers,
     recentBlogs,
     recentAdminEvents,
+    recentSubscribers,
   ] = await Promise.all([
     prisma.ship.count(),
 
@@ -159,6 +160,22 @@ export const serviceAdminDashboard = async () => {
         },
       },
     }),
+
+    prisma.subscription.findMany({
+      orderBy: { createdAt: "desc" },
+      take: RECENT_LIMIT,
+      select: {
+        id: true,
+        plan: true,
+        currentPeriodStart: true,
+        user: {
+          select: {
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    }),
   ]);
 
   return {
@@ -184,6 +201,7 @@ export const serviceAdminDashboard = async () => {
     recentUsers,
     recentBlogs,
     recentAdminEvents,
+    recentSubscribers,
   };
 };
 

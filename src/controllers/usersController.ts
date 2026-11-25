@@ -13,7 +13,6 @@ import { UserFilterSchema, UserFilterType } from "../schemas/user.schema";
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const result = UserFilterSchema.safeParse(req.query);
-
     if (!result.success) {
       res.status(400).json({
         message: "Invalid filters",
@@ -37,12 +36,24 @@ export const getAllUsers = async (req: Request, res: Response) => {
             contains: search,
             mode: "insensitive",
           },
+        },
+        {
           email: {
             contains: search,
             mode: "insensitive",
           },
         },
       ];
+    }
+
+    console.log("Filters plan ", filters.plan);
+
+    if (filters.plan?.length) {
+      whereCondition.subscription = {
+        some: {
+          plan: { in: filters.plan },
+        },
+      };
     }
 
     const [users, totalUsers] = await Promise.all([
@@ -56,16 +67,19 @@ export const getAllUsers = async (req: Request, res: Response) => {
           fullName: true,
           email: true,
           isActive: true,
-          subscription: true,
+          subscription: {
+            select: {
+              plan: true,
+            },
+          },
           lastLogin: true,
           avatar: true,
           createdAt: true,
-          company: true,
           brokerProfile: true,
           ownerProfile: true,
         },
       }),
-      prisma.user.count(),
+      prisma.user.count({ where: whereCondition }),
     ]);
 
     const meta = buildPageMeta(totalUsers, filters.page, filters.limit);

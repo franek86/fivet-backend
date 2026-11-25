@@ -75,6 +75,17 @@ export const UserMeResponseSchema = UserSchema.pick({
 
 /* USER FILTER SCHEMA */
 export const UserFilterSchema = z.object({
+  plan: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value
+        ? value
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [],
+    ),
   search: z.string().trim().optional(),
   sortBy: z.enum(["createdAt"]).default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),

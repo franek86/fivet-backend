@@ -38,11 +38,11 @@ export const getRevenue = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    const data = await serviceRevenue(period as RevenuePeriod);
+    const revenue = await serviceRevenue(period as RevenuePeriod);
 
     res.status(200).json({
       success: true,
-      data,
+      revenue,
     });
   } catch (error) {
     next(error);
