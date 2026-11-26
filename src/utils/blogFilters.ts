@@ -33,6 +33,8 @@ export const blogFilters = (query: BlogFilters) => {
             contains: trimmed,
             mode: "insensitive",
           },
+        },
+        {
           shortDescription: {
             contains: trimmed,
             mode: "insensitive",

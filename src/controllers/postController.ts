@@ -156,6 +156,20 @@ export const getAllPosts = async (req: Request, res: Response) => {
         skip,
         take: filters.limit,
         orderBy: { [filters.sortBy]: filters.order },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          category: {
+            select: {
+              title: true,
+            },
+          },
+          bannerImage: true,
+          status: true,
+          views: true,
+          createdAt: true,
+        },
       }),
       prisma.post.count(where),
     ]);

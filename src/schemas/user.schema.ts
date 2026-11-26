@@ -86,7 +86,17 @@ export const UserFilterSchema = z.object({
             .filter(Boolean)
         : [],
     ),
+  role: z
+    .union([z.enum(["BROKER", "OWNER", "BUYER"]), z.array(z.enum(["BROKER", "OWNER", "BUYER"]))])
+    .transform((value) => (Array.isArray(value) ? value : [value]))
+    .optional(),
   search: z.string().trim().optional(),
+  isActive: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  createdFrom: z.string().date().optional(),
+  createdTo: z.string().date().optional(),
   sortBy: z.enum(["createdAt"]).default("createdAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),

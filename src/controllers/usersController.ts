@@ -46,13 +46,37 @@ export const getAllUsers = async (req: Request, res: Response) => {
       ];
     }
 
-    console.log("Filters plan ", filters.plan);
-
+    //User subscription plan filter
     if (filters.plan?.length) {
       whereCondition.subscription = {
         some: {
           plan: { in: filters.plan },
         },
+      };
+    }
+
+    //User online/offline filter
+    if (filters.isActive !== undefined) {
+      whereCondition.isActive = filters.isActive;
+    }
+
+    //Role filter
+    if (filters.role?.length) {
+      whereCondition.role = {
+        in: filters.role,
+      };
+    }
+
+    //Filter range date from - to
+    if (filters.createdFrom || filters.createdTo) {
+      whereCondition.createdAt = {
+        ...(filters.createdFrom && {
+          gte: new Date(filters.createdFrom),
+        }),
+
+        ...(filters.createdTo && {
+          lte: new Date(filters.createdTo),
+        }),
       };
     }
 
